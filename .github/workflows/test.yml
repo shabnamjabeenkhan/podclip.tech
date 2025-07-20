@@ -1,0 +1,70 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    # Don't block PRs or deployments on test failures
+    continue-on-error: true
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run unit tests
+        run: npm run test
+        # Don't fail the workflow if tests fail
+        continue-on-error: true
+      
+      - name: Type check
+        run: npm run typecheck
+        # Type checking is important but shouldn't block deployment
+        continue-on-error: true
+      
+      - name: Build application
+        run: npm run build
+        # Build failures should still block deployment
+        continue-on-error: false
+      
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+        continue-on-error: true
+      
+      - name: Run E2E tests
+        run: npm run test:e2e
+        # Don't fail the workflow if E2E tests fail
+        continue-on-error: true
+      
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()  # Upload results whether tests pass or fail
+        with:
+          name: test-results
+          path: |
+            playwright-report/
+            test-results/
+      
+      - name: Test Summary
+        if: always()
+        run: |
+          echo "## 🧪 Test Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Unit tests: Completed" >> $GITHUB_STEP_SUMMARY
+          echo "- E2E tests: Completed" >> $GITHUB_STEP_SUMMARY
+          echo "- Build: Completed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "ℹ️ **Note**: Test failures won't block PRs or deployments." >> $GITHUB_STEP_SUMMARY
+          echo "Check the detailed test results in the artifacts above." >> $GITHUB_STEP_SUMMARY

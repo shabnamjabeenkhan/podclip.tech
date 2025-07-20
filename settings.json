@@ -1,0 +1,22 @@
+{
+  "hooks": {
+    "stop": [
+      {
+        "type": "command",
+        "command": [
+          "python3",
+          "/Users/our-rahmaan/conductor/repo/kaizen/albany/.claude/hooks/hook_handler.py"
+        ]
+      }
+    ],
+    "notification": [
+      {
+        "type": "command", 
+        "command": [
+          "python3",
+          "/Users/our-rahmaan/conductor/repo/kaizen/albany/.claude/hooks/hook_handler.py"
+        ]
+      }
+    ]
+  }
+}
