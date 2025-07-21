@@ -9,6 +9,7 @@
  */
 
 import type * as http from "../http.js";
+import type * as listening from "../listening.js";
 import type * as podcasts from "../podcasts.js";
 import type * as sendEmails from "../sendEmails.js";
 import type * as subscriptions from "../subscriptions.js";
@@ -31,6 +32,7 @@ import type {
  */
 declare const fullApi: ApiFromModules<{
   http: typeof http;
+  listening: typeof listening;
   podcasts: typeof podcasts;
   sendEmails: typeof sendEmails;
   subscriptions: typeof subscriptions;

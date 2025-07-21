@@ -15,6 +15,7 @@ import "./app.css";
 import { Analytics } from "@vercel/analytics/react";
 import { config, initializeConfig, isFeatureEnabled, isServiceEnabled } from "../config";
 import { Toaster } from "sonner";
+import { AppContextProvider } from "./contexts/app-context";
 
 // Initialize configuration
 initializeConfig();
@@ -108,7 +109,9 @@ export default function App({ loaderData }: Route.ComponentProps) {
       signInFallbackRedirectUrl="/"
     >
       <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
-        <Outlet />
+        <AppContextProvider>
+          <Outlet />
+        </AppContextProvider>
       </ConvexProviderWithClerk>
     </ClerkProvider>
   );
@@ -122,7 +125,9 @@ export default function App({ loaderData }: Route.ComponentProps) {
         signUpFallbackRedirectUrl="/"
         signInFallbackRedirectUrl="/"
       >
-        <Outlet />
+        <AppContextProvider>
+          <Outlet />
+        </AppContextProvider>
       </ClerkProvider>
     );
   }
@@ -131,13 +136,19 @@ export default function App({ loaderData }: Route.ComponentProps) {
   if (!authEnabled && convexEnabled && convex) {
     return (
       <ConvexProvider client={convex}>
-        <Outlet />
+        <AppContextProvider>
+          <Outlet />
+        </AppContextProvider>
       </ConvexProvider>
     );
   }
 
   // Case 4: Neither auth nor convex enabled
-  return <Outlet />;
+  return (
+    <AppContextProvider>
+      <Outlet />
+    </AppContextProvider>
+  );
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {

@@ -3,9 +3,10 @@ import { action } from "./_generated/server";
 
 export const searchPodcasts = action({
   args: { query: v.string() },
-  handler: async (ctx, args) => {
+  handler: async (_, args) => {
+    // Note: Free Listen Notes API plan is limited to 10 results per request
     const response = await fetch(
-      `https://listen-api.listennotes.com/api/v2/search?q=${args.query}&type=podcast`,
+      `https://listen-api.listennotes.com/api/v2/search?q=${encodeURIComponent(args.query)}&type=podcast&safe_mode=0`,
       {
         headers: {
           "X-ListenAPI-Key": process.env.LISTEN_NOTES_API_KEY!,
@@ -17,13 +18,16 @@ export const searchPodcasts = action({
       throw new Error(`API request failed: ${response.status}`);
     }
     
-    return await response.json();
+    const data = await response.json();
+    console.log(`Search results: ${data.results?.length || 0} podcasts returned (Free plan limit: 10)`);
+    
+    return data;
   },
 });
 
 export const getPodcastEpisodes = action({
   args: { podcastId: v.string() },
-  handler: async (ctx, args) => {
+  handler: async (_, args) => {
     const response = await fetch(
       `https://listen-api.listennotes.com/api/v2/podcasts/${args.podcastId}`,
       {

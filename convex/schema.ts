@@ -5,8 +5,9 @@ export default defineSchema({
   // Users table: Clerk user ID, plan, summary count, Notion token (optional)
   users: defineTable({
     tokenIdentifier: v.string(), // Clerk user ID
-    plan: v.optional(v.string()), // "monthly" | "lifetime"
+    plan: v.optional(v.string()), // "free" | "monthly" | "lifetime"
     summary_count: v.optional(v.number()), // Number of summaries generated
+    quota_reset_date: v.optional(v.number()), // For monthly subscribers, timestamp of next reset
     notion_token: v.optional(v.string()), // Notion API token (optional)
     name: v.optional(v.string()),
     email: v.optional(v.string()),
@@ -80,8 +81,47 @@ export default defineSchema({
     content: v.string(), // Summary text
     takeaways: v.array(v.string()), // Array of key takeaways
     created_at: v.number(), // Timestamp
+    episode_title: v.optional(v.string()), // Cache episode title for display
+    podcast_title: v.optional(v.string()), // Cache podcast title for display
+    tags: v.optional(v.array(v.string())), // User-defined tags
+    is_favorite: v.optional(v.boolean()), // User favorite flag
   })
     .index("by_episode_user", ["episode_id", "user_id"])
+    .index("by_user", ["user_id"])
+    .index("by_user_created", ["user_id", "created_at"]),
+
+  // Listening history table: Track what users have played
+  listening_history: defineTable({
+    user_id: v.string(), // Reference to users.tokenIdentifier
+    episode_id: v.string(), // Reference to episodes.episode_id
+    podcast_id: v.string(), // Reference to podcasts.podcast_id
+    episode_title: v.string(), // Cache for display
+    podcast_title: v.string(), // Cache for display
+    episode_thumbnail: v.optional(v.string()), // Cache thumbnail
+    audio_url: v.string(), // Audio URL
+    duration: v.number(), // Total episode duration in seconds
+    listened_duration: v.number(), // How much user listened in seconds
+    last_position: v.number(), // Last playback position in seconds
+    completed: v.boolean(), // Whether user finished the episode
+    started_at: v.number(), // When user started listening
+    last_played_at: v.number(), // Last time user played this episode
+  })
+    .index("by_user", ["user_id"])
+    .index("by_user_last_played", ["user_id", "last_played_at"])
+    .index("by_episode_user", ["episode_id", "user_id"]),
+
+  // User preferences table: Dashboard settings and preferences
+  user_preferences: defineTable({
+    user_id: v.string(), // Reference to users.tokenIdentifier
+    dashboard_layout: v.optional(v.string()), // "grid" | "list"
+    default_playback_speed: v.optional(v.number()), // 0.5 to 3.0
+    auto_play_next: v.optional(v.boolean()), // Auto play next episode
+    favorite_podcasts: v.optional(v.array(v.string())), // Array of podcast IDs
+    preferred_summary_length: v.optional(v.string()), // "short" | "medium" | "long"
+    email_notifications: v.optional(v.boolean()), // Email notification preference
+    created_at: v.number(),
+    updated_at: v.number(),
+  })
     .index("by_user", ["user_id"]),
 
   // (Optional) Notion tokens table for future extensibility

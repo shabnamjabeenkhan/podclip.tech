@@ -5,6 +5,8 @@ import { SidebarInset, SidebarProvider } from "~/components/ui/sidebar";
 import type { Route } from "./+types/layout";
 import { Outlet } from "react-router";
 import { isFeatureEnabled, isServiceEnabled } from "../../../config";
+import { MiniPlayer } from "~/components/audio/mini-player";
+import { useKeyboardShortcuts } from "~/hooks/use-keyboard-shortcuts";
 
 export async function loader(args: Route.LoaderArgs) {
   const authEnabled = isFeatureEnabled("auth") && isServiceEnabled("clerk");
@@ -54,6 +56,9 @@ export async function loader(args: Route.LoaderArgs) {
 
 export default function DashboardLayout() {
   const { user, authEnabled } = useLoaderData();
+  
+  // Enable keyboard shortcuts globally in dashboard
+  useKeyboardShortcuts();
 
   return (
     <SidebarProvider
@@ -67,8 +72,11 @@ export default function DashboardLayout() {
       <AppSidebar variant="inset" user={user} />
       <SidebarInset>
         <SiteHeader />
-        <Outlet />
+        <div className="pb-20"> {/* Add padding for mini player */}
+          <Outlet />
+        </div>
       </SidebarInset>
+      <MiniPlayer />
     </SidebarProvider>
   );
 }

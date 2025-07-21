@@ -10,6 +10,14 @@ export const generateSummary = action({
     userId: v.string(),
   },
   handler: async (ctx, args): Promise<any> => {
+    // Check quota before generating summary
+    const quotaStatus = await ctx.runMutation(internal.users.checkAndResetQuota);
+    
+    if (!quotaStatus.canGenerate) {
+      throw new Error(`Quota exceeded. You have used ${quotaStatus.used}/${quotaStatus.limit} summaries. ${
+        quotaStatus.limit === 5 ? "Upgrade to get more summaries." : "Your quota will reset next month."
+      }`);
+    }
     // Generate summary using OpenAI
     const prompt = `
 Please analyze this podcast episode and provide:
@@ -95,6 +103,9 @@ KEY TAKEAWAYS:
         "Consistent practice and dedication are key to improvement"
       ];
 
+      // Increment user's summary count after successful generation (fallback case)
+      await ctx.runMutation(internal.users.incrementSummaryCount);
+
       return {
         id: "temp-id",
         summary,
@@ -120,6 +131,9 @@ KEY TAKEAWAYS:
       .split("•")
       .map((item: string) => item.trim())
       .filter((item: string) => item.length > 0);
+
+    // Increment user's summary count after successful generation
+    await ctx.runMutation(internal.users.incrementSummaryCount);
 
     return {
       id: "temp-id",

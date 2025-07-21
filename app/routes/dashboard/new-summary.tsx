@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { useAction, useMutation } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
+import { EnhancedAudioPlayer } from "~/components/audio/enhanced-audio-player";
+import type { Episode } from "~/contexts/app-context";
 
 export default function NewSummary() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -8,18 +10,15 @@ export default function NewSummary() {
   const [selectedPodcast, setSelectedPodcast] = useState<any>(null);
   const [episodes, setEpisodes] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
-  const [audioRefs, setAudioRefs] = useState<{[key: string]: HTMLAudioElement}>({});
-  const [currentTime, setCurrentTime] = useState<{[key: string]: number}>({});
-  const [duration, setDuration] = useState<{[key: string]: number}>({});
-  const [isPlaying, setIsPlaying] = useState<{[key: string]: boolean}>({});
   const [generatingSummary, setGeneratingSummary] = useState<{[key: string]: boolean}>({});
   const [summaries, setSummaries] = useState<{[key: string]: any}>({});
+  const [summaryErrors, setSummaryErrors] = useState<{[key: string]: string}>({});
   
   const searchPodcasts = useAction(api.podcasts.searchPodcasts);
   const getPodcastEpisodes = useAction(api.podcasts.getPodcastEpisodes);
   const generateSummary = useAction(api.summaries.generateSummary);
   const createSummary = useMutation(api.summaries.createSummary);
+  const userQuota = useQuery(api.users.getUserQuota);
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -52,76 +51,6 @@ export default function NewSummary() {
     }
   };
 
-  const handlePlayPause = (episodeId: string, audioUrl: string) => {
-    const audioRef = audioRefs[episodeId];
-    
-    if (currentlyPlaying === episodeId) {
-      // Pause current episode
-      if (audioRef) {
-        audioRef.pause();
-        setIsPlaying(prev => ({ ...prev, [episodeId]: false }));
-      }
-      setCurrentlyPlaying(null);
-    } else {
-      // Stop any currently playing audio
-      if (currentlyPlaying && audioRefs[currentlyPlaying]) {
-        audioRefs[currentlyPlaying].pause();
-        setIsPlaying(prev => ({ ...prev, [currentlyPlaying]: false }));
-      }
-      
-      // Play new episode
-      if (audioRef) {
-        audioRef.play();
-        setIsPlaying(prev => ({ ...prev, [episodeId]: true }));
-      } else {
-        // Create new audio element
-        const newAudio = new Audio(audioUrl);
-        
-        // Add event listeners
-        newAudio.addEventListener('loadedmetadata', () => {
-          setDuration(prev => ({ ...prev, [episodeId]: newAudio.duration }));
-        });
-        
-        newAudio.addEventListener('timeupdate', () => {
-          setCurrentTime(prev => ({ ...prev, [episodeId]: newAudio.currentTime }));
-        });
-        
-        newAudio.addEventListener('ended', () => {
-          setIsPlaying(prev => ({ ...prev, [episodeId]: false }));
-          setCurrentlyPlaying(null);
-        });
-        
-        newAudio.play();
-        setAudioRefs(prev => ({ ...prev, [episodeId]: newAudio }));
-        setIsPlaying(prev => ({ ...prev, [episodeId]: true }));
-      }
-      setCurrentlyPlaying(episodeId);
-    }
-  };
-
-  const handleSeek = (episodeId: string, seekTime: number) => {
-    const audioRef = audioRefs[episodeId];
-    if (audioRef) {
-      audioRef.currentTime = seekTime;
-      setCurrentTime(prev => ({ ...prev, [episodeId]: seekTime }));
-    }
-  };
-
-  const handleSkip = (episodeId: string, seconds: number) => {
-    const audioRef = audioRefs[episodeId];
-    if (audioRef) {
-      const newTime = Math.max(0, Math.min(audioRef.duration, audioRef.currentTime + seconds));
-      audioRef.currentTime = newTime;
-      setCurrentTime(prev => ({ ...prev, [episodeId]: newTime }));
-    }
-  };
-
-  const formatTime = (seconds: number) => {
-    if (!seconds || isNaN(seconds)) return "0:00";
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
 
   const handleGenerateSummary = async (episode: any) => {
     const episodeId = episode.id;
@@ -131,6 +60,8 @@ export default function NewSummary() {
       return;
     }
 
+    // Clear any previous errors
+    setSummaryErrors(prev => ({ ...prev, [episodeId]: '' }));
     setGeneratingSummary(prev => ({ ...prev, [episodeId]: true }));
     
     try {
@@ -138,13 +69,13 @@ export default function NewSummary() {
         episodeId: episodeId,
         episodeTitle: episode.title,
         episodeDescription: episode.description,
-        userId: "temp-user-id", // TODO: Get actual user ID from auth
+        userId: userQuota?.userId || "temp-user-id", // Get actual user ID from quota query
       });
       
       // Save summary to database
       await createSummary({
         episodeId: episodeId,
-        userId: "temp-user-id",
+        userId: userQuota?.userId || "temp-user-id",
         summary: summary.summary,
         takeaways: summary.takeaways,
         episodeTitle: episode.title,
@@ -152,9 +83,17 @@ export default function NewSummary() {
       
       setSummaries(prev => ({ ...prev, [episodeId]: summary }));
       console.log("Generated and saved summary:", summary);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to generate summary:", error);
-      alert("Failed to generate summary. Please try again.");
+      
+      // Set error state for this episode
+      const errorMessage = error.message || "Failed to generate summary. Please try again.";
+      setSummaryErrors(prev => ({ ...prev, [episodeId]: errorMessage }));
+      
+      // Show user-friendly error messages for quota issues
+      if (errorMessage.includes("Quota exceeded")) {
+        alert(errorMessage);
+      }
     } finally {
       setGeneratingSummary(prev => ({ ...prev, [episodeId]: false }));
     }
@@ -162,10 +101,64 @@ export default function NewSummary() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Create New Summary</h1>
-          <p className="text-gray-600 mb-8">Search for a podcast and select an episode to generate an AI summary</p>
+      <div className="max-w-4xl mx-auto p-4 sm:p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-8">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Create New Summary</h1>
+          <p className="text-sm sm:text-base text-gray-600 mb-6">Search for a podcast and select an episode to generate an AI summary</p>
+          
+          {/* Quota Indicator */}
+          {userQuota && (
+            <div className={`mb-8 p-4 rounded-lg border-2 ${
+              !userQuota.canGenerate 
+                ? 'bg-red-50 border-red-200' 
+                : userQuota.remaining !== -1 && userQuota.remaining <= 2
+                  ? 'bg-yellow-50 border-yellow-200'
+                  : 'bg-green-50 border-green-200'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`w-3 h-3 rounded-full ${
+                    !userQuota.canGenerate 
+                      ? 'bg-red-500' 
+                      : userQuota.remaining !== -1 && userQuota.remaining <= 2
+                        ? 'bg-yellow-500'
+                        : 'bg-green-500'
+                  }`}></div>
+                  <div>
+                    <p className={`font-medium ${
+                      !userQuota.canGenerate 
+                        ? 'text-red-800' 
+                        : userQuota.remaining !== -1 && userQuota.remaining <= 2
+                          ? 'text-yellow-800'
+                          : 'text-green-800'
+                    }`}>
+                      {userQuota.limit === -1 
+                        ? "Unlimited summaries" 
+                        : `${userQuota.used}/${userQuota.limit} summaries used`}
+                    </p>
+                    <p className={`text-sm ${
+                      !userQuota.canGenerate 
+                        ? 'text-red-600' 
+                        : userQuota.remaining !== -1 && userQuota.remaining <= 2
+                          ? 'text-yellow-600'
+                          : 'text-green-600'
+                    }`}>
+                      {!userQuota.canGenerate 
+                        ? (userQuota.limit === 5 ? "Quota exhausted. Upgrade to continue." : "Monthly quota exhausted. Resets next month.")
+                        : userQuota.limit === -1 
+                          ? "You have unlimited summaries with your current plan"
+                          : `${userQuota.remaining} summaries remaining${userQuota.plan === 'monthly' ? ' this month' : ''}`}
+                    </p>
+                  </div>
+                </div>
+                {!userQuota.canGenerate && userQuota.limit === 5 && (
+                  <button className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
+                    Upgrade Plan
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
           
           {/* Search Input */}
           <div className="mb-8">
@@ -302,112 +295,168 @@ export default function NewSummary() {
                           </div>
                         </div>
                         <div className="flex-shrink-0">
+                          {summaryErrors[episode.id] && !summaries[episode.id] && (
+                            <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                              <div className="flex items-start gap-2">
+                                <svg className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm text-red-800 mb-2">
+                                    {summaryErrors[episode.id]}
+                                  </p>
+                                  <button
+                                    onClick={() => handleGenerateSummary(episode)}
+                                    disabled={generatingSummary[episode.id]}
+                                    className="text-sm font-medium text-red-700 hover:text-red-900 underline disabled:opacity-50"
+                                  >
+                                    Try Again
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          
                           <button 
                             onClick={() => handleGenerateSummary(episode)}
-                            disabled={generatingSummary[episode.id]}
-                            className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium rounded-lg hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={generatingSummary[episode.id] || !userQuota?.canGenerate}
+                            className={`px-4 sm:px-6 py-2 sm:py-3 font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base ${
+                              !userQuota?.canGenerate 
+                                ? 'bg-gray-400 text-white cursor-not-allowed'
+                                : summaryErrors[episode.id] && !summaries[episode.id]
+                                  ? 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500'
+                                  : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 focus:ring-blue-500'
+                            }`}
+                            title={!userQuota?.canGenerate ? "Quota exceeded. Upgrade or wait for reset." : ""}
                           >
-                            {generatingSummary[episode.id] ? "Generating..." : 
-                             summaries[episode.id] ? "Summary Generated" : "Generate Summary"}
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Audio Player */}
-                      <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                        <div className="flex items-center gap-4">
-                          {/* Play/Pause Button */}
-                          <button 
-                            onClick={() => handlePlayPause(episode.id, episode.audio)}
-                            className="flex items-center justify-center w-12 h-12 bg-green-600 text-white rounded-full hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all"
-                            title={isPlaying[episode.id] ? "Pause episode" : "Play episode"}
-                          >
-                            {isPlaying[episode.id] ? (
-                              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
-                              </svg>
+                            {generatingSummary[episode.id] ? (
+                              <span className="flex items-center gap-2">
+                                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="m12 2 1 9-1 9a10 10 0 0 1 0-18Z"></path>
+                                </svg>
+                                <span className="hidden sm:inline">Generating...</span>
+                                <span className="sm:hidden">...</span>
+                              </span>
+                            ) : summaries[episode.id] ? (
+                              <span className="flex items-center gap-2">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                <span className="hidden sm:inline">Summary Generated</span>
+                                <span className="sm:hidden">Done</span>
+                              </span>
+                            ) : summaryErrors[episode.id] ? (
+                              <span className="flex items-center gap-2">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4l16 16m0-16L4 20" />
+                                </svg>
+                                <span className="hidden sm:inline">Retry</span>
+                                <span className="sm:hidden">Retry</span>
+                              </span>
+                            ) : !userQuota?.canGenerate ? (
+                              <span className="hidden sm:inline">Quota Exceeded</span>
                             ) : (
-                              <svg className="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M8 5v14l11-7z"/>
-                              </svg>
+                              <span>
+                                <span className="hidden sm:inline">Generate Summary</span>
+                                <span className="sm:hidden">Generate</span>
+                              </span>
                             )}
                           </button>
-
-                          {/* Skip Back Button */}
-                          <button 
-                            onClick={() => handleSkip(episode.id, -15)}
-                            className="p-2 text-gray-600 hover:text-gray-800 transition-colors"
-                            title="Skip back 15 seconds"
-                          >
-                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M11.99 5V1l-5 5 5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6h-2c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
-                              <text x="12" y="16" fontSize="8" textAnchor="middle" fill="white">15</text>
-                            </svg>
-                          </button>
-
-                          {/* Progress Bar and Time */}
-                          <div className="flex-1 flex items-center gap-3">
-                            <span className="text-sm text-gray-600 min-w-[3rem]">
-                              {formatTime(currentTime[episode.id] || 0)}
-                            </span>
-                            <div className="flex-1 relative">
-                              <input
-                                type="range"
-                                min="0"
-                                max={duration[episode.id] || episode.audio_length_sec || 100}
-                                value={currentTime[episode.id] || 0}
-                                onChange={(e) => handleSeek(episode.id, parseFloat(e.target.value))}
-                                className="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer slider"
-                                style={{
-                                  background: `linear-gradient(to right, #10b981 0%, #10b981 ${((currentTime[episode.id] || 0) / (duration[episode.id] || episode.audio_length_sec || 100)) * 100}%, #d1d5db ${((currentTime[episode.id] || 0) / (duration[episode.id] || episode.audio_length_sec || 100)) * 100}%, #d1d5db 100%)`
-                                }}
-                              />
-                            </div>
-                            <span className="text-sm text-gray-600 min-w-[3rem]">
-                              {formatTime(duration[episode.id] || episode.audio_length_sec || 0)}
-                            </span>
-                          </div>
-
-                          {/* Skip Forward Button */}
-                          <button 
-                            onClick={() => handleSkip(episode.id, 30)}
-                            className="p-2 text-gray-600 hover:text-gray-800 transition-colors"
-                            title="Skip forward 30 seconds"
-                          >
-                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M12 5V1l5 5-5 5V7c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6h2c0 4.42-3.58 8-8 8s-8-3.58-8-8 3.58-8 8-8z"/>
-                              <text x="12" y="16" fontSize="8" textAnchor="middle" fill="white">30</text>
-                            </svg>
-                          </button>
                         </div>
                       </div>
+
+                      {/* Enhanced Audio Player */}
+                      <EnhancedAudioPlayer 
+                        episode={{
+                          id: episode.id,
+                          title: episode.title,
+                          audio: episode.audio,
+                          duration: episode.audio_length_sec || 0,
+                          podcastTitle: selectedPodcast.title_original,
+                          podcastId: selectedPodcast.id,
+                          thumbnail: selectedPodcast.image,
+                        }}
+                      />
 
                       {/* Summary Display */}
                       {summaries[episode.id] && (
-                        <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
-                          <h4 className="text-lg font-semibold text-blue-900 mb-4">AI Generated Summary</h4>
+                        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 sm:p-6 border border-blue-200 shadow-sm animate-in slide-in-from-top-4 duration-500">
+                          <div className="flex items-center justify-between mb-4">
+                            <h4 className="text-base sm:text-lg font-semibold text-blue-900 flex items-center gap-2">
+                              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                              </svg>
+                              AI Generated Summary
+                            </h4>
+                            <button
+                              onClick={() => navigator.clipboard.writeText(summaries[episode.id].summary)}
+                              className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-lg transition-colors touch-manipulation"
+                              title="Copy summary"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                              </svg>
+                            </button>
+                          </div>
                           
-                          <div className="space-y-4">
-                            <div>
-                              <h5 className="font-medium text-blue-800 mb-2">Summary:</h5>
-                              <p className="text-blue-700 leading-relaxed">
+                          <div className="space-y-6">
+                            <div className="bg-white rounded-lg p-4 border border-blue-100 shadow-sm">
+                              <h5 className="font-semibold text-blue-900 mb-3 flex items-center gap-2 text-sm sm:text-base">
+                                <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                Summary
+                              </h5>
+                              <p className="text-blue-800 leading-relaxed text-sm sm:text-base">
                                 {summaries[episode.id].summary}
                               </p>
                             </div>
                             
                             {summaries[episode.id].takeaways && summaries[episode.id].takeaways.length > 0 && (
-                              <div>
-                                <h5 className="font-medium text-blue-800 mb-2">Key Takeaways:</h5>
-                                <ul className="space-y-1">
+                              <div className="bg-white rounded-lg p-4 border border-blue-100 shadow-sm">
+                                <h5 className="font-semibold text-blue-900 mb-3 flex items-center gap-2 text-sm sm:text-base">
+                                  <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                  </svg>
+                                  Key Takeaways
+                                </h5>
+                                <ul className="space-y-3">
                                   {summaries[episode.id].takeaways.map((takeaway: string, index: number) => (
-                                    <li key={index} className="flex items-start gap-2 text-blue-700">
-                                      <span className="text-blue-500 mt-1">•</span>
-                                      <span>{takeaway}</span>
+                                    <li key={index} className="flex items-start gap-3 text-blue-800 animate-in fade-in slide-in-from-left-4 duration-300" style={{animationDelay: `${index * 100}ms`}}>
+                                      <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-medium mt-0.5">
+                                        {index + 1}
+                                      </span>
+                                      <span className="text-sm sm:text-base leading-relaxed">{takeaway}</span>
                                     </li>
                                   ))}
                                 </ul>
                               </div>
                             )}
+
+                            {/* Action Buttons */}
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                onClick={() => navigator.clipboard.writeText(summaries[episode.id].summary)}
+                                className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 transition-colors touch-manipulation"
+                              >
+                                <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                                Copy Summary
+                              </button>
+                              {summaries[episode.id].takeaways && (
+                                <button
+                                  onClick={() => navigator.clipboard.writeText(summaries[episode.id].takeaways.join('\n• '))}
+                                  className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-green-700 bg-green-100 hover:bg-green-200 transition-colors touch-manipulation"
+                                >
+                                  <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                  </svg>
+                                  Copy Takeaways
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       )}
