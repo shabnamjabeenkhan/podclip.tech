@@ -36,26 +36,27 @@ export async function loader(args: Route.LoaderArgs) {
     }).users.getUser(userId);
   }
 
-  // 2. Subscription check
-  if (paymentsEnabled && convexEnabled && userId) {
-    const { fetchQuery } = await import("convex/nextjs");
+  // 2. User setup (instead of requiring subscription)
+  if (convexEnabled && userId) {
+    const { fetchMutation } = await import("convex/nextjs");
     const { api } = await import("../../../convex/_generated/api");
 
-    const subscriptionStatus = await fetchQuery(
-      api.subscriptions.checkUserSubscriptionStatusByClerkId,
-      { clerkUserId: userId }
-    );
-
-    if (!subscriptionStatus?.hasActiveSubscription) {
-      throw redirect("/subscription-required");
+    // Ensure user exists in database (create if needed)
+    try {
+      await fetchMutation(api.users.upsertUser);
+    } catch (error) {
+      console.warn("Failed to upsert user:", error);
     }
+
+    // No subscription check here - let users access dashboard with free quota
+    // Payment will only be required when they try to upgrade after hitting quota limit
   }
 
   return { user, authEnabled, paymentsEnabled };
 }
 
 export default function DashboardLayout() {
-  const { user, authEnabled } = useLoaderData();
+  const { user } = useLoaderData();
   
   // Enable keyboard shortcuts globally in dashboard
   useKeyboardShortcuts();

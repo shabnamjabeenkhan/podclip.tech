@@ -132,6 +132,7 @@ const AudioContext = createContext<{
 export function AudioProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(audioReducer, initialState);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const loadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Convenience methods
   const playEpisode = (episode: Episode) => {
@@ -191,6 +192,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     if (!audio) return;
 
     const handleLoadedMetadata = () => {
+      console.log('Audio metadata loaded, duration:', audio.duration);
       dispatch({ type: 'SET_DURATION', payload: audio.duration });
       // Apply stored settings
       audio.volume = state.volume;
@@ -214,16 +216,58 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       dispatch({ type: 'SET_CURRENT_TIME', payload: 0 });
     };
 
-    const handleError = () => {
-      dispatch({ type: 'SET_ERROR', payload: 'Failed to load audio' });
+    const handleError = (event: Event) => {
+      console.error('Audio loading error:', event, audio.error);
+      const errorMessage = audio.error ? 
+        `Audio error (${audio.error.code}): ${audio.error.message}` : 
+        'Failed to load audio';
+      dispatch({ type: 'SET_ERROR', payload: errorMessage });
     };
 
     const handleLoadStart = () => {
+      console.log('Audio load started');
       dispatch({ type: 'SET_LOADING', payload: true });
+      
+      // Set a timeout to show a helpful message if loading takes too long
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+      }
+      loadTimeoutRef.current = setTimeout(() => {
+        if (state.isLoading && !state.error) {
+          dispatch({ type: 'SET_ERROR', payload: 'Audio is taking longer than expected to load. This may be due to a slow connection or large file size. Please wait...' });
+        }
+      }, 10000); // 10 seconds
     };
 
     const handleCanPlay = () => {
+      // Don't stop loading yet - wait for enough buffering
+    };
+
+    const handleCanPlayThrough = () => {
+      // Enough audio has buffered to play through
+      console.log('Audio can play through - clearing loading');
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+        loadTimeoutRef.current = null;
+      }
       dispatch({ type: 'SET_LOADING', payload: false });
+      dispatch({ type: 'SET_ERROR', payload: null }); // Clear any timeout messages
+    };
+
+    const handleWaiting = () => {
+      // Player is waiting for more data
+      dispatch({ type: 'SET_LOADING', payload: true });
+    };
+
+    const handlePlaying = () => {
+      // Audio started playing
+      console.log('Audio started playing - clearing loading');
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+        loadTimeoutRef.current = null;
+      }
+      dispatch({ type: 'SET_LOADING', payload: false });
+      dispatch({ type: 'SET_ERROR', payload: null }); // Clear any timeout messages
     };
 
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
@@ -234,6 +278,9 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     audio.addEventListener('error', handleError);
     audio.addEventListener('loadstart', handleLoadStart);
     audio.addEventListener('canplay', handleCanPlay);
+    audio.addEventListener('canplaythrough', handleCanPlayThrough);
+    audio.addEventListener('waiting', handleWaiting);
+    audio.addEventListener('playing', handlePlaying);
 
     return () => {
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
@@ -244,6 +291,9 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       audio.removeEventListener('error', handleError);
       audio.removeEventListener('loadstart', handleLoadStart);
       audio.removeEventListener('canplay', handleCanPlay);
+      audio.removeEventListener('canplaythrough', handleCanPlayThrough);
+      audio.removeEventListener('waiting', handleWaiting);
+      audio.removeEventListener('playing', handlePlaying);
     };
   }, [state.volume, state.playbackRate]);
 
@@ -254,6 +304,8 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
     // Load new episode
     if (audio.src !== state.currentEpisode.audio) {
+      console.log('Loading audio:', state.currentEpisode.audio);
+      dispatch({ type: 'SET_LOADING', payload: true });
       audio.src = state.currentEpisode.audio;
       audio.load();
     }
@@ -264,9 +316,12 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     if (!audio) return;
 
     if (state.isPlaying) {
+      // Show loading when attempting to play
+      dispatch({ type: 'SET_LOADING', payload: true });
       audio.play().catch((error) => {
         console.error('Failed to play audio:', error);
         dispatch({ type: 'SET_ERROR', payload: 'Failed to play audio' });
+        dispatch({ type: 'SET_LOADING', payload: false });
       });
     } else {
       audio.pause();
@@ -291,7 +346,13 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     <AudioContext.Provider value={contextValue}>
       {children}
       {/* Global audio element */}
-      <audio ref={audioRef} preload="metadata" />
+      <audio 
+        ref={audioRef} 
+        preload="none" 
+        crossOrigin="anonymous"
+        playsInline
+        controls={false}
+      />
     </AudioContext.Provider>
   );
 }
