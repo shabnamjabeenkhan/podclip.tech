@@ -13,12 +13,36 @@ export default function NewSummary() {
   const [generatingSummary, setGeneratingSummary] = useState<{[key: string]: boolean}>({});
   const [summaries, setSummaries] = useState<{[key: string]: any}>({});
   const [summaryErrors, setSummaryErrors] = useState<{[key: string]: string}>({});
+  const [copiedStates, setCopiedStates] = useState<{[key: string]: { summary?: boolean, takeaways?: boolean, header?: boolean }}>({});
   
   const searchPodcasts = useAction(api.podcasts.searchPodcasts);
   const getPodcastEpisodes = useAction(api.podcasts.getPodcastEpisodes);
   const generateSummary = useAction(api.summaries.generateSummary);
   const createSummary = useMutation(api.summaries.createSummary);
   const userQuota = useQuery(api.users.getUserQuota);
+
+  // Helper function to handle copy actions with visual feedback
+  const handleCopy = async (episodeId: string, content: string, type: 'summary' | 'takeaways' | 'header') => {
+    try {
+      await navigator.clipboard.writeText(content);
+      
+      // Set copied state
+      setCopiedStates(prev => ({
+        ...prev,
+        [episodeId]: { ...prev[episodeId], [type]: true }
+      }));
+      
+      // Reset after 2 seconds
+      setTimeout(() => {
+        setCopiedStates(prev => ({
+          ...prev,
+          [episodeId]: { ...prev[episodeId], [type]: false }
+        }));
+      }, 2000);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+    }
+  };
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -393,13 +417,23 @@ export default function NewSummary() {
                               AI Generated Summary
                             </h4>
                             <button
-                              onClick={() => navigator.clipboard.writeText(summaries[episode.id].summary)}
-                              className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-lg transition-colors touch-manipulation"
-                              title="Copy summary"
+                              onClick={() => handleCopy(episode.id, summaries[episode.id].summary, 'header')}
+                              className={`p-2 rounded-lg transition-colors touch-manipulation ${
+                                copiedStates[episode.id]?.header 
+                                  ? 'text-green-600 bg-green-100' 
+                                  : 'text-blue-600 hover:text-blue-800 hover:bg-blue-100'
+                              }`}
+                              title={copiedStates[episode.id]?.header ? "Copied!" : "Copy summary"}
                             >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                              </svg>
+                              {copiedStates[episode.id]?.header ? (
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                              ) : (
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                              )}
                             </button>
                           </div>
                           
@@ -440,23 +474,43 @@ export default function NewSummary() {
                             {/* Action Buttons */}
                             <div className="flex flex-wrap gap-2">
                               <button
-                                onClick={() => navigator.clipboard.writeText(summaries[episode.id].summary)}
-                                className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 transition-colors touch-manipulation"
+                                onClick={() => handleCopy(episode.id, summaries[episode.id].summary, 'summary')}
+                                className={`inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md transition-colors touch-manipulation ${
+                                  copiedStates[episode.id]?.summary
+                                    ? 'text-green-700 bg-green-100 hover:bg-green-200'
+                                    : 'text-blue-700 bg-blue-100 hover:bg-blue-200'
+                                }`}
                               >
-                                <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                </svg>
-                                Copy Summary
+                                {copiedStates[episode.id]?.summary ? (
+                                  <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                ) : (
+                                  <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                  </svg>
+                                )}
+                                {copiedStates[episode.id]?.summary ? 'Copied!' : 'Copy Summary'}
                               </button>
                               {summaries[episode.id].takeaways && (
                                 <button
-                                  onClick={() => navigator.clipboard.writeText(summaries[episode.id].takeaways.join('\n• '))}
-                                  className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-green-700 bg-green-100 hover:bg-green-200 transition-colors touch-manipulation"
+                                  onClick={() => handleCopy(episode.id, summaries[episode.id].takeaways.join('\n• '), 'takeaways')}
+                                  className={`inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md transition-colors touch-manipulation ${
+                                    copiedStates[episode.id]?.takeaways
+                                      ? 'text-green-700 bg-green-200 hover:bg-green-300'
+                                      : 'text-green-700 bg-green-100 hover:bg-green-200'
+                                  }`}
                                 >
-                                  <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                                  </svg>
-                                  Copy Takeaways
+                                  {copiedStates[episode.id]?.takeaways ? (
+                                    <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                  ) : (
+                                    <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                    </svg>
+                                  )}
+                                  {copiedStates[episode.id]?.takeaways ? 'Copied!' : 'Copy Takeaways'}
                                 </button>
                               )}
                             </div>
