@@ -15,6 +15,7 @@
     "@convex-dev/polar": "^0.4.5",
     "@convex-dev/resend": "^0.1.2-beta.2",
     "@hookform/resolvers": "^5.1.1",
+    "@notionhq/client": "^4.0.1",
     "@polar-sh/sdk": "^0.32.16",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.1.14",

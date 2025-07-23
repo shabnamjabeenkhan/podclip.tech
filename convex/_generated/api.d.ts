@@ -8,12 +8,16 @@
  * @module
  */
 
+import type * as chat from "../chat.js";
+import type * as crons from "../crons.js";
 import type * as http from "../http.js";
 import type * as listening from "../listening.js";
+import type * as notion from "../notion.js";
 import type * as podcasts from "../podcasts.js";
 import type * as sendEmails from "../sendEmails.js";
 import type * as subscriptions from "../subscriptions.js";
 import type * as summaries from "../summaries.js";
+import type * as transcriptions from "../transcriptions.js";
 import type * as users from "../users.js";
 
 import type {
@@ -31,12 +35,16 @@ import type {
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  chat: typeof chat;
+  crons: typeof crons;
   http: typeof http;
   listening: typeof listening;
+  notion: typeof notion;
   podcasts: typeof podcasts;
   sendEmails: typeof sendEmails;
   subscriptions: typeof subscriptions;
   summaries: typeof summaries;
+  transcriptions: typeof transcriptions;
   users: typeof users;
 }>;
 declare const fullApiWithMounts: typeof fullApi;

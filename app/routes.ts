@@ -12,6 +12,17 @@ function buildRoutes(): RouteConfig {
   index("routes/home.tsx"),
     // Changelog is always available
     route("changelog", "routes/changelog.tsx"),
+    
+    // Legal pages are always available
+    route("terms-of-service", "routes/terms-of-service.tsx"),
+    route("privacy-policy", "routes/privacy-policy.tsx"),
+    route("refund-policy", "routes/refund-policy.tsx"),
+    
+    // API routes (resource routes - no UI)
+    route("api/health", "routes/api.health.ts"),
+    route("api/audio/proxy", "routes/api.audio.proxy.ts"),
+    route("api/webhooks/sentry", "routes/api.webhooks.sentry.ts"),
+    route("api/notion/oauth", "routes/api.notion.oauth.ts"),
   ];
 
   // Authentication routes

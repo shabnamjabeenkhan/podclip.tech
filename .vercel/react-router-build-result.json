@@ -12,7 +12,21 @@
     "routeIdToServerBundleId": {
       "routes/home": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/changelog": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/terms-of-service": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/privacy-policy": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/refund-policy": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/api.health": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/api.audio.proxy": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/api.webhooks.sentry": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/api.notion.oauth": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/sign-in": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/sign-up": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/pricing": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/success": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/subscription-required": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/dashboard/index": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/dashboard/new-summary": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/dashboard/all-summaries": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/dashboard/settings": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/dashboard/chat": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0"
     },
@@ -41,6 +55,114 @@
           "runtime": "nodejs"
         }
       },
+      "routes/terms-of-service": {
+        "id": "routes/terms-of-service",
+        "parentId": "root",
+        "file": "app/routes/terms-of-service.tsx",
+        "path": "terms-of-service",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/privacy-policy": {
+        "id": "routes/privacy-policy",
+        "parentId": "root",
+        "file": "app/routes/privacy-policy.tsx",
+        "path": "privacy-policy",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/refund-policy": {
+        "id": "routes/refund-policy",
+        "parentId": "root",
+        "file": "app/routes/refund-policy.tsx",
+        "path": "refund-policy",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/api.health": {
+        "id": "routes/api.health",
+        "parentId": "root",
+        "file": "app/routes/api.health.ts",
+        "path": "api/health",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/api.audio.proxy": {
+        "id": "routes/api.audio.proxy",
+        "parentId": "root",
+        "file": "app/routes/api.audio.proxy.ts",
+        "path": "api/audio/proxy",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/api.webhooks.sentry": {
+        "id": "routes/api.webhooks.sentry",
+        "parentId": "root",
+        "file": "app/routes/api.webhooks.sentry.ts",
+        "path": "api/webhooks/sentry",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/api.notion.oauth": {
+        "id": "routes/api.notion.oauth",
+        "parentId": "root",
+        "file": "app/routes/api.notion.oauth.ts",
+        "path": "api/notion/oauth",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/sign-in": {
+        "id": "routes/sign-in",
+        "parentId": "root",
+        "file": "app/routes/sign-in.tsx",
+        "path": "sign-in/*",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/sign-up": {
+        "id": "routes/sign-up",
+        "parentId": "root",
+        "file": "app/routes/sign-up.tsx",
+        "path": "sign-up/*",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/pricing": {
+        "id": "routes/pricing",
+        "parentId": "root",
+        "file": "app/routes/pricing.tsx",
+        "path": "pricing",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/success": {
+        "id": "routes/success",
+        "parentId": "root",
+        "file": "app/routes/success.tsx",
+        "path": "success",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/subscription-required": {
+        "id": "routes/subscription-required",
+        "parentId": "root",
+        "file": "app/routes/subscription-required.tsx",
+        "path": "subscription-required",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
       "routes/dashboard/layout": {
         "id": "routes/dashboard/layout",
         "parentId": "root",
@@ -52,6 +174,24 @@
         "parentId": "routes/dashboard/layout",
         "file": "app/routes/dashboard/index.tsx",
         "path": "dashboard",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/dashboard/new-summary": {
+        "id": "routes/dashboard/new-summary",
+        "parentId": "routes/dashboard/layout",
+        "file": "app/routes/dashboard/new-summary.tsx",
+        "path": "dashboard/new-summary",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/dashboard/all-summaries": {
+        "id": "routes/dashboard/all-summaries",
+        "parentId": "routes/dashboard/layout",
+        "file": "app/routes/dashboard/all-summaries.tsx",
+        "path": "dashboard/all-summaries",
         "config": {
           "runtime": "nodejs"
         }
@@ -77,9 +217,9 @@
     }
   },
   "reactRouterConfig": {
-    "appDirectory": "/Users/our-rahmaan/conductor/repo/kaizen/boston/app",
+    "appDirectory": "/Users/shabnamkhan/Desktop/podclip.tech/app",
     "basename": "/",
-    "buildDirectory": "/Users/our-rahmaan/conductor/repo/kaizen/boston/build",
+    "buildDirectory": "/Users/shabnamkhan/Desktop/podclip.tech/build",
     "future": {
       "unstable_middleware": false,
       "unstable_optimizeDeps": false,
@@ -105,6 +245,78 @@
         "file": "routes/changelog.tsx",
         "path": "changelog"
       },
+      "routes/terms-of-service": {
+        "id": "routes/terms-of-service",
+        "parentId": "root",
+        "file": "routes/terms-of-service.tsx",
+        "path": "terms-of-service"
+      },
+      "routes/privacy-policy": {
+        "id": "routes/privacy-policy",
+        "parentId": "root",
+        "file": "routes/privacy-policy.tsx",
+        "path": "privacy-policy"
+      },
+      "routes/refund-policy": {
+        "id": "routes/refund-policy",
+        "parentId": "root",
+        "file": "routes/refund-policy.tsx",
+        "path": "refund-policy"
+      },
+      "routes/api.health": {
+        "id": "routes/api.health",
+        "parentId": "root",
+        "file": "routes/api.health.ts",
+        "path": "api/health"
+      },
+      "routes/api.audio.proxy": {
+        "id": "routes/api.audio.proxy",
+        "parentId": "root",
+        "file": "routes/api.audio.proxy.ts",
+        "path": "api/audio/proxy"
+      },
+      "routes/api.webhooks.sentry": {
+        "id": "routes/api.webhooks.sentry",
+        "parentId": "root",
+        "file": "routes/api.webhooks.sentry.ts",
+        "path": "api/webhooks/sentry"
+      },
+      "routes/api.notion.oauth": {
+        "id": "routes/api.notion.oauth",
+        "parentId": "root",
+        "file": "routes/api.notion.oauth.ts",
+        "path": "api/notion/oauth"
+      },
+      "routes/sign-in": {
+        "id": "routes/sign-in",
+        "parentId": "root",
+        "file": "routes/sign-in.tsx",
+        "path": "sign-in/*"
+      },
+      "routes/sign-up": {
+        "id": "routes/sign-up",
+        "parentId": "root",
+        "file": "routes/sign-up.tsx",
+        "path": "sign-up/*"
+      },
+      "routes/pricing": {
+        "id": "routes/pricing",
+        "parentId": "root",
+        "file": "routes/pricing.tsx",
+        "path": "pricing"
+      },
+      "routes/success": {
+        "id": "routes/success",
+        "parentId": "root",
+        "file": "routes/success.tsx",
+        "path": "success"
+      },
+      "routes/subscription-required": {
+        "id": "routes/subscription-required",
+        "parentId": "root",
+        "file": "routes/subscription-required.tsx",
+        "path": "subscription-required"
+      },
       "routes/dashboard/layout": {
         "id": "routes/dashboard/layout",
         "parentId": "root",
@@ -115,6 +327,18 @@
         "parentId": "routes/dashboard/layout",
         "file": "routes/dashboard/index.tsx",
         "path": "dashboard"
+      },
+      "routes/dashboard/new-summary": {
+        "id": "routes/dashboard/new-summary",
+        "parentId": "routes/dashboard/layout",
+        "file": "routes/dashboard/new-summary.tsx",
+        "path": "dashboard/new-summary"
+      },
+      "routes/dashboard/all-summaries": {
+        "id": "routes/dashboard/all-summaries",
+        "parentId": "routes/dashboard/layout",
+        "file": "routes/dashboard/all-summaries.tsx",
+        "path": "dashboard/all-summaries"
       },
       "routes/dashboard/settings": {
         "id": "routes/dashboard/settings",

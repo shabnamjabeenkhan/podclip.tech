@@ -1,6 +1,6 @@
 "use client";
 import { UserButton } from "@clerk/react-router";
-import { Github, Menu, X, Loader2 } from "lucide-react";
+import { Menu, X, Loader2 } from "lucide-react";
 import React, { useCallback, useState } from "react";
 import { Link } from "react-router";
 import { Button } from "~/components/ui/button";
@@ -11,7 +11,6 @@ const getMenuItems = () => {
   const items = [
   { name: "Home", href: "#hero" },
   { name: "Features", href: "#features" },
-  { name: "Changelog", href: "/changelog" },
   ];
 
   // Only show pricing if payments are enabled
@@ -90,15 +89,12 @@ export const Navbar = ({
 
   // Simple computations don't need useMemo
   const authEnabled = isFeatureEnabled('auth') && config.ui.showAuth;
-  const paymentsEnabled = isFeatureEnabled('payments') && config.ui.showPricing;
   
   const dashboardLink = !authEnabled 
     ? "/dashboard" 
     : !loaderData?.isSignedIn 
     ? "/sign-up" 
-      : loaderData.hasActiveSubscription || !paymentsEnabled 
-        ? "/dashboard" 
-        : "/pricing";
+    : "/dashboard"; // Always allow signed-in users to access dashboard (freemium model)
 
   const dashboardText = "Dashboard";
 
@@ -172,14 +168,6 @@ export const Navbar = ({
                 </ul>
               </div>
               <div className="flex w-full flex-col space-y-3 sm:flex-row sm:gap-3 sm:space-y-0 md:w-fit">
-                <Link
-                  to="https://github.com/ObaidUr-Rahmaan/kaizen"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center"
-                >
-                  <Github className="w-5 h-5" />
-                </Link>
                 {authEnabled && loaderData?.isSignedIn ? (
                   <div className="flex items-center gap-3">
                     <Button 

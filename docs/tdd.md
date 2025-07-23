@@ -30,7 +30,7 @@ This document describes the technical approach for building the Podclip MVP, foc
 - Convex function checks user quota, then calls OpenAI API with optimized prompt.
 - Store summary and takeaways in Convex, linked to user and episode.
 - Cache results for future access; increment summary_count for user.
-- Enforce quota: 50 summaries per user (monthly for subscription, one-time for lifetime).
+- Enforce quota: 70 summaries per user (monthly for subscription, monthly for lifetime).
 
 ### 3. (Bonus) Notion Integration
 - User authenticates with Notion via OAuth; store access token in Convex.

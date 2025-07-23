@@ -21,7 +21,7 @@ Podclip addresses the need for deeper, more productive podcast engagement. The a
 2. **AI-Generated Summaries & Takeaways**
    - Instantly generate concise, accurate written summaries (150–200 words) and 3–5 key takeaways per episode.
    - Summaries are generated on-demand and cached for future access.
-   - Quota: 50 summaries per user (monthly for subscription, one-time for lifetime plan).
+   - Quota: 70 summaries per user (monthly for subscription, monthly for lifetime plan).
 3. **(Bonus) Notion Integration**
    - Export summaries and takeaways to user’s Notion workspace.
    - OAuth authentication and destination selection.

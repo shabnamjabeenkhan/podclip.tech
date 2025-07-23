@@ -1,9 +1,18 @@
 import { useQuery } from "convex/react";
+import { useAuth } from "@clerk/react-router";
 import { api } from "../../../convex/_generated/api";
 
 export function StatsCards() {
-  const userQuota = useQuery(api.users.getUserQuota);
-  const listeningStats = useQuery(api.listening.getListeningStats);
+  const { isSignedIn } = useAuth();
+  
+  const userQuota = useQuery(
+    api.users.getUserQuota,
+    isSignedIn ? {} : "skip"
+  );
+  const listeningStats = useQuery(
+    api.listening.getListeningStats,
+    isSignedIn ? {} : "skip"
+  );
 
   if (!userQuota || !listeningStats) {
     return (

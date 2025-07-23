@@ -7,16 +7,17 @@ import Integrations from "~/components/homepage/integrations";
 import Pricing from "~/components/homepage/pricing";
 import Team from "~/components/homepage/team";
 import FAQ from "~/components/homepage/faq";
+import AiChatSection from "~/components/homepage/ai-chat-section";
 import { api } from "../../convex/_generated/api";
 import type { Route } from "./+types/home";
 
 export function meta({}: Route.MetaArgs) {
-  const title = "Kaizen - Launch Your SAAS Quickly";
+  const title = "PodClip - AI-Powered Podcast Summaries & Transcriptions";
   const description =
-    "This powerful starter kit is designed to help you launch your SAAS application quickly and efficiently.";
-  const keywords = "Kaizen, SAAS, Launch, Quickly, Efficiently";
-  const siteUrl = "https://www.kaizen.codeandcreed.tech/";
-  const imageUrl = "/kaizen.png";
+    "Transform your podcast listening experience with AI-generated summaries, key takeaways, and full transcriptions. Save time and never miss important insights from your favorite shows.";
+  const keywords = "podcast summaries, AI transcription, podcast player, key takeaways, audio summaries, podcast insights";
+  const siteUrl = "https://podclip.tech";
+  const imageUrl = "/kaizen.png"; // Update with your podcast app logo
 
   return [
     { title },
@@ -33,7 +34,7 @@ export function meta({}: Route.MetaArgs) {
     { property: "og:image:width", content: "1200" },
     { property: "og:image:height", content: "630" },
     { property: "og:url", content: siteUrl },
-    { property: "og:site_name", content: "Kaizen" },
+    { property: "og:site_name", content: "PodClip" },
 
     // Twitter Card
     { name: "twitter:card", content: "summary_large_image" },
@@ -47,7 +48,7 @@ export function meta({}: Route.MetaArgs) {
       name: "keywords",
       content: keywords,
     },
-    { name: "author", content: "Kaizen" },
+    { name: "author", content: "PodClip" },
     { name: "favicon", content: imageUrl },
   ];
 }
@@ -105,6 +106,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <Integrations loaderData={loaderData} />
       <ContentSection />
       <CoreFeaturesSection />
+      <AiChatSection />
       <ConvexComparison />
       <Pricing loaderData={loaderData} />
       <FAQ />

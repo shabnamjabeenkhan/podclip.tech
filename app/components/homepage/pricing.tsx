@@ -25,6 +25,8 @@ export default function Pricing({ loaderData }: { loaderData: any }) {
   const [error, setError] = useState<string | null>(null);
 
   const userSubscription = useQuery(api.subscriptions.fetchUserSubscription);
+  const subscriptionStatus = useQuery(api.subscriptions.checkUserSubscriptionStatus, isSignedIn ? {} : "skip");
+  const userQuota = useQuery(api.users.getUserQuota, isSignedIn ? {} : "skip");
   const createCheckout = useAction(api.subscriptions.createCheckoutSession);
   const createPortalUrl = useAction(api.subscriptions.createCustomerPortalUrl);
   const upsertUser = useMutation(api.users.upsertUser);
@@ -92,7 +94,7 @@ export default function Pricing({ loaderData }: { loaderData: any }) {
             {error && <p className="text-red-500 mt-4 text-center">{error}</p>}
           </div>
         ) : (
-          <div className="mt-8 grid gap-6 md:mt-20 md:grid-cols-3">
+          <div className="mt-8 flex flex-wrap gap-6 md:mt-20 justify-center max-w-5xl mx-auto">
             {loaderData.plans.items
               .sort((a: any, b: any) => {
                 const priceComparison = a.prices[0].amount - b.prices[0].amount;
@@ -106,14 +108,26 @@ export default function Pricing({ loaderData }: { loaderData: any }) {
                     ? index === 1
                     : index === Math.floor(loaderData.plans.items.length / 2); // Mark middle/higher priced plan as popular
                 const price = plan.prices[0];
-                const isCurrentPlan =
-                  userSubscription?.status === "active" &&
-                  userSubscription?.amount === price.amount;
+                // Check if this plan matches the user's current plan
+                const isCurrentPlan = (() => {
+                  // For monthly subscribers (recurring)
+                  if (userSubscription?.status === "active" && userSubscription?.amount === price.amount) {
+                    return true;
+                  }
+                  
+                  // For lifetime users (one-time payments)
+                  if (userQuota?.plan === "lifetime" && !plan.isRecurring) {
+                    // Match lifetime plan by price amount or plan characteristics
+                    return price.amount >= 3900; // Assuming lifetime plans are $39+ (in cents)
+                  }
+                  
+                  return false;
+                })();
 
                 return (
                   <Card
                     key={plan.id}
-                    className={`relative ${isPopular ? "border-primary" : ""} ${
+                    className={`relative w-full max-w-sm ${isPopular ? "border-primary" : ""} ${
                       isCurrentPlan ? "border-green-500 bg-green-50/50" : ""
                     }`}
                   >
@@ -150,7 +164,7 @@ export default function Pricing({ loaderData }: { loaderData: any }) {
                             : "outline"
                         }
                         onClick={() => handleSubscribe(price.id)}
-                        disabled={loadingPriceId === price.id}
+                        disabled={loadingPriceId === price.id || (userQuota?.plan === "lifetime" && !plan.isRecurring)}
                       >
                         {loadingPriceId === price.id ? (
                           <>
@@ -159,6 +173,9 @@ export default function Pricing({ loaderData }: { loaderData: any }) {
                           </>
                         ) : isCurrentPlan ? (
                           "✓ Current Plan"
+                        ) : userQuota?.plan === "lifetime" ? (
+                          // Lifetime users shouldn't be able to purchase again
+                          plan.isRecurring ? "Downgrade to Monthly" : "✓ Lifetime Active"
                         ) : userSubscription?.status === "active" ? (
                           (() => {
                             const currentAmount = userSubscription.amount || 0;
@@ -190,12 +207,20 @@ export default function Pricing({ loaderData }: { loaderData: any }) {
                       <ul className="list-outside space-y-3 text-sm">
                         <li className="flex items-center gap-2">
                           <Check className="size-3" />
-                          All features included
+                          70 summaries a month generated
                         </li>
                         <li className="flex items-center gap-2">
                           <Check className="size-3" />
-                          Priority support
+                          Chat with your Podcast Library
                         </li>
+                        {/* <li className="flex items-center gap-2">
+                          <Check className="size-3" />
+                          All features included
+                        </li> */}
+                        {/* <li className="flex items-center gap-2">
+                          <Check className="size-3" />
+                          Priority support
+                        </li> */}
                         <li className="flex items-center gap-2">
                           <Check className="size-3" />
                           Cancel anytime

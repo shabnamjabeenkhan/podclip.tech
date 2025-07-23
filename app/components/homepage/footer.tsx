@@ -2,34 +2,103 @@ import { Link } from "react-router";
 
 export default function FooterSection() {
   return (
-    <footer className="py-16 md:py-32">
-      <div className="mx-auto max-w-5xl px-6">
-        <div className="my-8 flex flex-wrap justify-center gap-6 text-sm">
-          <Link
-            to="https://x.com/_7obaid_/"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="X/Twitter"
-            className="text-muted-foreground hover:text-primary block"
-          >
-            <svg
-              className="size-6"
-              xmlns="http://www.w3.org/2000/svg"
-              width="1em"
-              height="1em"
-              viewBox="0 0 24 24"
-            >
-              <path
-                fill="currentColor"
-                d="M10.488 14.651L15.25 21h7l-7.858-10.478L20.93 3h-2.65l-5.117 5.886L8.75 3h-7l7.51 10.015L2.32 21h2.65zM16.25 19L5.75 5h2l10.5 14z"
-              ></path>
-            </svg>
-          </Link>
+    <footer className="py-16 md:py-32 bg-gray-50 border-t">
+      <div className="mx-auto max-w-6xl px-6">
+        {/* Main Footer Content */}
+        <div className="grid md:grid-cols-4 gap-8 mb-12">
+          {/* Brand Section */}
+          <div className="md:col-span-1">
+            <h3 className="text-lg font-bold text-foreground mb-4">PodClip</h3>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              Transform your podcast listening experience with AI-powered summaries and insights.
+            </p>
+          </div>
+
+          {/* Product Links */}
+          <div>
+            <h4 className="font-semibold text-foreground mb-4">Product</h4>
+            <ul className="space-y-3 text-sm">
+              <li>
+                <Link to="/dashboard" className="text-muted-foreground hover:text-primary transition-colors">
+                  Dashboard
+                </Link>
+              </li>
+              <li>
+                <Link to="/pricing" className="text-muted-foreground hover:text-primary transition-colors">
+                  Pricing
+                </Link>
+              </li>
+              <li>
+                <Link to="/dashboard/chat" className="text-muted-foreground hover:text-primary transition-colors">
+                  AI Chat
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Legal Links */}
+          <div>
+            <h4 className="font-semibold text-foreground mb-4">Legal</h4>
+            <ul className="space-y-3 text-sm">
+              <li>
+                <Link to="/privacy-policy" className="text-muted-foreground hover:text-primary transition-colors">
+                  Privacy Policy
+                </Link>
+              </li>
+              <li>
+                <Link to="/terms-of-service" className="text-muted-foreground hover:text-primary transition-colors">
+                  Terms of Service
+                </Link>
+              </li>
+              <li>
+                <Link to="/refund-policy" className="text-muted-foreground hover:text-primary transition-colors">
+                  Refund Policy
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Contact & Support */}
+          <div>
+            <h4 className="font-semibold text-foreground mb-4">Support</h4>
+            <ul className="space-y-3 text-sm">
+              <li>
+                <a 
+                  href="mailto:admin@podclip.tech" 
+                  className="text-muted-foreground hover:text-primary transition-colors"
+                >
+                  Contact Us
+                </a>
+              </li>
+              <li>
+                <a 
+                  href="mailto:admin@podclip.tech" 
+                  className="text-muted-foreground hover:text-primary transition-colors"
+                >
+                  Help & Support
+                </a>
+              </li>
+            </ul>
+          </div>
         </div>
-        <span className="text-muted-foreground block text-center text-sm">
-          {" "}
-          © {new Date().getFullYear()} Podclip, All rights reserved
-        </span>
+
+        {/* Bottom Section */}
+        <div className="border-t pt-8 flex flex-col md:flex-row justify-center items-center gap-4">
+          <span className="text-muted-foreground text-sm">
+            © {new Date().getFullYear()} PodClip. All rights reserved.
+          </span>
+        </div>
+
+        {/* Legal Notice */}
+        <div className="mt-8 pt-6 border-t text-center">
+          <p className="text-xs text-muted-foreground">
+            <strong>No Refunds:</strong> All purchases are final. Please review our{" "}
+            <Link to="/refund-policy" className="text-primary hover:underline">
+              Refund Policy
+            </Link>{" "}
+            before purchasing.
+          </p>
+        </div>
       </div>
     </footer>
   );

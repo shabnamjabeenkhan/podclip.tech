@@ -95,8 +95,11 @@ export default function IntegrationsSection({
                     2
                   </div>
                   <div>
-                    <h3 className="font-semibold text-foreground text-lg mb-1">Seamless Notion Integration</h3>
-                    <p className="text-muted-foreground">Automatically sync summaries to your Notion workspace in organized tables.</p>
+                    <h3 className="font-semibold text-foreground text-lg mb-1 flex items-center gap-2">
+                      Seamless Notion Integration
+                      <span className="px-2 py-1 text-xs font-medium text-blue-600 bg-blue-100 rounded-full">Coming Soon</span>
+                    </h3>
+                    <p className="text-muted-foreground">Automatically sync summaries to your Notion workspace in organized tables. This feature will be added in the future.</p>
                   </div>
                 </div>
               </div>

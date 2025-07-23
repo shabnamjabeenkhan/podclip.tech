@@ -2,12 +2,72 @@ import { StatsCards } from "~/components/dashboard/stats-cards";
 import { RecentlyPlayed } from "~/components/dashboard/recently-played";
 import { RecentSummaries } from "~/components/dashboard/recent-summaries";
 import { Link } from "react-router";
+import { useQuery } from "convex/react";
+import { useAuth } from "@clerk/react-router";
+import { api } from "../../../convex/_generated/api";
+import type { Route } from "./+types/index";
+
+export function meta({}: Route.MetaArgs) {
+  return [
+    { title: "Dashboard | PodClip" },
+    { name: "description", content: "View your podcast listening activity, recent summaries, and usage statistics." },
+    { name: "robots", content: "noindex, nofollow" }, // Private dashboard
+  ];
+}
 
 export default function Page() {
+  const { isSignedIn } = useAuth();
+  
+  const userQuota = useQuery(
+    api.users.getUserQuota,
+    isSignedIn ? {} : "skip"
+  );
+  const subscriptionStatus = useQuery(
+    api.subscriptions.checkUserSubscriptionStatus,
+    isSignedIn ? {} : "skip"
+  );
+  
+  // Show upgrade prompt for free users who are close to or at their limit
+  const showUpgradePrompt = userQuota && !subscriptionStatus?.hasActiveSubscription && 
+    (userQuota.limit === 5) && (userQuota.remaining <= 1 || !userQuota.canGenerate);
+  
   return (
     <div className="flex flex-1 flex-col">
       <div className="@container/main flex flex-1 flex-col gap-2">
         <div className="flex flex-col gap-6 py-6">
+          {/* Upgrade Prompt for Free Users */}
+          {showUpgradePrompt && (
+            <div className="px-4 lg:px-6">
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900">
+                        {userQuota.canGenerate ? "Almost there!" : "Upgrade to continue"}
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        {userQuota.canGenerate 
+                          ? `You have ${userQuota.remaining} summary remaining. Upgrade for unlimited access.`
+                          : "You've used all your free summaries. Upgrade to generate unlimited summaries."}
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    to="/pricing"
+                    className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Upgrade
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Header */}
           <div className="px-4 lg:px-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

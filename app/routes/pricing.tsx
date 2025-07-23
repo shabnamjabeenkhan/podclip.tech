@@ -5,6 +5,16 @@ import { Check, Loader2 } from "lucide-react";
 import * as React from "react";
 import { useState } from "react";
 import { Button } from "~/components/ui/button";
+import type { Route } from "./+types/pricing";
+
+export function meta({}: Route.MetaArgs) {
+  return [
+    { title: "Pricing Plans | PodClip" },
+    { name: "description", content: "Choose the perfect plan for your podcast listening needs. Get unlimited AI-generated summaries and transcriptions." },
+    { name: "keywords", content: "podcast pricing, subscription plans, unlimited summaries, premium features" },
+  ];
+}
+
 import {
   Card,
   CardContent,

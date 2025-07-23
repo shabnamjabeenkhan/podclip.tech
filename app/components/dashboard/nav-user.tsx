@@ -5,6 +5,7 @@ import {
   IconUserCircle,
 } from "@tabler/icons-react";
 import { SettingsIcon } from "lucide-react";
+import { useNavigate } from "react-router";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import {
   DropdownMenu,
@@ -25,6 +26,7 @@ import { useClerk } from "@clerk/react-router";
 
 export function NavUser({ user }: any) {
   const { isMobile } = useSidebar();
+  const navigate = useNavigate();
   const userFullName = user.firstName + " " + user.lastName;
   const userEmail = user.emailAddresses[0].emailAddress;
   const userInitials =
@@ -81,17 +83,17 @@ export function NavUser({ user }: any) {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/dashboard/settings')}>
                 <IconUserCircle />
                 Account
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/dashboard/settings')}>
                 <SettingsIcon />
                 Settings
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => signOut({ redirectUrl: "/" })}>
+            <DropdownMenuItem onClick={() => signOut(() => { window.location.href = "/"; })}>
               <IconLogout />
               Sign Out
             </DropdownMenuItem>

@@ -9,12 +9,14 @@ export default defineSchema({
     summary_count: v.optional(v.number()), // Number of summaries generated
     quota_reset_date: v.optional(v.number()), // For monthly subscribers, timestamp of next reset
     notion_token: v.optional(v.string()), // Notion API token (optional)
+    notion_workspace_id: v.optional(v.string()), // Notion workspace ID
+    notion_workspace_name: v.optional(v.string()), // Notion workspace name
     name: v.optional(v.string()),
     email: v.optional(v.string()),
     image: v.optional(v.string()),
   }).index("by_token", ["tokenIdentifier"]),
 
-  // Subscriptions table: Polar.sh subscription data
+  // Subscriptions table: Polar.sh subscription data (recurring payments)
   subscriptions: defineTable({
     userId: v.string(), // Clerk user ID
     polarId: v.string(), // Polar.sh subscription ID
@@ -41,6 +43,28 @@ export default defineSchema({
     .index("userId", ["userId"])
     .index("polarId", ["polarId"]),
 
+  // One-time payments table: For lifetime access purchases
+  payments: defineTable({
+    userId: v.string(), // Clerk user ID
+    polarOrderId: v.string(), // Polar.sh order ID
+    polarProductId: v.string(), // Polar.sh product ID
+    polarPriceId: v.string(), // Polar.sh price ID
+    status: v.string(), // "pending" | "confirmed" | "refunded" | "disputed"
+    plan: v.string(), // Always "lifetime" for one-time payments
+    amount: v.number(), // Payment amount in cents
+    currency: v.string(), // Currency code (e.g., "USD")
+    customerId: v.string(), // Polar.sh customer ID
+    metadata: v.optional(v.any()), // Additional metadata from Polar
+    customFieldData: v.optional(v.any()), // Custom field data
+    confirmedAt: v.optional(v.number()), // When payment was confirmed
+    refundedAt: v.optional(v.number()), // When payment was refunded (if applicable)
+    created_at: v.number(), // Timestamp
+    updated_at: v.number(), // Last update timestamp
+  })
+    .index("userId", ["userId"])
+    .index("polarOrderId", ["polarOrderId"])
+    .index("status", ["status"]),
+
   // Webhook events table
   webhookEvents: defineTable({
     id: v.optional(v.string()),
@@ -51,7 +75,13 @@ export default defineSchema({
     createdAt: v.optional(v.any()),
     modifiedAt: v.optional(v.any()),
     created_at: v.optional(v.number()),
-  }),
+    // Deduplication fields
+    webhookId: v.optional(v.string()), // Unique webhook ID from Polar
+    processingStatus: v.optional(v.string()), // "processing" | "completed" | "failed"
+    processedAt: v.optional(v.number()), // When processing completed
+    errorMessage: v.optional(v.string()), // Error details if failed
+  }).index("by_webhook_id", ["webhookId"])
+    .index("by_type_status", ["type", "processingStatus"]),
 
   // Podcasts table: Listen Notes podcast metadata
   podcasts: defineTable({
@@ -73,6 +103,17 @@ export default defineSchema({
   })
     .index("by_episode_id", ["episode_id"])
     .index("by_podcast_id", ["podcast_id"]),
+
+  // Episode transcriptions: Cached transcripts from Listen Notes API
+  transcriptions: defineTable({
+    episode_id: v.string(), // Listen Notes episode ID
+    transcript: v.optional(v.string()), // Full transcript text (null if not available)
+    has_transcript: v.boolean(), // Whether transcript is available
+    created_at: v.number(), // When transcript was fetched
+    updated_at: v.number(), // Last time transcript was checked
+    source: v.optional(v.string()), // Source of transcript (e.g., "listen_notes")
+  })
+    .index("by_episode_id", ["episode_id"]),
 
   // Summaries table: AI-generated summaries and takeaways
   summaries: defineTable({
@@ -124,6 +165,31 @@ export default defineSchema({
   })
     .index("by_user", ["user_id"]),
 
+  // Chat sessions: AI conversations about specific episodes
+  chat_sessions: defineTable({
+    user_id: v.string(), // Reference to users.tokenIdentifier
+    episode_id: v.string(), // Reference to episodes.episode_id
+    summary_id: v.optional(v.string()), // Reference to summaries table
+    title: v.string(), // Chat session title (auto-generated)
+    created_at: v.number(),
+    updated_at: v.number(),
+  })
+    .index("by_user", ["user_id"])
+    .index("by_user_episode", ["user_id", "episode_id"])
+    .index("by_episode", ["episode_id"]),
+
+  // Chat messages: Individual messages in chat sessions
+  chat_messages: defineTable({
+    session_id: v.string(), // Reference to chat_sessions
+    user_id: v.string(), // Reference to users.tokenIdentifier
+    role: v.string(), // "user" | "assistant" | "system"
+    content: v.string(), // Message content
+    created_at: v.number(),
+  })
+    .index("by_session", ["session_id"])
+    .index("by_session_created", ["session_id", "created_at"])
+    .index("by_user", ["user_id"]),
+
   // (Optional) Notion tokens table for future extensibility
   // notion_tokens: defineTable({
   //   user_id: v.string(),
@@ -136,4 +202,5 @@ export default defineSchema({
   // - Only allow users to access their own summaries (filter by user_id)
   // - Summaries reference both episode_id and user_id for efficient lookup
   // - podcasts/episodes are public, but can be filtered by podcast_id/episode_id
+  // - Chat sessions and messages are user-specific and filtered by user_id
 });

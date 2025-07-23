@@ -33,12 +33,47 @@ export async function loader(args: Route.LoaderArgs) {
   return {};
 }
 
+export function meta(): Route.MetaDescriptors {
+  const title = "PodClip - AI-Powered Podcast Summaries";
+  const description = "Get instant AI-generated summaries and key takeaways from your favorite podcast episodes. Save time and never miss important insights.";
+  const siteUrl = "https://podclip.tech";
+  const imageUrl = "/kaizen.png"; // Update this with your podcast app logo
+
+  return [
+    { title },
+    { name: "description", content: description },
+    { name: "keywords", content: "podcast, summaries, AI, transcription, key takeaways, podcast player, audio summaries" },
+    
+    // Open Graph / Facebook
+    { property: "og:type", content: "website" },
+    { property: "og:title", content: title },
+    { property: "og:description", content: description },
+    { property: "og:url", content: siteUrl },
+    { property: "og:image", content: `${siteUrl}${imageUrl}` },
+    { property: "og:image:width", content: "1200" },
+    { property: "og:image:height", content: "630" },
+    { property: "og:site_name", content: "PodClip" },
+    
+    // Twitter
+    { name: "twitter:card", content: "summary_large_image" },
+    { name: "twitter:title", content: title },
+    { name: "twitter:description", content: description },
+    { name: "twitter:image", content: `${siteUrl}${imageUrl}` },
+    
+    // Additional SEO
+    { name: "robots", content: "index, follow" },
+    { name: "author", content: "PodClip" },
+    { property: "og:locale", content: "en_US" },
+  ];
+}
+
 export const links: Route.LinksFunction = () => [
   // DNS prefetch for external services
   { rel: "dns-prefetch", href: "https://fonts.googleapis.com" },
   { rel: "dns-prefetch", href: "https://fonts.gstatic.com" },
   { rel: "dns-prefetch", href: "https://api.convex.dev" },
   { rel: "dns-prefetch", href: "https://clerk.dev" },
+  { rel: "dns-prefetch", href: "https://listen-api.listennotes.com" },
   
   // Preconnect to font services
   { rel: "preconnect", href: "https://fonts.googleapis.com" },

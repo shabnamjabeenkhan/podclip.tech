@@ -1,9 +1,15 @@
 import { useQuery } from "convex/react";
+import { useAuth } from "@clerk/react-router";
 import { api } from "../../../convex/_generated/api";
 import { Link } from "react-router";
 
 export function RecentlyPlayed() {
-  const recentlyPlayed = useQuery(api.listening.getRecentlyPlayed, { limit: 5 });
+  const { isSignedIn } = useAuth();
+  
+  const recentlyPlayed = useQuery(
+    api.listening.getRecentlyPlayed, 
+    isSignedIn ? { limit: 5 } : "skip"
+  );
 
   if (!recentlyPlayed) {
     return (

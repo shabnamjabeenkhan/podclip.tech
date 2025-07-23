@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "convex/react";
+import { useAuth } from "@clerk/react-router";
+import { Link } from "react-router";
 import { api } from "../../../convex/_generated/api";
 
 export default function AllSummaries() {
@@ -7,9 +9,14 @@ export default function AllSummaries() {
   const [sortBy, setSortBy] = useState<"newest" | "oldest">("newest");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   
-  const userQuota = useQuery(api.users.getUserQuota);
+  const { isSignedIn } = useAuth();
+  
+  const userQuota = useQuery(
+    api.users.getUserQuota,
+    isSignedIn ? {} : "skip"
+  );
   const userSummaries = useQuery(api.summaries.getUserSummaries, 
-    userQuota?.userId ? { userId: userQuota.userId } : "skip"
+    isSignedIn && userQuota?.userId ? { userId: userQuota.userId } : "skip"
   );
 
   // Filter and sort summaries based on search and sort criteria
@@ -205,6 +212,15 @@ export default function AllSummaries() {
                           </svg>
                         )}
                       </button>
+                      <Link
+                        to={`/dashboard/chat?episodeId=${summary.episode_id}&summaryId=${summary._id}`}
+                        className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-lg transition-colors"
+                        title="Chat with AI about this episode"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                      </Link>
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                         Completed
                       </span>

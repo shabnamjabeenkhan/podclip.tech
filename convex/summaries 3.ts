@@ -10,16 +10,6 @@ export const generateSummary = action({
     userId: v.string(),
   },
   handler: async (ctx, args): Promise<any> => {
-    // Check if summary already exists for this episode and user
-    const existingSummary = await ctx.runQuery(api.summaries.getSummaryByEpisodeAndUser, {
-      episodeId: args.episodeId,
-      userId: args.userId,
-    });
-    
-    if (existingSummary) {
-      throw new Error("A summary already exists for this episode. Each episode can only have one summary per user.");
-    }
-
     // Check quota before generating summary
     const quotaStatus = await ctx.runMutation(internal.users.checkAndResetQuota);
     
@@ -246,19 +236,6 @@ export const getSummaryByEpisodeAndUser = query({
         q.eq("episode_id", args.episodeId).eq("user_id", args.userId)
       )
       .first();
-  },
-});
-
-export const checkExistingSummary = action({
-  args: {
-    episodeId: v.string(),
-    userId: v.string(),
-  },
-  handler: async (ctx, args): Promise<any> => {
-    return await ctx.runQuery(api.summaries.getSummaryByEpisodeAndUser, {
-      episodeId: args.episodeId,
-      userId: args.userId,
-    });
   },
 });
 

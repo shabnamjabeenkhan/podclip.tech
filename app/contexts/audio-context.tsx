@@ -303,10 +303,15 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     if (!audio || !state.currentEpisode) return;
 
     // Load new episode
-    if (audio.src !== state.currentEpisode.audio) {
+    const proxyUrl = `/api/audio/proxy?url=${encodeURIComponent(state.currentEpisode.audio)}`;
+    const absoluteProxyUrl = new URL(proxyUrl, window.location.origin).href;
+    if (audio.src !== absoluteProxyUrl) {
       console.log('Loading audio:', state.currentEpisode.audio);
+      console.log('Using proxy URL:', proxyUrl);
       dispatch({ type: 'SET_LOADING', payload: true });
-      audio.src = state.currentEpisode.audio;
+      
+      // Use proxy for CORS-restricted audio URLs
+      audio.src = absoluteProxyUrl;
       audio.load();
     }
   }, [state.currentEpisode]);

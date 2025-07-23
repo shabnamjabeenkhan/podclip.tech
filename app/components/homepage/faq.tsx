@@ -2,14 +2,14 @@ import { FaqSection } from "~/components/ui/faq-section";
 
 const FAQ_ITEMS = [
   {
-    question: "How does Podclip preserve the original speaker's voice?",
+    question: "Can I chat with AI about any podcast episode?",
     answer:
-      "Our AI maintains the essence and tone of the original speakers while condensing content into digestible summaries. We focus on preserving key quotes, important phrases, and the speaker's unique insights to ensure authenticity.",
+      "Yes! Our AI chat feature lets you ask questions about any episode you've summarized. Get deeper insights, clarifications, and explore topics further.",
   },
   {
-    question: "What type of podcasts work best with PODCLIP?",
+    question: "Can I delete my account and data?",
     answer:
-      "Podclip excels with educational, interview-based, and informational podcasts. Content-rich shows like research discussions, expert interviews, news analysis, and professional development podcasts produce the most valuable summaries.",
+      "Yes, you can contact us at admin@podclip.tech to request account deletion. We'll permanently remove your data in accordance with our privacy policy.",
   },
   {
     question: "How accurate are the AI-generated summaries?",
@@ -17,9 +17,9 @@ const FAQ_ITEMS = [
       "Our AI achieves 95%+ accuracy by using advanced language models specifically trained for podcast content. Each summary is structured to capture the most important insights, key takeaways, and actionable information.",
   },
   {
-    question: "Can I export my summaries to other tools?",
+    question: "When will Notion integration be available?",
     answer:
-      "Absolutely! Summaries automatically sync to your Notion workspace. ",
+      "Notion integration is currently in development. Once launched, you'll be able to export summaries directly to your Notion workspace as pages or database entries. ",
   },
 ];
 

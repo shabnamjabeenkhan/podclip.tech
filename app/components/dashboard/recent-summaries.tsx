@@ -1,12 +1,18 @@
 import { useQuery } from "convex/react";
+import { useAuth } from "@clerk/react-router";
 import { api } from "../../../convex/_generated/api";
 import { Link } from "react-router";
 
 export function RecentSummaries() {
-  const userQuota = useQuery(api.users.getUserQuota);
+  const { isSignedIn } = useAuth();
+  
+  const userQuota = useQuery(
+    api.users.getUserQuota,
+    isSignedIn ? {} : "skip"
+  );
   const userSummaries = useQuery(
     api.summaries.getUserSummaries, 
-    userQuota?.userId ? { userId: userQuota.userId } : "skip"
+    isSignedIn && userQuota?.userId ? { userId: userQuota.userId } : "skip"
   );
 
   if (!userSummaries) {
