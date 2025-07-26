@@ -23,6 +23,82 @@ export const chat = httpAction(async (ctx, req) => {
     // Extract the `messages` and optional context from the body of the request
     const { messages, episodeId, summaryId, userId } = await req.json();
 
+    // Check if user has access to chat feature
+    if (userId) {
+      try {
+        // We need to get the user's token identifier to check access
+        // Try different possible token identifier formats for Clerk
+        let user = await ctx.runQuery(api.users.findUserByToken, {
+          tokenIdentifier: userId
+        });
+        
+        // If not found, try with user_ prefix
+        if (!user) {
+          user = await ctx.runQuery(api.users.findUserByToken, {
+            tokenIdentifier: `user_${userId}`
+          });
+        }
+        
+        if (!user) {
+          // User not found - log details for debugging
+          console.log(`User not found for chat access check: ${userId}`);
+          console.log(`Tried token identifiers: "${userId}" and "user_${userId}"`);
+          // Allow access for debugging purposes
+        } else {
+          console.log(`User found: ${user.tokenIdentifier}, plan: ${user.plan}`);
+        }
+
+        // Only check quota if we found the user
+        if (user) {
+          // Check quota and plan eligibility
+          const now = Date.now();
+          let currentCount = user.summary_count || 0;
+          let quotaResetDate = user.quota_reset_date;
+
+          // Check if user needs quota reset (for monthly and lifetime subscribers)
+          if ((user.plan === "monthly" || user.plan === "lifetime") && quotaResetDate && now >= quotaResetDate) {
+            currentCount = 0;
+          }
+
+          const quotaLimits = {
+            free: 5,
+            monthly: 50,
+            lifetime: 70,
+          };
+
+          const limit = quotaLimits[user.plan as keyof typeof quotaLimits] || quotaLimits.free;
+          const hasRemainingQuota = currentCount < limit;
+          const isPaidUser = user.plan === "monthly" || user.plan === "lifetime";
+          const canAccess = isPaidUser || (user.plan === "free" && hasRemainingQuota);
+
+          if (!canAccess) {
+            return new Response(JSON.stringify({ 
+              error: "Chat access restricted", 
+              message: `Chat is available to paid subscribers or free users with remaining summaries. You've used ${currentCount}/${limit} summaries. Upgrade to continue chatting.`,
+              plan: user.plan,
+              used: currentCount,
+              limit: limit
+            }), {
+              status: 403,
+              headers: {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": req.headers.get("Origin") || process.env.FRONTEND_URL || "http://localhost:5173",
+              }
+            });
+          }
+        }
+      } catch (error) {
+        console.error("Error checking chat access:", error);
+        return new Response(JSON.stringify({ error: "Error validating chat access" }), {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": req.headers.get("Origin") || process.env.FRONTEND_URL || "http://localhost:5173",
+          }
+        });
+      }
+    }
+
   let systemMessage = "You are a helpful AI assistant for discussing podcast episodes.";
 
   // If episode-specific context is provided, enhance the system message

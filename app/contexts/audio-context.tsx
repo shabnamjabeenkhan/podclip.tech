@@ -25,6 +25,7 @@ export interface AudioState {
   // Loading and error states
   isLoading: boolean;
   error: string | null;
+  retryCount: number;
   
   // Mini player state
   showMiniPlayer: boolean;
@@ -44,6 +45,8 @@ type AudioAction =
   | { type: 'SET_PLAYBACK_RATE'; payload: number }
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
+  | { type: 'INCREMENT_RETRY' }
+  | { type: 'RESET_RETRY' }
   | { type: 'TOGGLE_MINI_PLAYER'; payload?: boolean }
   | { type: 'SEEK'; payload: number }
   | { type: 'SKIP'; payload: number }
@@ -58,6 +61,7 @@ const initialState: AudioState = {
   playbackRate: 1,
   isLoading: false,
   error: null,
+  retryCount: 0,
   showMiniPlayer: false,
   playlist: [],
   currentIndex: -1,
@@ -71,6 +75,7 @@ function audioReducer(state: AudioState, action: AudioAction): AudioState {
         currentEpisode: action.payload,
         isLoading: true,
         error: null,
+        retryCount: 0,
         currentTime: 0,
         showMiniPlayer: true,
       };
@@ -90,6 +95,10 @@ function audioReducer(state: AudioState, action: AudioAction): AudioState {
       return { ...state, isLoading: action.payload };
     case 'SET_ERROR':
       return { ...state, error: action.payload, isLoading: false };
+    case 'INCREMENT_RETRY':
+      return { ...state, retryCount: state.retryCount + 1 };
+    case 'RESET_RETRY':
+      return { ...state, retryCount: 0 };
     case 'TOGGLE_MINI_PLAYER':
       return { 
         ...state, 
@@ -105,6 +114,7 @@ function audioReducer(state: AudioState, action: AudioAction): AudioState {
         ...initialState,
         volume: state.volume,
         playbackRate: state.playbackRate,
+        retryCount: 0,
       };
     default:
       return state;
@@ -218,9 +228,47 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
     const handleError = (event: Event) => {
       console.error('Audio loading error:', event, audio.error);
-      const errorMessage = audio.error ? 
-        `Audio error (${audio.error.code}): ${audio.error.message}` : 
-        'Failed to load audio';
+      
+      // Create user-friendly error messages based on error codes
+      let errorMessage = 'Audio unavailable';
+      
+      if (audio.error) {
+        switch (audio.error.code) {
+          case 1: // MEDIA_ERR_ABORTED
+            errorMessage = 'Audio playback was stopped';
+            break;
+          case 2: // MEDIA_ERR_NETWORK
+            errorMessage = 'Audio unavailable due to network issues. Please check your connection and try again.';
+            break;
+          case 3: // MEDIA_ERR_DECODE
+            errorMessage = 'Audio format not supported or file is corrupted';
+            break;
+          case 4: // MEDIA_ERR_SRC_NOT_SUPPORTED
+            errorMessage = 'This episode\'s audio format is not supported by your browser';
+            break;
+          default:
+            errorMessage = 'Audio temporarily unavailable';
+            break;
+        }
+      }
+      
+      // Don't show error immediately for certain error types that might resolve with retry
+      const shouldAutoRetry = audio.error?.code === 2; // Network errors
+      const maxRetries = 2;
+      
+      if (shouldAutoRetry && state.retryCount < maxRetries) {
+        console.log(`Retrying audio load (attempt ${state.retryCount + 1}/${maxRetries})`);
+        dispatch({ type: 'INCREMENT_RETRY' });
+        
+        // Retry after a short delay
+        setTimeout(() => {
+          if (audio) {
+            audio.load();
+          }
+        }, 1000);
+        return;
+      }
+      
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
     };
 

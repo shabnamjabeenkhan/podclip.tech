@@ -224,8 +224,30 @@ export function EnhancedAudioPlayer({ episode, className = '' }: EnhancedAudioPl
 
         {/* Error Display */}
         {state.error && isCurrentEpisode && (
-          <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-            {state.error}
+          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0">
+                <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="text-sm font-medium text-red-800 mb-1">
+                  🎵 Audio Unavailable
+                </h4>
+                <p className="text-sm text-red-700 mb-3">
+                  {state.error}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-100 hover:bg-red-200 rounded-md transition-colors"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>

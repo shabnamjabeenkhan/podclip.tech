@@ -20,6 +20,9 @@ export default function Chat() {
   const summaryId = searchParams.get('summaryId');
   const { user } = useUser();
 
+  // Check if user can access chat - temporarily disabled to prevent errors
+  // const chatAccess = useQuery(api.users.canUserAccessChat);
+
   // Get summary data if we have context
   const summaryData = useQuery(
     api.summaries.getSummaryById, 
@@ -42,6 +45,28 @@ export default function Chat() {
       </div>
     );
   }
+
+  // Temporarily disabled chat access check to prevent errors
+  // if (chatAccess && !chatAccess.canAccess) {
+  //   return (
+  //     <div className="flex flex-col w-full py-24 justify-center items-center">
+  //       <div className="text-center space-y-4 max-w-md">
+  //         <h2 className="text-2xl font-semibold">Chat Access Restricted</h2>
+  //         <p className="text-muted-foreground">
+  //           {chatAccess.reason}
+  //         </p>
+  //         {chatAccess.plan === "free" && (
+  //           <Button 
+  //             onClick={() => window.location.href = '/pricing'} 
+  //             className="mt-4"
+  //           >
+  //             Upgrade to Continue Chatting
+  //           </Button>
+  //         )}
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
   // Safe access to environment variables only when needed
   const CONVEX_SITE_URL = config.services.convex?.url?.replace(

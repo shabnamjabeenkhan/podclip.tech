@@ -750,3 +750,65 @@ export const getCronExecutionHistory = query({
     };
   },
 });
+
+// Check if user can access chat feature
+export const canUserAccessChat = query({
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return { canAccess: false, reason: "Not authenticated" };
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.subject))
+      .unique();
+
+    if (!user) {
+      return { canAccess: false, reason: "User not found" };
+    }
+
+    // Check if user has quota available or is on paid plan
+    const now = Date.now();
+    let currentCount = user.summary_count || 0;
+    let quotaResetDate = user.quota_reset_date;
+
+    // Check if user needs quota reset (for monthly and lifetime subscribers)
+    if ((user.plan === "monthly" || user.plan === "lifetime") && quotaResetDate && now >= quotaResetDate) {
+      // User needs quota reset, but we can't mutate in a query
+      // Show reset count in calculation
+      currentCount = 0;
+    }
+
+    // Determine quota limits based on plan
+    const quotaLimits = {
+      free: 5,      // 5 summaries for free users
+      monthly: 50,  // 50 summaries per month
+      lifetime: 70, // 70 summaries per month for lifetime users
+    };
+
+    const limit = quotaLimits[user.plan as keyof typeof quotaLimits] || quotaLimits.free;
+    const hasRemainingQuota = currentCount < limit;
+
+    // Chat access rules:
+    // 1. Paid users (monthly/lifetime) can always access chat
+    // 2. Free users can access chat only if they have remaining summaries
+    const isPaidUser = user.plan === "monthly" || user.plan === "lifetime";
+    const canAccess = isPaidUser || (user.plan === "free" && hasRemainingQuota);
+
+    let reason = "";
+    if (!canAccess) {
+      reason = `Chat is available to paid subscribers or free users with remaining summaries. You've used ${currentCount}/${limit} summaries. Upgrade to continue chatting.`;
+    }
+
+    return {
+      canAccess,
+      reason,
+      plan: user.plan,
+      used: currentCount,
+      limit,
+      remaining: Math.max(0, limit - currentCount),
+      isPaidUser,
+    };
+  },
+});
