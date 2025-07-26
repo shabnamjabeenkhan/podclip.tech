@@ -116,26 +116,33 @@ export const sendContactEmail = action({
         `
       );
 
-      // Send confirmation email to the user
-      await resend.sendEmail(
-        ctx,
-        `${companyName} <${fromEmail}>`,
-        email,
-        `Thanks for contacting ${companyName}`,
-        `
-        <h2>Thanks for reaching out, ${name}!</h2>
-        <p>We've received your message about "<strong>${subject}</strong>" and will get back to you as soon as possible.</p>
-        
-        <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin: 20px 0;">
-          <p><strong>Your message:</strong></p>
-          <p style="margin: 8px 0;">${message.replace(/\n/g, '<br>')}</p>
-        </div>
-        
-        <p>If you have any urgent questions, you can also reach us directly at <a href="mailto:${adminEmail}">${adminEmail}</a>.</p>
-        
-        <p>Best regards,<br>The ${companyName} Team</p>
-        `
-      );
+      // Send confirmation email to the user (only if not in sandbox mode or if email matches admin)
+      const isTestMode = fromEmail.includes('resend.dev');
+      if (!isTestMode || email === adminEmail) {
+        try {
+          await resend.sendEmail(
+            ctx,
+            `${companyName} <${fromEmail}>`,
+            email,
+            `Thanks for contacting ${companyName}`,
+            `
+            <h2>Thanks for reaching out, ${name}!</h2>
+            <p>We've received your message about "<strong>${subject}</strong>" and will get back to you as soon as possible.</p>
+            
+            <div style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; margin: 20px 0;">
+              <p><strong>Your message:</strong></p>
+              <p style="margin: 8px 0;">${message.replace(/\n/g, '<br>')}</p>
+            </div>
+            
+            <p>If you have any urgent questions, you can also reach us directly at <a href="mailto:${adminEmail}">${adminEmail}</a>.</p>
+            
+            <p>Best regards,<br>The ${companyName} Team</p>
+            `
+          );
+        } catch (confirmationError) {
+          console.log("Could not send confirmation email in sandbox mode, but contact form was delivered to admin");
+        }
+      }
       
       return { success: true, message: "Contact email sent successfully!" };
     } catch (error) {
