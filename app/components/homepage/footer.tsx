@@ -63,19 +63,19 @@ export default function FooterSection() {
             <h4 className="font-semibold text-foreground mb-4">Support</h4>
             <ul className="space-y-3 text-sm">
               <li>
-                <a 
-                  href="mailto:admin@podclip.tech" 
+                <Link 
+                  to="/contact" 
                   className="text-muted-foreground hover:text-primary transition-colors"
                 >
                   Contact Us
-                </a>
+                </Link>
               </li>
               <li>
                 <a 
                   href="mailto:admin@podclip.tech" 
                   className="text-muted-foreground hover:text-primary transition-colors"
                 >
-                  Help & Support
+                  Email Support
                 </a>
               </li>
             </ul>

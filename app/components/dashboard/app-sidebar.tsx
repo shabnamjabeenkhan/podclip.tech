@@ -1,4 +1,4 @@
-import { IconDashboard, IconSettings, IconMessageCircle, IconPlus, IconList } from "@tabler/icons-react";
+import { IconDashboard, IconSettings, IconMessageCircle, IconPlus, IconList, IconMail } from "@tabler/icons-react";
 import { Link } from "react-router";
 import { NavMain } from "./nav-main";
 import { NavSecondary } from "./nav-secondary";
@@ -36,6 +36,11 @@ const data = {
     },
   ],
   navSecondary: [
+    {
+      title: "Contact",
+      url: "/contact",
+      icon: IconMail,
+    },
     {
       title: "Settings",
       url: "/dashboard/settings",

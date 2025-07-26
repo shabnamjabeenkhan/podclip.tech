@@ -18,6 +18,9 @@ function buildRoutes(): RouteConfig {
     route("privacy-policy", "routes/privacy-policy.tsx"),
     route("refund-policy", "routes/refund-policy.tsx"),
     
+    // Contact page is always available
+    route("contact", "routes/contact.tsx"),
+    
     // API routes (resource routes - no UI)
     route("api/health", "routes/api.health.ts"),
     route("api/audio/proxy", "routes/api.audio.proxy.ts"),
