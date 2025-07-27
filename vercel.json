@@ -1,0 +1,10 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "build/client",
+  "framework": null,
+  "functions": {
+    "app/routes/**": {
+      "maxDuration": 30
+    }
+  }
+}

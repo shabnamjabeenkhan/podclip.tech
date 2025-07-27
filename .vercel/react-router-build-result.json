@@ -15,6 +15,7 @@
       "routes/terms-of-service": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/privacy-policy": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/refund-policy": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/contact": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/api.health": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/api.audio.proxy": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/api.webhooks.sentry": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
@@ -78,6 +79,15 @@
         "parentId": "root",
         "file": "app/routes/refund-policy.tsx",
         "path": "refund-policy",
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/contact": {
+        "id": "routes/contact",
+        "parentId": "root",
+        "file": "app/routes/contact.tsx",
+        "path": "contact",
         "config": {
           "runtime": "nodejs"
         }
@@ -262,6 +272,12 @@
         "parentId": "root",
         "file": "routes/refund-policy.tsx",
         "path": "refund-policy"
+      },
+      "routes/contact": {
+        "id": "routes/contact",
+        "parentId": "root",
+        "file": "routes/contact.tsx",
+        "path": "contact"
       },
       "routes/api.health": {
         "id": "routes/api.health",
