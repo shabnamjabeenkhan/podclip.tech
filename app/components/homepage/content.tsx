@@ -1,5 +1,5 @@
 import { Button } from "~/components/ui/button";
-import { ChevronRight, GraduationCap, Heart, Laptop, Search, ArrowRight } from "lucide-react";
+import { GraduationCap, Heart, Laptop, Search, ArrowRight } from "lucide-react";
 import { Link } from "react-router";
 
 export default function ContentSection() {

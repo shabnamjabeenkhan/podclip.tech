@@ -1,4 +1,3 @@
-import { SignOutButton } from "@clerk/react-router";
 import {
   IconDotsVertical,
   IconLogout,
