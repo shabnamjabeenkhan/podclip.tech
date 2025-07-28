@@ -85,7 +85,12 @@ export async function loader(args: Route.LoaderArgs) {
 
     // Only fetch plans if payments are enabled
     if (paymentsEnabled) {
-      promises.push(fetchAction(api.subscriptions.getAvailablePlans));
+      promises.push(
+        fetchAction(api.subscriptions.getAvailablePlans).catch((error: unknown) => {
+          console.error("Failed to fetch plans:", error);
+          return null;
+        })
+      );
     } else {
       promises.push(Promise.resolve(null));
     }
