@@ -167,18 +167,23 @@ export const getServiceConfig = <T extends keyof AppConfig['services']>(
 // Validation function to check if required env vars are present for enabled features
 export const validateConfig = (): { valid: boolean; errors: string[] } => {
   const errors: string[] = [];
+  
+  // Check if we're in browser environment
+  const isBrowser = typeof window !== 'undefined';
 
   if (isFeatureEnabled('auth') && isServiceEnabled('clerk')) {
     if (!config.services.clerk?.publishableKey) {
       errors.push('VITE_CLERK_PUBLISHABLE_KEY is required when auth is enabled');
     }
-    if (!config.services.clerk?.secretKey) {
+    // Only validate server-side keys on server
+    if (!isBrowser && !config.services.clerk?.secretKey) {
       errors.push('CLERK_SECRET_KEY is required when auth is enabled');
     }
   }
 
   if (isFeatureEnabled('convex') && isServiceEnabled('convex')) {
-    if (!config.services.convex?.deployment) {
+    // Only validate server-side deployment on server
+    if (!isBrowser && !config.services.convex?.deployment) {
       errors.push('CONVEX_DEPLOYMENT is required when convex is enabled');
     }
     if (!config.services.convex?.url) {
