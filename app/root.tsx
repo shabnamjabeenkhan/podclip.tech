@@ -37,7 +37,7 @@ export function meta(): Route.MetaDescriptors {
   const title = "PodClip - AI-Powered Podcast Summaries";
   const description = "Get instant AI-generated summaries and key takeaways from your favorite podcast episodes. Save time and never miss important insights.";
   const siteUrl = "https://podclip.tech";
-  const imageUrl = "/kaizen.png"; // Update this with your podcast app logo
+  const imageUrl = "/podclip.png";
 
   return [
     { title },
@@ -92,13 +92,7 @@ export const links: Route.LinksFunction = () => [
   // Preload critical assets
   {
     rel: "preload",
-    href: "/kaizen.png",
-    as: "image",
-    type: "image/jpg",
-  },
-  {
-    rel: "preload",
-    href: "/kaizen-favicon.png", 
+    href: "/podclip.png",
     as: "image",
     type: "image/png",
   },
@@ -106,8 +100,8 @@ export const links: Route.LinksFunction = () => [
   // Icon
   {
     rel: "icon",
-    type: "image/png",
-    href: "/kaizen-favicon.png",
+    type: "image/svg+xml",
+    href: "/favicon.svg",
   },
 ];
 

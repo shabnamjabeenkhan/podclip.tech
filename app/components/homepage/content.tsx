@@ -158,7 +158,7 @@ export default function ContentSection() {
             </p>
             <Button asChild size="lg" className="group">
               <Link to="/sign-up" prefetch="viewport">
-                🚀 Start Your Journey
+                🚀 Start Summarising!
                 <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Link>
             </Button>
