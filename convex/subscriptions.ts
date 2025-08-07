@@ -4,6 +4,17 @@ import { Webhook, WebhookVerificationError } from "standardwebhooks";
 import { api } from "./_generated/api";
 import { action, httpAction, mutation, query } from "./_generated/server";
 
+// Simple structured logger for consistent webhook/DB audit logs
+function logStructured(event: string, payload: Record<string, unknown> = {}): void {
+  try {
+    console.log(
+      JSON.stringify({ ts: new Date().toISOString(), event, ...payload })
+    );
+  } catch (err) {
+    console.log(`[${event}]`, payload);
+  }
+}
+
 const createCheckout = async ({
   customerEmail,
   productPriceId,
@@ -371,7 +382,7 @@ export const handleWebhookEvent = mutation({
             console.log("⏭️ Subscription record already exists for:", subscriptionData.id);
           } else {
             // Handle as recurring subscription
-            await ctx.db.insert("subscriptions", {
+            const insertDoc = {
               polarId: subscriptionData.id,
               polarPriceId: subscriptionData.price_id,
               currency: subscriptionData.currency,
@@ -393,7 +404,17 @@ export const handleWebhookEvent = mutation({
             plan: plan,
             created_at: Date.now(),
             updated_at: Date.now(),
+            } as const;
+            logStructured("subscriptions.insert", {
+              table: "subscriptions",
+              action: "insert",
+              reason: "webhook:subscription.created",
+              userId: insertDoc.userId,
+              polarId: insertDoc.polarId,
+              interval: insertDoc.interval,
+              status: insertDoc.status,
             });
+            await ctx.db.insert("subscriptions", insertDoc);
             console.log("✅ Monthly subscription record created");
           }
         } else {
@@ -407,7 +428,7 @@ export const handleWebhookEvent = mutation({
             console.log("⏭️ Lifetime payment record already exists for:", subscriptionData.id);
           } else {
             // Handle as one-time lifetime purchase (stored in payments table)
-            await ctx.db.insert("payments", {
+            const insertPayment = {
               userId: subscriptionData.metadata.userId,
               polarOrderId: subscriptionData.id, // Use subscription ID as order ID
               polarProductId: subscriptionData.product_id || "unknown",
@@ -422,7 +443,16 @@ export const handleWebhookEvent = mutation({
               confirmedAt: subscriptionData.status === "active" ? Date.now() : undefined,
               created_at: Date.now(),
               updated_at: Date.now(),
+            } as const;
+            logStructured("payments.insert", {
+              table: "payments",
+              action: "insert",
+              reason: "webhook:subscription.created(lifetime)",
+              userId: insertPayment.userId,
+              polarOrderId: insertPayment.polarOrderId,
+              status: insertPayment.status,
             });
+            await ctx.db.insert("payments", insertPayment);
             console.log("✅ Lifetime payment record created");
           }
         }
@@ -605,7 +635,7 @@ export const handleWebhookEvent = mutation({
           console.log("⏭️ Payment record already exists for order:", orderData.id);
         } else {
           // Insert payment record
-          await ctx.db.insert("payments", {
+          const insertPayment = {
             userId: orderData.metadata.userId,
             polarOrderId: orderData.id,
             polarProductId: orderData.product_id,
@@ -619,7 +649,16 @@ export const handleWebhookEvent = mutation({
             customFieldData: orderData.custom_field_data || {},
             created_at: Date.now(),
             updated_at: Date.now(),
+          } as const;
+          logStructured("payments.insert", {
+            table: "payments",
+            action: "insert",
+            reason: "webhook:order.created",
+            userId: insertPayment.userId,
+            polarOrderId: insertPayment.polarOrderId,
+            status: insertPayment.status,
           });
+          await ctx.db.insert("payments", insertPayment);
           console.log("✅ Payment record created for order:", orderData.id);
         }
         break;
@@ -670,7 +709,7 @@ export const handleWebhookEvent = mutation({
         } else {
           console.log("⚠️ Payment record not found, creating new one");
           // Create payment record if it doesn't exist
-          await ctx.db.insert("payments", {
+          const insertPayment = {
             userId: paidOrder.metadata.userId,
             polarOrderId: paidOrder.id,
             polarProductId: paidOrder.product_id,
@@ -685,7 +724,16 @@ export const handleWebhookEvent = mutation({
             confirmedAt: Date.now(),
             created_at: Date.now(),
             updated_at: Date.now(),
+          } as const;
+          logStructured("payments.insert", {
+            table: "payments",
+            action: "insert",
+            reason: "webhook:order.paid",
+            userId: insertPayment.userId,
+            polarOrderId: insertPayment.polarOrderId,
+            status: insertPayment.status,
           });
+          await ctx.db.insert("payments", insertPayment);
         }
 
         // Update user plan to lifetime
@@ -816,7 +864,10 @@ const validateEvent = (
 
 export const paymentWebhook = httpAction(async (ctx, request) => {
   try {
-    console.log("🔗 Webhook received at:", new Date().toISOString());
+    logStructured("webhook.received", {
+      at: new Date().toISOString(),
+      path: "subscriptions.paymentWebhook",
+    });
     
     // Check if required Polar environment variables are configured
     if (!process.env.POLAR_ACCESS_TOKEN || !process.env.POLAR_ORGANIZATION_ID) {
@@ -830,7 +881,7 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
     }
 
     const rawBody = await request.text();
-    console.log("📦 Webhook body length:", rawBody.length);
+    logStructured("webhook.body", { length: rawBody.length });
 
     // Internally validateEvent uses headers as a dictionary e.g. headers["webhook-id"]
     // So we need to convert the headers to a dictionary
@@ -849,15 +900,14 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
     validateEvent(rawBody, headers, process.env.POLAR_WEBHOOK_SECRET);
 
     const body = JSON.parse(rawBody);
-    console.log("🎯 Webhook event type:", body.type);
-    console.log("📦 Webhook event data:", JSON.stringify(body.data, null, 2));
+    logStructured("webhook.event", { type: body.type });
 
     // track events and based on events store data
     await ctx.runMutation(api.subscriptions.handleWebhookEvent, {
       body,
     });
 
-    console.log("✅ Webhook processed successfully");
+    logStructured("webhook.processed", { type: body.type, status: "ok" });
     return new Response(JSON.stringify({ message: "Webhook received!" }), {
       status: 200,
       headers: {
@@ -866,6 +916,7 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
     });
   } catch (error) {
     if (error instanceof WebhookVerificationError) {
+      logStructured("webhook.error", { reason: "verification_failed" });
       return new Response(
         JSON.stringify({ message: "Webhook verification failed" }),
         {
@@ -877,6 +928,7 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
       );
     }
 
+    logStructured("webhook.error", { reason: "unhandled_error", message: (error as Error)?.message });
     return new Response(JSON.stringify({ message: "Webhook failed" }), {
       status: 400,
       headers: {
