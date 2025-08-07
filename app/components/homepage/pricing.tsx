@@ -207,7 +207,7 @@ export default function Pricing({ loaderData }: { loaderData: any }) {
                       <ul className="list-outside space-y-3 text-sm">
                         <li className="flex items-center gap-2">
                           <Check className="size-3" />
-                          70 summaries a month generated
+                          {plan.isRecurring ? "50 summaries a month generated" : "70 summaries a month generated"}
                         </li>
                         <li className="flex items-center gap-2">
                           <Check className="size-3" />
