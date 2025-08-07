@@ -5,6 +5,7 @@ import { EnhancedAudioPlayer } from "~/components/audio/enhanced-audio-player";
 import { useAuth } from "@clerk/react-router";
 import { toast } from "sonner";
 import type { Route } from "./+types/new-summary";
+import { Pagination } from "~/components/ui/pagination";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -16,9 +17,12 @@ export function meta({}: Route.MetaArgs) {
 
 export default function NewSummary() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchType, setSearchType] = useState<'podcast'>('podcast');
   const [podcastResults, setPodcastResults] = useState<any>(null);
   const [selectedPodcast, setSelectedPodcast] = useState<any>(null);
   const [episodes, setEpisodes] = useState<any>(null);
+  const [episodePage, setEpisodePage] = useState<{[key: string]: number}>({});
+  const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [generatingSummary, setGeneratingSummary] = useState<{[key: string]: boolean}>({});
   const [summaries, setSummaries] = useState<{[key: string]: any}>({});
@@ -31,6 +35,7 @@ export default function NewSummary() {
   
   const { userId, isSignedIn } = useAuth();
   const searchPodcasts = useAction(api.podcasts.searchPodcasts);
+  const searchEpisodes = useAction(api.podcasts.searchEpisodes);
   const getPodcastEpisodes = useAction(api.podcasts.getPodcastEpisodes);
   const generateSummary = useAction(api.summaries.generateSummary);
   const createSummary = useMutation(api.summaries.createSummary);
@@ -216,18 +221,55 @@ export default function NewSummary() {
     }
   };
 
-  const handleSearch = async () => {
+  const handleSearch = async (page: number = 1) => {
     if (!searchQuery.trim()) return;
     
     setIsLoading(true);
+    setCurrentPage(page);
+    const offset = (page - 1) * 20;
+    
     try {
-      const results = await searchPodcasts({ query: searchQuery });
+      const results = await searchPodcasts({ 
+        query: searchQuery, 
+        offset, 
+        limit: 20 
+      });
       setPodcastResults(results);
       setSelectedPodcast(null);
       setEpisodes(null);
       console.log("Podcast results:", results);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Search failed:", error);
+      toast.error(error.message || "Failed to search podcasts. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const handlePageChange = (page: number) => {
+    handleSearch(page);
+  };
+
+  const handleLoadMoreEpisodes = async (nextEpisodePubDate: number) => {
+    if (!selectedPodcast) return;
+    
+    setIsLoading(true);
+    try {
+      const moreEpisodes = await getPodcastEpisodes({ 
+        podcastId: selectedPodcast.id,
+        nextEpisodePubDate 
+      });
+      
+      // Append new episodes to existing ones
+      setEpisodes((prev: any) => ({
+        ...prev,
+        episodes: [...(prev?.episodes || []), ...(moreEpisodes.episodes || [])],
+        pagination: moreEpisodes.pagination
+      }));
+      
+      console.log("Loaded more episodes:", moreEpisodes);
+    } catch (error) {
+      console.error("Failed to load more episodes:", error);
     } finally {
       setIsLoading(false);
     }
@@ -238,8 +280,8 @@ export default function NewSummary() {
     setIsLoading(true);
     try {
       const podcastData = await getPodcastEpisodes({ podcastId: podcast.id });
-      setEpisodes(podcastData.episodes);
-      console.log("Episodes:", podcastData.episodes);
+      setEpisodes(podcastData);
+      console.log("Episodes:", podcastData);
       
       // Check for existing summaries for all episodes
       if (userQuota?.userId && podcastData.episodes) {
@@ -429,6 +471,8 @@ export default function NewSummary() {
             <label className="block text-sm font-medium text-gray-700 mb-3">
               Search for podcasts
             </label>
+            
+            
             <div className="flex gap-3">
               <input 
                 type="text" 
@@ -439,7 +483,7 @@ export default function NewSummary() {
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               />
               <button 
-                onClick={handleSearch}
+                onClick={() => handleSearch()}
                 disabled={isLoading || !searchQuery.trim()}
                 className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
               >
@@ -453,7 +497,12 @@ export default function NewSummary() {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-gray-900">
-                  Found {podcastResults.results?.length || 0} podcasts
+                  Found {podcastResults.pagination?.total || podcastResults.results?.length || 0} podcasts
+                  {podcastResults.pagination?.total && (
+                    <span className="text-base font-normal text-gray-500 ml-2">
+                      (showing {podcastResults.results?.length || 0})
+                    </span>
+                  )}
                 </h2>
                 <span className="text-sm text-gray-500">Click a podcast to see episodes</span>
               </div>
@@ -496,8 +545,20 @@ export default function NewSummary() {
                   </div>
                 ))}
               </div>
+              
+              {/* Pagination for Podcasts */}
+              {podcastResults.pagination && podcastResults.pagination.totalPages > 1 && (
+                <div className="mt-8">
+                  <Pagination
+                    currentPage={podcastResults.pagination.currentPage}
+                    totalPages={podcastResults.pagination.totalPages}
+                    onPageChange={handlePageChange}
+                  />
+                </div>
+              )}
             </div>
           )}
+
 
           {/* Episodes from Selected Podcast */}
           {selectedPodcast && episodes && (
@@ -528,12 +589,17 @@ export default function NewSummary() {
                     <p className="text-gray-600 mt-1">
                       Choose an episode to generate an AI summary
                     </p>
+                    {episodes.pagination && (
+                      <p className="text-sm text-gray-500 mt-2">
+                        Showing {episodes.episodes?.length || 0} of {episodes.pagination.total} episodes
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
 
               <div className="space-y-4">
-                {episodes?.map((episode: any, index: number) => (
+                {episodes.episodes?.map((episode: any, index: number) => (
                   <div key={index} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow">
                     <div className="space-y-4">
                       {/* Episode Info */}
@@ -876,6 +942,19 @@ export default function NewSummary() {
                   </div>
                 ))}
               </div>
+              
+              {/* Load More Episodes Button */}
+              {episodes.pagination && episodes.pagination.hasNext && (
+                <div className="flex justify-center mt-8">
+                  <button
+                    onClick={() => handleLoadMoreEpisodes(episodes.pagination.nextEpisodePubDate)}
+                    disabled={isLoading}
+                    className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {isLoading ? "Loading..." : "Load More Episodes"}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
