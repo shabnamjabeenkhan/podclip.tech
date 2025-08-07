@@ -414,7 +414,8 @@ export const handleWebhookEvent = mutation({
               interval: insertDoc.interval,
               status: insertDoc.status,
             });
-            await ctx.db.insert("subscriptions", insertDoc);
+            const newId = await ctx.db.insert("subscriptions", insertDoc);
+            logStructured("subscriptions.inserted", { _id: newId, polarId: insertDoc.polarId, userId: insertDoc.userId });
             console.log("✅ Monthly subscription record created");
           }
         } else {
@@ -452,7 +453,8 @@ export const handleWebhookEvent = mutation({
               polarOrderId: insertPayment.polarOrderId,
               status: insertPayment.status,
             });
-            await ctx.db.insert("payments", insertPayment);
+            const payId = await ctx.db.insert("payments", insertPayment);
+            logStructured("payments.inserted", { _id: payId, polarOrderId: insertPayment.polarOrderId, userId: insertPayment.userId });
             console.log("✅ Lifetime payment record created");
           }
         }
@@ -658,7 +660,8 @@ export const handleWebhookEvent = mutation({
             polarOrderId: insertPayment.polarOrderId,
             status: insertPayment.status,
           });
-          await ctx.db.insert("payments", insertPayment);
+          const payId2 = await ctx.db.insert("payments", insertPayment);
+          logStructured("payments.inserted", { _id: payId2, polarOrderId: insertPayment.polarOrderId, userId: insertPayment.userId });
           console.log("✅ Payment record created for order:", orderData.id);
         }
         break;
