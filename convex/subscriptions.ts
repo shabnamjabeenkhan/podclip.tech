@@ -304,26 +304,23 @@ export const fetchUserSubscription = query({
 export const handleWebhookEvent = mutation({
   args: {
     body: v.any(),
+    webhookId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // Extract event type from webhook payload
     const eventType = args.body.type;
-    const webhookId = args.body.id; // Unique webhook ID from Polar
+    // Polar sends the unique event ID in the `webhook-id` header, not in the body
+    const webhookId = args.webhookId || args.body.id; 
 
-    console.log(
-      "🔔 Received webhook event:",
-      eventType,
-      "for entity:",
-      args.body.data.id,
-      "webhook ID:",
-      webhookId
-    );
+    logStructured("webhook.received.detail", { type: eventType, entityId: args.body?.data?.id, webhookId: webhookId ?? null });
 
     // Check if this webhook has already been processed (deduplication)
-    const existingWebhook = await ctx.db
+    const existingWebhook = webhookId
+      ? await ctx.db
       .query("webhookEvents")
       .withIndex("by_webhook_id", (q) => q.eq("webhookId", webhookId))
-      .first();
+      .first()
+      : null;
 
     if (existingWebhook) {
       console.log("⏭️ Webhook already processed, skipping:", webhookId);
@@ -893,6 +890,8 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
     request.headers.forEach((value, key) => {
       headers[key] = value;
     });
+    const webhookIdHeader = headers["webhook-id"] || headers["webhook_id"] || headers["x-webhook-id"];
+    logStructured("webhook.headers", { webhookId: webhookIdHeader });
 
     // Validate the webhook event
     if (!process.env.POLAR_WEBHOOK_SECRET) {
@@ -908,6 +907,7 @@ export const paymentWebhook = httpAction(async (ctx, request) => {
     // track events and based on events store data
     await ctx.runMutation(api.subscriptions.handleWebhookEvent, {
       body,
+      webhookId: webhookIdHeader,
     });
 
     logStructured("webhook.processed", { type: body.type, status: "ok" });
