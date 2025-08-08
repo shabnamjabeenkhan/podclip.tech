@@ -9,16 +9,27 @@ export const searchPodcasts = action({
   },
   handler: async (_, args) => {
     const offset = args.offset || 0;
-    const limit = Math.min(args.limit || 20, 50); // Cap at 50 results per page
+    const limit = Math.min(args.limit || 10, 10); // Cap at 10 results per page (API maximum)
     
-    const response = await fetch(
-      `https://listen-api.listennotes.com/api/v2/search?q=${encodeURIComponent(args.query)}&type=podcast&safe_mode=0&offset=${offset}&page_size=${limit}&len_min=0`,
-      {
-        headers: {
-          "X-ListenAPI-Key": process.env.LISTEN_NOTES_API_KEY!,
-        },
-      }
-    );
+    const url = `https://listen-api.listennotes.com/api/v2/search?q=${encodeURIComponent(args.query)}&type=podcast&safe_mode=0&offset=${offset}&page_size=${limit}&len_min=0`;
+    
+    console.log("=== API PARAMETERS DEBUG ===");
+    console.log("Query:", args.query);
+    console.log("Offset:", offset);
+    console.log("Limit/page_size:", limit);
+    console.log("Full URL:", url);
+    console.log("===========================");
+    
+    const apiKey = process.env.LISTEN_NOTES_API_KEY ?? process.env.LISTEN_API_KEY;
+    if (!apiKey) {
+      throw new Error("Listen Notes API key missing. Set LISTEN_NOTES_API_KEY or LISTEN_API_KEY.");
+    }
+
+    const response = await fetch(url, {
+      headers: {
+        "X-ListenAPI-Key": apiKey,
+      },
+    });
     
     if (!response.ok) {
       throw new Error(`API request failed: ${response.status}`);
@@ -57,9 +68,13 @@ export const getPodcastEpisodes = action({
       url += `&next_episode_pub_date=${args.nextEpisodePubDate}`;
     }
     
+    const apiKey = process.env.LISTEN_NOTES_API_KEY ?? process.env.LISTEN_API_KEY;
+    if (!apiKey) {
+      throw new Error("Listen Notes API key missing. Set LISTEN_NOTES_API_KEY or LISTEN_API_KEY.");
+    }
     const response = await fetch(url, {
       headers: {
-        "X-ListenAPI-Key": process.env.LISTEN_NOTES_API_KEY!,
+        "X-ListenAPI-Key": apiKey,
       },
     });
     
@@ -92,13 +107,17 @@ export const searchEpisodes = action({
   },
   handler: async (_, args) => {
     const offset = args.offset || 0;
-    const limit = Math.min(args.limit || 20, 50); // Cap at 50 results per page
+    const limit = Math.min(args.limit || 10, 10); // Cap at 10 results per page (API maximum)
     
+    const apiKey = process.env.LISTEN_NOTES_API_KEY ?? process.env.LISTEN_API_KEY;
+    if (!apiKey) {
+      throw new Error("Listen Notes API key missing. Set LISTEN_NOTES_API_KEY or LISTEN_API_KEY.");
+    }
     const response = await fetch(
       `https://listen-api.listennotes.com/api/v2/search?q=${encodeURIComponent(args.query)}&type=episode&safe_mode=0&offset=${offset}&page_size=${limit}`,
       {
         headers: {
-          "X-ListenAPI-Key": process.env.LISTEN_NOTES_API_KEY!,
+          "X-ListenAPI-Key": apiKey,
         },
       }
     );
@@ -132,11 +151,15 @@ export const getEpisodeTranscript = action({
   handler: async (_, args) => {
     console.log(`Fetching transcript for episode: ${args.episodeId}`);
     
+    const apiKey = process.env.LISTEN_NOTES_API_KEY ?? process.env.LISTEN_API_KEY;
+    if (!apiKey) {
+      throw new Error("Listen Notes API key missing. Set LISTEN_NOTES_API_KEY or LISTEN_API_KEY.");
+    }
     const response = await fetch(
       `https://listen-api.listennotes.com/api/v2/episodes/${args.episodeId}`,
       {
         headers: {
-          "X-ListenAPI-Key": process.env.LISTEN_NOTES_API_KEY!,
+          "X-ListenAPI-Key": apiKey,
         },
       }
     );

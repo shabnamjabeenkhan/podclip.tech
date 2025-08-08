@@ -226,13 +226,15 @@ export default function NewSummary() {
     
     setIsLoading(true);
     setCurrentPage(page);
-    const offset = (page - 1) * 20;
+    // Align with API page_size cap (10)
+    const pageSize = 10;
+    const offset = (page - 1) * pageSize;
     
     try {
       const results = await searchPodcasts({ 
         query: searchQuery, 
         offset, 
-        limit: 20 
+        limit: pageSize 
       });
       setPodcastResults(results);
       setSelectedPodcast(null);
