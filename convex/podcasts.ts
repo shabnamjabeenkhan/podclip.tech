@@ -12,7 +12,7 @@ export const searchPodcasts = action({
     const limit = Math.min(args.limit || 20, 50); // Cap at 50 results per page
     
     const response = await fetch(
-      `https://listen-api.listennotes.com/api/v2/search?q=${encodeURIComponent(args.query)}&type=podcast&safe_mode=0&offset=${offset}&len_max=${limit}`,
+      `https://listen-api.listennotes.com/api/v2/search?q=${encodeURIComponent(args.query)}&type=podcast&safe_mode=0&offset=${offset}&page_size=${limit}&len_min=0`,
       {
         headers: {
           "X-ListenAPI-Key": process.env.LISTEN_NOTES_API_KEY!,
@@ -27,19 +27,20 @@ export const searchPodcasts = action({
     const data = await response.json();
     console.log(`Search results: ${data.results?.length || 0} podcasts returned, offset: ${offset}, total: ${data.total || 0}`);
     
-    return {
-      ...data,
-      pagination: {
-        offset,
-        limit,
-        total: data.total || 0,
-        hasNext: data.next_offset !== null && data.next_offset !== undefined,
-        hasPrev: offset > 0,
-        nextOffset: data.next_offset,
-        currentPage: Math.floor(offset / limit) + 1,
-        totalPages: Math.ceil((data.total || 0) / limit)
-      }
-    };
+      return {
+        ...data,
+        pagination: {
+          offset,
+          limit,
+          total: data.total || 0,
+          hasNext:
+            typeof data.next_offset === "number" && data.next_offset >= 0,
+          hasPrev: offset > 0,
+          nextOffset: data.next_offset,
+          currentPage: Math.floor(offset / limit) + 1,
+          totalPages: Math.ceil((data.total || 0) / limit)
+        }
+      };
   },
 });
 
@@ -94,7 +95,7 @@ export const searchEpisodes = action({
     const limit = Math.min(args.limit || 20, 50); // Cap at 50 results per page
     
     const response = await fetch(
-      `https://listen-api.listennotes.com/api/v2/search?q=${encodeURIComponent(args.query)}&type=episode&safe_mode=0&offset=${offset}&len_max=${limit}`,
+      `https://listen-api.listennotes.com/api/v2/search?q=${encodeURIComponent(args.query)}&type=episode&safe_mode=0&offset=${offset}&page_size=${limit}`,
       {
         headers: {
           "X-ListenAPI-Key": process.env.LISTEN_NOTES_API_KEY!,
@@ -109,19 +110,20 @@ export const searchEpisodes = action({
     const data = await response.json();
     console.log(`Episode search results: ${data.results?.length || 0} episodes returned, offset: ${offset}, total: ${data.total || 0}`);
     
-    return {
-      ...data,
-      pagination: {
-        offset,
-        limit,
-        total: data.total || 0,
-        hasNext: data.next_offset !== null && data.next_offset !== undefined,
-        hasPrev: offset > 0,
-        nextOffset: data.next_offset,
-        currentPage: Math.floor(offset / limit) + 1,
-        totalPages: Math.ceil((data.total || 0) / limit)
-      }
-    };
+      return {
+        ...data,
+        pagination: {
+          offset,
+          limit,
+          total: data.total || 0,
+          hasNext:
+            typeof data.next_offset === "number" && data.next_offset >= 0,
+          hasPrev: offset > 0,
+          nextOffset: data.next_offset,
+          currentPage: Math.floor(offset / limit) + 1,
+          totalPages: Math.ceil((data.total || 0) / limit)
+        }
+      };
   },
 });
 
