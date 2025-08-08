@@ -63,16 +63,16 @@ export default function AllSummaries() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">All Summaries</h1>
-              <p className="text-gray-600">View all your generated podcast summaries</p>
+      <div className="max-w-4xl mx-auto p-3 sm:p-4 md:p-6">
+        <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 md:p-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6 mb-4 sm:mb-6">
+            <div className="flex-1 min-w-0">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 mb-1 sm:mb-2">All Summaries</h1>
+              <p className="text-sm sm:text-base text-gray-600">View all your generated podcast summaries</p>
             </div>
             {userQuota && (
-              <div className="text-right">
-                <div className={`px-4 py-2 rounded-full text-sm font-medium ${
+              <div className="flex-shrink-0">
+                <div className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium ${
                   !userQuota.canGenerate 
                     ? 'bg-red-100 text-red-800' 
                     : userQuota.remaining !== -1 && userQuota.remaining <= 2
@@ -84,7 +84,7 @@ export default function AllSummaries() {
                     : `${userQuota.used}/${userQuota.limit} used`}
                 </div>
                 {userQuota.remaining !== -1 && userQuota.remaining > 0 && (
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 mt-1 text-center sm:text-right">
                     {userQuota.remaining} remaining{userQuota.plan === 'monthly' ? ' this month' : ''}
                   </p>
                 )}
@@ -93,11 +93,11 @@ export default function AllSummaries() {
           </div>
 
           {/* Search and Filters */}
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-4 sm:mb-6">
             <div className="flex-1">
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                 </div>
@@ -106,15 +106,15 @@ export default function AllSummaries() {
                   placeholder="Search summaries..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  className="block w-full pl-9 sm:pl-10 pr-3 py-2 sm:py-2.5 text-sm sm:text-base border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex-shrink-0">
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as "newest" | "oldest")}
-                className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full sm:w-auto px-3 py-2 sm:py-2.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="newest">Newest first</option>
                 <option value="oldest">Oldest first</option>
@@ -134,26 +134,26 @@ export default function AllSummaries() {
           
           {/* Loading State */}
           {userSummaries === undefined && (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <span className="ml-3 text-gray-600">Loading summaries...</span>
+            <div className="flex items-center justify-center py-8 sm:py-12">
+              <div className="animate-spin rounded-full h-6 w-6 sm:h-8 sm:w-8 border-b-2 border-blue-600"></div>
+              <span className="ml-3 text-sm sm:text-base text-gray-600">Loading summaries...</span>
             </div>
           )}
 
           {/* Empty State */}
           {userSummaries && userSummaries.length === 0 && (
-            <div className="text-center py-12">
-              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="text-center py-8 sm:py-12">
+              <svg className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               <h3 className="mt-2 text-sm font-medium text-gray-900">No summaries yet</h3>
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-1 text-xs sm:text-sm text-gray-500 px-4">
                 Generate your first summary from the New Summary page.
               </p>
-              <div className="mt-6">
+              <div className="mt-4 sm:mt-6">
                 <a
                   href="/dashboard/new-summary"
-                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  className="inline-flex items-center px-3 sm:px-4 py-2 border border-transparent shadow-sm text-xs sm:text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 touch-manipulation"
                 >
                   Create New Summary
                 </a>
@@ -163,18 +163,18 @@ export default function AllSummaries() {
 
           {/* No Results for Search */}
           {userSummaries && userSummaries.length > 0 && filteredAndSortedSummaries.length === 0 && searchQuery && (
-            <div className="text-center py-12">
-              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="text-center py-8 sm:py-12">
+              <svg className="mx-auto h-10 w-10 sm:h-12 sm:w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <h3 className="mt-2 text-sm font-medium text-gray-900">No results found</h3>
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-1 text-xs sm:text-sm text-gray-500 px-4">
                 Try adjusting your search terms or clear the search to see all summaries.
               </p>
-              <div className="mt-6">
+              <div className="mt-4 sm:mt-6">
                 <button
                   onClick={() => setSearchQuery("")}
-                  className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                  className="inline-flex items-center px-3 sm:px-4 py-2 border border-transparent shadow-sm text-xs sm:text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 touch-manipulation"
                 >
                   Clear Search
                 </button>
@@ -184,22 +184,22 @@ export default function AllSummaries() {
 
           {/* Summaries List */}
           {userSummaries && userSummaries.length > 0 && filteredAndSortedSummaries.length > 0 && (
-            <div className="space-y-6">
+            <div className="space-y-4 sm:space-y-6">
               {filteredAndSortedSummaries.map((summary: any, index: number) => (
-                <div key={summary._id || index} className="bg-blue-50 rounded-xl p-6 border border-blue-200">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-blue-900">
+                <div key={summary._id || index} className="bg-blue-50 rounded-lg sm:rounded-xl p-4 sm:p-6 border border-blue-200">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 mb-3 sm:mb-4">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-base sm:text-lg font-semibold text-blue-900 leading-tight">
                         {summary.episode_title || `Episode Summary #${index + 1}`}
                       </h3>
-                      <p className="text-sm text-blue-600 mt-1">
+                      <p className="text-xs sm:text-sm text-blue-600 mt-1">
                         Generated on {new Date(summary.created_at || Date.now()).toLocaleDateString()}
                       </p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2 flex-shrink-0">
                       <button
                         onClick={() => handleCopy(summary.content, summary._id)}
-                        className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-lg transition-colors"
+                        className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-lg transition-colors touch-manipulation"
                         title="Copy summary"
                       >
                         {copiedId === summary._id ? (
@@ -214,35 +214,35 @@ export default function AllSummaries() {
                       </button>
                       <Link
                         to={`/dashboard/chat?episodeId=${summary.episode_id}&summaryId=${summary._id}`}
-                        className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-lg transition-colors"
+                        className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-lg transition-colors touch-manipulation"
                         title="Chat with AI about this episode"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                         </svg>
                       </Link>
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      <span className="inline-flex items-center px-2 sm:px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                         Completed
                       </span>
                     </div>
                   </div>
 
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
                     <div>
-                      <h4 className="font-medium text-blue-800 mb-2">Summary:</h4>
-                      <p className="text-blue-700 leading-relaxed">
+                      <h4 className="font-medium text-blue-800 mb-2 text-sm sm:text-base">Summary:</h4>
+                      <p className="text-blue-700 text-sm sm:text-base leading-relaxed">
                         {summary.content}
                       </p>
                     </div>
                     
                     {summary.takeaways && summary.takeaways.length > 0 && (
                       <div>
-                        <h4 className="font-medium text-blue-800 mb-2">Key Takeaways:</h4>
-                        <ul className="space-y-1">
+                        <h4 className="font-medium text-blue-800 mb-2 text-sm sm:text-base">Key Takeaways:</h4>
+                        <ul className="space-y-1 sm:space-y-1.5">
                           {summary.takeaways.map((takeaway: string, idx: number) => (
-                            <li key={idx} className="flex items-start gap-2 text-blue-700">
-                              <span className="text-blue-500 mt-1">•</span>
-                              <span>{takeaway}</span>
+                            <li key={idx} className="flex items-start gap-2 text-blue-700 text-sm sm:text-base">
+                              <span className="text-blue-500 mt-1 flex-shrink-0">•</span>
+                              <span className="leading-relaxed">{takeaway}</span>
                             </li>
                           ))}
                         </ul>

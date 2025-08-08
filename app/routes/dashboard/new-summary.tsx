@@ -393,9 +393,9 @@ export default function NewSummary() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto p-4 sm:p-6">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-8">
+    <div className="min-h-screen bg-gray-50 w-full overflow-hidden">
+      <div className="max-w-4xl mx-auto p-3 sm:p-4 md:p-6 w-full">
+        <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 md:p-6 lg:p-8 w-full overflow-hidden">
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Create New Summary</h1>
           <p className="text-sm sm:text-base text-gray-600 mb-6">Search for a podcast and select an episode to generate an AI summary</p>
           
@@ -473,19 +473,19 @@ export default function NewSummary() {
             </label>
             
             
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <input 
                 type="text" 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Enter podcast name (e.g., The Daily, Joe Rogan Experience)"
-                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter podcast name (e.g., tech)"
+                className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               />
               <button 
                 onClick={() => handleSearch()}
                 disabled={isLoading || !searchQuery.trim()}
-                className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                className="px-4 sm:px-6 py-2.5 sm:py-3 bg-blue-600 text-white text-sm sm:text-base font-medium rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
               >
                 {isLoading ? "Searching..." : "Search"}
               </button>
@@ -506,38 +506,38 @@ export default function NewSummary() {
                 </h2>
                 <span className="text-sm text-gray-500">Click a podcast to see episodes</span>
               </div>
-              <div className="grid gap-4">
+              <div className="grid gap-4 w-full">
                 {podcastResults.results?.map((podcast: any, index: number) => (
                   <div 
                     key={index} 
-                    className="group border border-gray-200 rounded-xl p-6 cursor-pointer hover:border-blue-300 hover:shadow-md transition-all duration-200"
+                    className="group border border-gray-200 rounded-lg sm:rounded-xl p-3 sm:p-4 md:p-6 cursor-pointer hover:border-blue-300 hover:shadow-md transition-all duration-200 overflow-hidden"
                     onClick={() => handlePodcastSelect(podcast)}
                   >
-                    <div className="flex items-start gap-4">
+                    <div className="flex items-start gap-3 sm:gap-4 min-w-0">
                       <img 
                         src={podcast.image} 
                         alt={podcast.title_original}
-                        className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
+                        className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg object-cover flex-shrink-0"
                       />
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-lg text-gray-900 group-hover:text-blue-600 transition-colors">
+                      <div className="flex-1 min-w-0 overflow-hidden">
+                        <h3 className="font-semibold text-base sm:text-lg text-gray-900 group-hover:text-blue-600 transition-colors leading-tight line-clamp-2">
                           {podcast.title_original}
                         </h3>
-                        <p className="text-gray-600 text-sm mt-2 leading-relaxed">
+                        <p className="text-gray-600 text-xs sm:text-sm mt-1 sm:mt-2 leading-relaxed line-clamp-2 sm:line-clamp-3 break-words">
                           {(() => {
                             const cleanText = podcast.description_original?.replace(/<[^>]*>/g, '') || '';
-                            return cleanText.length > 150 ? `${cleanText.substring(0, 150)}...` : cleanText;
+                            return cleanText.length > 100 ? `${cleanText.substring(0, 100)}...` : cleanText;
                           })()}
                         </p>
-                        <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
-                          <span className="bg-gray-100 px-2 py-1 rounded-full">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 mt-2 sm:mt-3 text-xs text-gray-500 min-w-0">
+                          <span className="bg-gray-100 px-2 py-1 rounded-full text-center w-fit flex-shrink-0">
                             {podcast.total_episodes} episodes
                           </span>
-                          <span>Publisher: {podcast.publisher_original}</span>
+                          <span className="truncate min-w-0">Publisher: {podcast.publisher_original}</span>
                         </div>
                       </div>
                       <div className="flex-shrink-0">
-                        <svg className="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 group-hover:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
                       </div>
@@ -575,22 +575,22 @@ export default function NewSummary() {
                 </button>
               </div>
               
-              <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
-                <div className="flex items-start gap-4">
+              <div className="bg-gray-50 rounded-lg sm:rounded-xl p-4 sm:p-6 border border-gray-200">
+                <div className="flex items-start gap-3 sm:gap-4">
                   <img 
                     src={selectedPodcast.image} 
                     alt={selectedPodcast.title_original}
-                    className="w-20 h-20 rounded-lg object-cover flex-shrink-0"
+                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg object-cover flex-shrink-0"
                   />
-                  <div>
-                    <h2 className="text-xl font-bold text-gray-900">
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 leading-tight">
                       {selectedPodcast.title_original}
                     </h2>
-                    <p className="text-gray-600 mt-1">
+                    <p className="text-gray-600 text-sm sm:text-base mt-1">
                       Choose an episode to generate an AI summary
                     </p>
                     {episodes.pagination && (
-                      <p className="text-sm text-gray-500 mt-2">
+                      <p className="text-xs sm:text-sm text-gray-500 mt-1 sm:mt-2">
                         Showing {episodes.episodes?.length || 0} of {episodes.pagination.total} episodes
                       </p>
                     )}
@@ -600,31 +600,31 @@ export default function NewSummary() {
 
               <div className="space-y-4">
                 {episodes.episodes?.map((episode: any, index: number) => (
-                  <div key={index} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow">
-                    <div className="space-y-4">
+                  <div key={index} className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 hover:shadow-md transition-shadow">
+                    <div className="space-y-3 sm:space-y-4">
                       {/* Episode Info */}
-                      <div className="flex items-start justify-between gap-6">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-6">
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-lg text-gray-900 leading-tight">
+                          <h3 className="font-semibold text-base sm:text-lg text-gray-900 leading-tight line-clamp-2">
                             {episode.title}
                           </h3>
-                          <p className="text-gray-600 text-sm mt-3 leading-relaxed">
+                          <p className="text-gray-600 text-xs sm:text-sm mt-2 sm:mt-3 leading-relaxed line-clamp-3 sm:line-clamp-4">
                             {(() => {
                               const cleanText = episode.description?.replace(/<[^>]*>/g, '') || '';
-                              return cleanText.length > 200 ? `${cleanText.substring(0, 200)}...` : cleanText;
+                              return cleanText.length > 150 ? `${cleanText.substring(0, 150)}...` : cleanText;
                             })()}
                           </p>
-                          <div className="flex items-center gap-4 mt-4 text-sm text-gray-500">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-3 sm:mt-4 text-xs sm:text-sm text-gray-500">
                             <span className="flex items-center gap-1">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
                               {Math.floor(episode.audio_length_sec / 60)} minutes
                             </span>
-                            <span>Published: {new Date(episode.pub_date_ms).toLocaleDateString()}</span>
+                            <span className="truncate">Published: {new Date(episode.pub_date_ms).toLocaleDateString()}</span>
                           </div>
                         </div>
-                        <div className="flex-shrink-0">
+                        <div className="flex-shrink-0 w-full sm:w-auto">
                           {summaryErrors[episode.id] && !summaries[episode.id] && (
                             <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
                               <div className="flex items-start gap-2">
@@ -650,7 +650,7 @@ export default function NewSummary() {
                           <button 
                             onClick={() => handleGenerateSummary(episode)}
                             disabled={generatingSummary[episode.id] || !userQuota?.canGenerate}
-                            className={`px-4 sm:px-6 py-2 sm:py-3 font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base ${
+                            className={`w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base ${
                               !userQuota?.canGenerate 
                                 ? 'bg-gray-400 text-white cursor-not-allowed'
                                 : summaryErrors[episode.id] && !summaries[episode.id]

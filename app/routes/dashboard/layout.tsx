@@ -1,7 +1,7 @@
 import { redirect, useLoaderData } from "react-router";
 import { AppSidebar } from "~/components/dashboard/app-sidebar";
 // import { SiteHeader } from "~/components/dashboard/site-header";
-import { SidebarInset, SidebarProvider } from "~/components/ui/sidebar";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "~/components/ui/sidebar";
 import type { Route } from "./+types/layout";
 import { Outlet } from "react-router";
 import { isFeatureEnabled, isServiceEnabled } from "../../../config";
@@ -72,7 +72,9 @@ export default function DashboardLayout() {
     >
       <AppSidebar variant="inset" user={user} />
       <SidebarInset>
-        {/* <SiteHeader /> */}
+        <header className="flex h-16 shrink-0 items-center gap-2 px-4 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
+          <SidebarTrigger className="-ml-1" />
+        </header>
         <div className="pb-20"> {/* Add padding for mini player */}
           <Outlet />
         </div>
