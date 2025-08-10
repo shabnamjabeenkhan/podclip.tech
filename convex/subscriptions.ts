@@ -456,14 +456,15 @@ export const handleWebhookEvent = mutation({
           }
         }
         
-        // Update user plan for both types
+        // Update user plan for both types and reset quotas on successful payment
         try {
           console.log(`🔄 Attempting to update user plan to: ${plan} for userId: ${subscriptionData.metadata.userId}`);
-          await ctx.runMutation(api.users.updateUserPlan, {
+          await ctx.runMutation(api.users.updateUserPlanAndResetQuota, {
             tokenIdentifier: subscriptionData.metadata.userId,
             plan: plan,
+            resetQuota: true, // Reset quota when new subscription is created
           });
-          console.log(`✅ User plan updated to: ${plan}`);
+          console.log(`✅ User plan updated to: ${plan} with quota reset`);
         } catch (error) {
           console.error("❌ Failed to update user plan:", error);
           console.error("❌ Error details:", JSON.stringify(error, null, 2));
@@ -472,25 +473,43 @@ export const handleWebhookEvent = mutation({
 
       case "subscription.updated":
         // Find existing subscription
+        console.log("🔄 Processing subscription.updated for userId:", args.body.data.metadata?.userId);
         const existingSub = await ctx.db
           .query("subscriptions")
           .withIndex("polarId", (q) => q.eq("polarId", args.body.data.id))
           .first();
 
         if (existingSub) {
+          const updatedData = args.body.data;
+          const oldPeriodEnd = existingSub.currentPeriodEnd || 0;
+          const newPeriodEnd = new Date(updatedData.current_period_end).getTime();
+          
+          // Check if this is a subscription renewal (new billing period started)
+          const isRenewal = newPeriodEnd > oldPeriodEnd && updatedData.status === "active";
+          
           await ctx.db.patch(existingSub._id, {
-            amount: args.body.data.amount,
-            status: args.body.data.status,
-            currentPeriodStart: new Date(
-              args.body.data.current_period_start
-            ).getTime(),
-            currentPeriodEnd: new Date(
-              args.body.data.current_period_end
-            ).getTime(),
-            cancelAtPeriodEnd: args.body.data.cancel_at_period_end,
-            metadata: args.body.data.metadata || {},
-            customFieldData: args.body.data.custom_field_data || {},
+            amount: updatedData.amount,
+            status: updatedData.status,
+            currentPeriodStart: new Date(updatedData.current_period_start).getTime(),
+            currentPeriodEnd: newPeriodEnd,
+            cancelAtPeriodEnd: updatedData.cancel_at_period_end,
+            metadata: updatedData.metadata || {},
+            customFieldData: updatedData.custom_field_data || {},
           });
+
+          // Reset quota if this is a renewal payment
+          if (isRenewal && updatedData.metadata?.userId) {
+            try {
+              console.log(`🔄 RENEWAL DETECTED: Resetting quota for userId: ${updatedData.metadata.userId}`);
+              await ctx.runMutation(api.users.resetQuotaOnPayment, {
+                tokenIdentifier: updatedData.metadata.userId,
+                reason: "subscription renewal payment"
+              });
+              console.log(`✅ Quota reset on subscription renewal`);
+            } catch (error) {
+              console.error("❌ Failed to reset quota on renewal:", error);
+            }
+          }
         }
         break;
 
@@ -542,14 +561,20 @@ export const handleWebhookEvent = mutation({
           }
         }
         
-        // Update user plan for both types
+        // Update user plan for both types and reset quotas for recurring payments
         try {
           console.log(`🔄 Attempting to activate user plan to: ${activePlan} for userId: ${activeData.metadata.userId}`);
-          await ctx.runMutation(api.users.updateUserPlan, {
+          
+          // For monthly subscriptions, reset quota when subscription becomes active
+          // This handles renewal payments
+          const shouldResetQuota = isMonthlyActive;
+          
+          await ctx.runMutation(api.users.updateUserPlanAndResetQuota, {
             tokenIdentifier: activeData.metadata.userId,
             plan: activePlan,
+            resetQuota: shouldResetQuota,
           });
-          console.log(`✅ User plan activated: ${activePlan}`);
+          console.log(`✅ User plan activated: ${activePlan}${shouldResetQuota ? ' with quota reset' : ''}`);
         } catch (error) {
           console.error("❌ Failed to activate user plan:", error);
           console.error("❌ Error details:", JSON.stringify(error, null, 2));
@@ -817,6 +842,42 @@ export const handleWebhookEvent = mutation({
             console.log("✅ User plan downgraded to free due to refund");
           } catch (error) {
             console.error("❌ Failed to downgrade user plan:", error);
+          }
+        }
+        break;
+
+      case "invoice.paid":
+        console.log("💰 Processing invoice.paid - subscription payment successful");
+        const paidInvoice = args.body.data;
+        
+        if (paidInvoice.subscription_id && paidInvoice.metadata?.userId) {
+          try {
+            console.log(`🔄 INVOICE PAID: Resetting quota for userId: ${paidInvoice.metadata.userId}`);
+            await ctx.runMutation(api.users.resetQuotaOnPayment, {
+              tokenIdentifier: paidInvoice.metadata.userId,
+              reason: "invoice payment successful"
+            });
+            console.log(`✅ Quota reset on invoice payment`);
+          } catch (error) {
+            console.error("❌ Failed to reset quota on invoice payment:", error);
+          }
+        }
+        break;
+
+      case "payment.succeeded":
+        console.log("💳 Processing payment.succeeded - payment successful");
+        const successfulPayment = args.body.data;
+        
+        if (successfulPayment.metadata?.userId) {
+          try {
+            console.log(`🔄 PAYMENT SUCCESS: Resetting quota for userId: ${successfulPayment.metadata.userId}`);
+            await ctx.runMutation(api.users.resetQuotaOnPayment, {
+              tokenIdentifier: successfulPayment.metadata.userId,
+              reason: "payment successful"
+            });
+            console.log(`✅ Quota reset on payment success`);
+          } catch (error) {
+            console.error("❌ Failed to reset quota on payment success:", error);
           }
         }
         break;

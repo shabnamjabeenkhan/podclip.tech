@@ -82,6 +82,28 @@ export default function TermsOfService() {
           </section>
 
           <section className="mb-8">
+            <h2 className="text-2xl font-semibold text-foreground mb-4">Service Availability & Refunds</h2>
+            <div className="space-y-4 text-muted-foreground">
+              <div>
+                <h3 className="text-lg font-medium text-foreground mb-2">Service Availability & Continuation</h3>
+                <p className="leading-relaxed">
+                  While we aim to operate our service indefinitely, we rely on third-party APIs and services to function (including the Listen Notes API). If these become unavailable, unaffordable, or otherwise unsustainable to continue, we reserve the right to discontinue the service at any time.
+                </p>
+              </div>
+              
+              <div>
+                <h3 className="text-lg font-medium text-foreground mb-2">Refunds on Discontinuation</h3>
+                <p className="leading-relaxed mb-2">
+                  In the event the service is permanently closed, we will provide refunds only for prepaid subscription periods that have not yet begun. We do not offer prorated refunds for the unused portion of the current billing cycle.
+                </p>
+                <p className="leading-relaxed">
+                  By subscribing, you acknowledge and accept that service interruption or closure due to third-party provider costs or unavailability is a possible risk.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section className="mb-8">
             <h2 className="text-2xl font-semibold text-foreground mb-4">Limitation of Liability</h2>
             <ul className="list-disc pl-6 space-y-2 text-muted-foreground">
               <li>The Service is provided "as is" without warranties.</li>

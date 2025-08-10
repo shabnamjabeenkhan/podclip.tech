@@ -29,7 +29,7 @@ export default function Page() {
   
   // Show upgrade prompt for free users who are close to or at their limit
   const showUpgradePrompt = userQuota && !subscriptionStatus?.hasActiveSubscription && 
-    (userQuota.limit === 5) && (userQuota.remaining <= 1 || !userQuota.canGenerate);
+    (userQuota.summaries.limit === 5) && (userQuota.summaries.remaining <= 1 || !userQuota.summaries.canGenerate);
   
   return (
     <div className="flex flex-1 flex-col">
@@ -48,11 +48,11 @@ export default function Page() {
                     </div>
                     <div>
                       <h3 className="font-medium text-gray-900">
-                        {userQuota.canGenerate ? "Almost there!" : "Upgrade to continue"}
+                        {userQuota.summaries.canGenerate ? "Almost there!" : "Upgrade to continue"}
                       </h3>
                       <p className="text-sm text-gray-600">
-                        {userQuota.canGenerate 
-                          ? `You have ${userQuota.remaining} summary remaining. Upgrade for unlimited access.`
+                        {userQuota.summaries.canGenerate 
+                          ? `You have ${userQuota.summaries.remaining} summary remaining. Upgrade for unlimited access.`
                           : "You've used all your free summaries. Upgrade to generate unlimited summaries."}
                       </p>
                     </div>

@@ -73,19 +73,19 @@ export default function AllSummaries() {
             {userQuota && (
               <div className="flex-shrink-0">
                 <div className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium ${
-                  !userQuota.canGenerate 
+                  !userQuota.summaries.canGenerate 
                     ? 'bg-red-100 text-red-800' 
-                    : userQuota.remaining !== -1 && userQuota.remaining <= 2
+                    : userQuota.summaries.remaining !== -1 && userQuota.summaries.remaining <= 2
                       ? 'bg-yellow-100 text-yellow-800'
                       : 'bg-green-100 text-green-800'
                 }`}>
-                  {userQuota.limit === -1 
+                  {userQuota.summaries.limit === -1 
                     ? "Unlimited" 
-                    : `${userQuota.used}/${userQuota.limit} used`}
+                    : `${userQuota.summaries.used}/${userQuota.summaries.limit} used`}
                 </div>
-                {userQuota.remaining !== -1 && userQuota.remaining > 0 && (
+                {userQuota.summaries.remaining !== -1 && userQuota.summaries.remaining > 0 && (
                   <p className="text-xs text-gray-500 mt-1 text-center sm:text-right">
-                    {userQuota.remaining} remaining{userQuota.plan === 'monthly' ? ' this month' : ''}
+                    {userQuota.summaries.remaining} remaining{userQuota.plan === 'monthly' || userQuota.plan === 'basic' || userQuota.plan === 'pro' || userQuota.plan === 'premium' ? ' this month' : ''}
                   </p>
                 )}
               </div>

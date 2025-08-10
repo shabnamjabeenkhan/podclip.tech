@@ -29,7 +29,7 @@ export default function RefundPolicy() {
           </p>
 
           <section className="mb-8">
-            <h2 className="text-2xl font-semibold text-foreground mb-4">No Refunds</h2>
+            <h2 className="text-2xl font-semibold text-foreground mb-4">General No-Refund Policy</h2>
             <p className="text-muted-foreground leading-relaxed mb-4">
               All purchases of subscriptions or one-time payments for Podclip are <strong>final</strong>. We do <strong>not</strong> offer refunds for any reason, including but not limited to:
             </p>
@@ -37,10 +37,12 @@ export default function RefundPolicy() {
               <li>Change of mind</li>
               <li>Accidental purchase</li>
               <li>Dissatisfaction with the Service</li>
-              <li>Service discontinuation or website shutdown</li>
               <li>Technical issues or downtime</li>
               <li>Changes to features or functionality</li>
             </ul>
+            <p className="text-muted-foreground leading-relaxed mt-4">
+              <strong>Exception:</strong> Limited refunds may be available in the case of permanent service discontinuation (see Service Discontinuation section below).
+            </p>
           </section>
 
           <section className="mb-8">
@@ -80,18 +82,41 @@ export default function RefundPolicy() {
 
           <section className="mb-8">
             <h2 className="text-2xl font-semibold text-foreground mb-4">Service Discontinuation</h2>
-            <p className="text-muted-foreground leading-relaxed mb-4">
-              <strong>Important:</strong> In the event that Podclip ceases operations, shuts down, or discontinues the service for any reason:
-            </p>
-            <ul className="list-disc pl-6 space-y-2 text-muted-foreground">
-              <li>No refunds will be provided for any subscription fees or payments already made</li>
-              <li>Users will not be entitled to compensation for remaining subscription time</li>
-              <li>We will make reasonable efforts to provide advance notice when possible, but are not obligated to do so</li>
-              <li>All user data and content may be permanently deleted without recovery options</li>
-            </ul>
-            <p className="text-muted-foreground leading-relaxed mt-4">
-              By purchasing our services, you acknowledge and accept this risk inherent to all digital services.
-            </p>
+            
+            <div className="space-y-6 text-muted-foreground">
+              <div>
+                <h3 className="text-lg font-medium text-foreground mb-3">Service Availability & Continuation</h3>
+                <p className="leading-relaxed mb-4">
+                  While we aim to operate our service indefinitely, we rely on third-party APIs and services to function (including the Listen Notes API). If these become unavailable, unaffordable, or otherwise unsustainable to continue, we reserve the right to discontinue the service at any time.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-medium text-foreground mb-3">Refunds on Discontinuation</h3>
+                <p className="leading-relaxed mb-4">
+                  <strong>Limited Refund Policy:</strong> In the event the service is permanently closed, we will provide refunds only for prepaid subscription periods that have not yet begun. We do not offer prorated refunds for the unused portion of the current billing cycle.
+                </p>
+                
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                  <h4 className="font-medium text-blue-900 mb-2">Examples:</h4>
+                  <ul className="list-disc pl-5 space-y-1 text-blue-800 text-sm">
+                    <li>If you paid for a 12-month subscription and the service closes after 3 months, you may receive a refund for the remaining 9 months</li>
+                    <li>If you paid for the current month and the service closes mid-month, no refund will be provided for that partial month</li>
+                    <li>One-time lifetime purchases are not eligible for refunds upon service closure</li>
+                  </ul>
+                </div>
+
+                <ul className="list-disc pl-6 space-y-2">
+                  <li>We will make reasonable efforts to provide advance notice when possible, but are not obligated to do so</li>
+                  <li>All user data and content may be permanently deleted without recovery options</li>
+                  <li>Refunds will be processed within 30 business days of service closure announcement</li>
+                </ul>
+                
+                <p className="leading-relaxed mt-4">
+                  By subscribing, you acknowledge and accept that service interruption or closure due to third-party provider costs or unavailability is a possible risk inherent to all digital services.
+                </p>
+              </div>
+            </div>
           </section>
 
           <section className="mb-8">

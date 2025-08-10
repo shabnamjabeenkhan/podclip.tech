@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { action } from "./_generated/server";
+import { internal } from "./_generated/api";
 
 export const searchPodcasts = action({
   args: { 
@@ -7,7 +8,11 @@ export const searchPodcasts = action({
     offset: v.optional(v.number()),
     limit: v.optional(v.number())
   },
-  handler: async (_, args) => {
+  handler: async (ctx, args) => {
+    // STRICT quota and subscription check before searching
+    await ctx.runMutation(internal.users.checkUserAccessAndQuota, { 
+      featureType: "search" 
+    });
     const offset = args.offset || 0;
     const limit = Math.min(args.limit || 10, 10); // Cap at 10 results per page (API maximum)
     
@@ -38,7 +43,10 @@ export const searchPodcasts = action({
     const data = await response.json();
     console.log(`Search results: ${data.results?.length || 0} podcasts returned, offset: ${offset}, total: ${data.total || 0}`);
     
-      return {
+    // Increment search count after successful search
+    await ctx.runMutation(internal.users.incrementSearchCount);
+    
+    return {
         ...data,
         pagination: {
           offset,

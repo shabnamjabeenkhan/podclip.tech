@@ -10,14 +10,10 @@ export const generateSummary = action({
     userId: v.string(),
   },
   handler: async (ctx, args): Promise<any> => {
-    // Check quota before generating summary
-    const quotaStatus = await ctx.runMutation(internal.users.checkAndResetQuota);
-    
-    if (!quotaStatus.canGenerate) {
-      throw new Error(`Quota exceeded. You have used ${quotaStatus.used}/${quotaStatus.limit} summaries. ${
-        quotaStatus.limit === 5 ? "Upgrade to get more summaries." : "Your quota will reset next month."
-      }`);
-    }
+    // STRICT quota and subscription check before generating summary
+    await ctx.runMutation(internal.users.checkUserAccessAndQuota, { 
+      featureType: "summary" 
+    });
 
     // Try to get transcript for better summary quality
     let transcriptData = null;

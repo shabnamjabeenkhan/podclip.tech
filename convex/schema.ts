@@ -5,8 +5,9 @@ export default defineSchema({
   // Users table: Clerk user ID, plan, summary count, Notion token (optional)
   users: defineTable({
     tokenIdentifier: v.string(), // Clerk user ID
-    plan: v.optional(v.string()), // "free" | "monthly" | "lifetime"
+    plan: v.optional(v.string()), // "free" | "basic" | "pro" | "premium" | "monthly" | "lifetime"
     summary_count: v.optional(v.number()), // Number of summaries generated
+    search_count: v.optional(v.number()), // Number of podcast searches performed
     quota_reset_date: v.optional(v.number()), // For monthly subscribers, timestamp of next reset
     notion_token: v.optional(v.string()), // Notion API token (optional)
     notion_workspace_id: v.optional(v.string()), // Notion workspace ID

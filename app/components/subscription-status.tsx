@@ -187,7 +187,7 @@ export default function SubscriptionStatus() {
                 <div>
                   <p className="text-sm font-medium">Usage</p>
                   <p className="text-sm text-muted-foreground">
-                    {userQuota.used}/{userQuota.limit} summaries used
+                    {userQuota.summaries.used}/{userQuota.summaries.limit} summaries used
                   </p>
                 </div>
               </div>
@@ -197,7 +197,8 @@ export default function SubscriptionStatus() {
           <div className="p-3 bg-green-50 border border-green-200 rounded-md">
             <p className="text-sm text-green-800 font-medium mb-1">Lifetime Plan Includes:</p>
             <ul className="text-sm text-green-700 space-y-1">
-              <li>• {userQuota?.limit || 70} AI-generated summaries per month</li>
+              <li>• {userQuota?.summaries?.limit || 70} AI-generated summaries per month</li>
+              <li>• {userQuota?.searches?.limit || 150} podcast searches per month</li>
               <li>• Key takeaways extraction</li>
               <li>• Premium export features</li>
               <li>• Priority support</li>
@@ -250,7 +251,7 @@ export default function SubscriptionStatus() {
                 <div>
                   <p className="text-sm font-medium">Usage</p>
                   <p className="text-sm text-muted-foreground">
-                    {userQuota.used}/{userQuota.limit === -1 ? '∞' : userQuota.limit} summaries used
+                    {userQuota.summaries.used}/{userQuota.summaries.limit === -1 ? '∞' : userQuota.summaries.limit} summaries used
                   </p>
                 </div>
               </div>
@@ -260,7 +261,8 @@ export default function SubscriptionStatus() {
           <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
             <p className="text-sm text-blue-800 font-medium mb-1">Free Plan Includes:</p>
             <ul className="text-sm text-blue-700 space-y-1">
-              <li>• {userQuota?.plan === 'free' ? 5 : (userQuota?.limit || 5)} AI-generated summaries per month</li>
+              <li>• {userQuota?.plan === 'free' ? 5 : (userQuota?.summaries?.limit || 5)} AI-generated summaries per month</li>
+              <li>• {userQuota?.plan === 'free' ? 50 : (userQuota?.searches?.limit || 50)} podcast searches per month</li>
               <li>• Key takeaways extraction</li>
               <li>• Basic export features</li>
             </ul>

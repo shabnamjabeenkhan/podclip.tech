@@ -61,6 +61,7 @@ export const upsertUser = mutation({
       tokenIdentifier: identity.subject,
       plan: "free", // Default plan
       summary_count: 0, // Starting count
+      search_count: 0, // Starting search count
       quota_reset_date: undefined, // No reset needed for free plan
     });
 
@@ -75,7 +76,15 @@ export const upsertUser = mutation({
 
 // Get user's current quota status
 export const getUserQuota = query({
-  handler: async (ctx) => {
+  handler: async (ctx): Promise<{
+    summaries: { used: number; limit: number; remaining: number; canGenerate: boolean };
+    searches: { used: number; limit: number; remaining: number; canSearch: boolean };
+    plan: string;
+    resetDate?: number;
+    needsReset: boolean;
+    userId: string;
+    subscriptionError?: string;
+  }> => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
@@ -89,10 +98,8 @@ export const getUserQuota = query({
     if (!user) {
       // Return default quota for new users instead of throwing error
       return {
-        used: 0,
-        limit: 5, // Free plan default
-        remaining: 5,
-        canGenerate: true,
+        summaries: { used: 0, limit: 5, remaining: 5, canGenerate: true },
+        searches: { used: 0, limit: 10, remaining: 10, canSearch: true }, // Free users: 10 searches
         plan: "free",
         resetDate: undefined,
         needsReset: false,
@@ -100,40 +107,91 @@ export const getUserQuota = query({
       };
     }
 
+    // For paid plans, verify active subscription
+    if (user.plan !== "free") {
+      const subscriptionStatus: {
+        hasActiveSubscription: boolean;
+        reason: string;
+        plan?: string;
+      } = await ctx.runQuery(api.users.verifyActiveSubscription, { userId: user.tokenIdentifier });
+      
+      if (!subscriptionStatus.hasActiveSubscription) {
+        // User doesn't have active subscription - return free plan quotas
+        return {
+          summaries: { used: 0, limit: 5, remaining: 5, canGenerate: true },
+          searches: { used: 0, limit: 10, remaining: 10, canSearch: true }, // Free users: 10 searches
+          plan: "free", // Show as free until subscription is active
+          resetDate: undefined,
+          needsReset: false,
+          userId: identity.subject,
+          subscriptionError: subscriptionStatus.reason,
+        };
+      }
+    }
+
     // Check if user needs quota reset (for monthly subscribers)
     const now = Date.now();
-    let currentCount = user.summary_count || 0;
+    let currentSummaryCount = user.summary_count || 0;
+    let currentSearchCount = user.search_count || 0;
     let quotaResetDate = user.quota_reset_date;
     let needsReset = false;
 
-    // Both monthly and lifetime users need quota resets
-    if ((user.plan === "monthly" || user.plan === "lifetime") && quotaResetDate && now >= quotaResetDate) {
+    // ONLY paid plan users get quota resets - FREE USERS NEVER GET RESETS
+    // Free plan is one-time signup benefit only
+    if ((user.plan === "monthly" || user.plan === "lifetime" || user.plan === "basic" || user.plan === "pro" || user.plan === "premium") && quotaResetDate && now >= quotaResetDate) {
       // User needs quota reset, but we can't mutate in a query
       // The reset will be handled by checkAndResetQuota mutation
       needsReset = true;
-      currentCount = 0; // Show reset count in UI
+      currentSummaryCount = 0; // Show reset count in UI
+      currentSearchCount = 0;
       const nextMonth = new Date(quotaResetDate);
       nextMonth.setMonth(nextMonth.getMonth() + 1);
       quotaResetDate = nextMonth.getTime();
     }
+    // NOTE: Free users NEVER get quota resets - they must upgrade after using their signup allowance
 
     // Determine quota limits based on plan
-    const quotaLimits = {
-      free: 5,      // 5 summaries for free users
-      monthly: 50,  // 50 summaries per month
-      lifetime: 70, // 70 summaries per month for lifetime users
+    const summaryLimits = {
+      free: 5,        // 5 summaries for free users
+      basic: 35,      // 35 summaries per month (Basic Plan - $9.99)
+      pro: 60,        // 60 summaries per month (Pro Plan - $14.99)
+      premium: 300,   // 300 summaries per month (Premium Plan - $49.99)
+      monthly: 50,    // 50 summaries per month (legacy monthly plan)
+      lifetime: 70,   // 70 summaries per month for lifetime users
     };
 
-    const limit = quotaLimits[user.plan as keyof typeof quotaLimits] || quotaLimits.free;
-    const remaining = limit === -1 ? -1 : Math.max(0, limit - currentCount);
-    const canGenerate = limit === -1 || currentCount < limit;
+    const searchLimits = {
+      free: 10,       // 10 searches for free users (updated requirement)
+      basic: 150,     // 150 searches per month (Basic Plan - $9.99)
+      pro: 200,       // 200 searches per month (Pro Plan - $14.99)
+      premium: 350,   // 350 searches per month (Premium Plan - $49.99)
+      monthly: 100,   // 100 searches per month (legacy monthly plan)
+      lifetime: 150,  // 150 searches per month for lifetime users
+    };
+
+    const summaryLimit = summaryLimits[user.plan as keyof typeof summaryLimits] || summaryLimits.free;
+    const searchLimit = searchLimits[user.plan as keyof typeof searchLimits] || searchLimits.free;
+    
+    const summaryRemaining = Math.max(0, summaryLimit - currentSummaryCount);
+    const searchRemaining = Math.max(0, searchLimit - currentSearchCount);
+    
+    const canGenerate = currentSummaryCount < summaryLimit;
+    const canSearch = currentSearchCount < searchLimit;
 
     return {
-      used: currentCount,
-      limit,
-      remaining,
-      canGenerate,
-      plan: user.plan,
+      summaries: {
+        used: currentSummaryCount,
+        limit: summaryLimit,
+        remaining: summaryRemaining,
+        canGenerate,
+      },
+      searches: {
+        used: currentSearchCount,
+        limit: searchLimit,
+        remaining: searchRemaining,
+        canSearch,
+      },
+      plan: user.plan || "free",
       resetDate: quotaResetDate,
       needsReset,
       userId: user.tokenIdentifier,
@@ -141,7 +199,93 @@ export const getUserQuota = query({
   },
 });
 
-// Check and reset quota if needed (call before generating summary)
+// Check subscription payment status before allowing access
+export const verifyActiveSubscription = query({
+  args: { userId: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    let tokenIdentifier: string;
+
+    if (args.userId) {
+      tokenIdentifier = args.userId;
+    } else {
+      const identity = await ctx.auth.getUserIdentity();
+      if (!identity) {
+        return { hasActiveSubscription: false, reason: "Not authenticated" };
+      }
+      tokenIdentifier = identity.subject;
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", tokenIdentifier))
+      .unique();
+
+    if (!user) {
+      return { hasActiveSubscription: false, reason: "User not found" };
+    }
+
+    // For free users, no subscription required
+    if (user.plan === "free") {
+      return { hasActiveSubscription: true, plan: "free", reason: "Free plan" };
+    }
+
+    const now = Date.now();
+
+    // Check for active monthly subscription
+    if (user.plan === "monthly" || user.plan === "basic" || user.plan === "pro" || user.plan === "premium") {
+      const subscription = await ctx.db
+        .query("subscriptions")
+        .withIndex("userId", (q) => q.eq("userId", tokenIdentifier))
+        .filter((q) => q.eq(q.field("status"), "active"))
+        .filter((q) => q.gt(q.field("currentPeriodEnd"), now)) // Must have valid current period
+        .first();
+
+      if (subscription) {
+        return { 
+          hasActiveSubscription: true, 
+          plan: user.plan,
+          subscriptionId: subscription.polarId,
+          currentPeriodEnd: subscription.currentPeriodEnd,
+          reason: "Active monthly subscription"
+        };
+      } else {
+        return { 
+          hasActiveSubscription: false, 
+          plan: user.plan,
+          reason: "No active subscription found or subscription expired" 
+        };
+      }
+    }
+
+    // Check for confirmed lifetime payment
+    if (user.plan === "lifetime") {
+      const payment = await ctx.db
+        .query("payments")
+        .withIndex("userId", (q) => q.eq("userId", tokenIdentifier))
+        .filter((q) => q.eq(q.field("status"), "confirmed"))
+        .first();
+
+      if (payment) {
+        return { 
+          hasActiveSubscription: true, 
+          plan: "lifetime",
+          paymentId: payment.polarOrderId,
+          reason: "Confirmed lifetime payment"
+        };
+      } else {
+        return { 
+          hasActiveSubscription: false, 
+          plan: user.plan,
+          reason: "No confirmed lifetime payment found" 
+        };
+      }
+    }
+
+    return { hasActiveSubscription: false, reason: "Unknown plan type" };
+  },
+});
+
+// Check and reset quota if needed - STRICT subscription enforcement
 export const checkAndResetQuota = internalMutation({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -158,37 +302,245 @@ export const checkAndResetQuota = internalMutation({
       throw new Error("User not found");
     }
 
-    const now = Date.now();
-    let currentCount = user.summary_count || 0;
-
-    // Check if user needs quota reset (for monthly and lifetime subscribers)
-    if ((user.plan === "monthly" || user.plan === "lifetime") && user.quota_reset_date && now >= user.quota_reset_date) {
-      // Reset quota for monthly and lifetime subscribers
-      currentCount = 0;
-      const nextMonth = new Date(user.quota_reset_date);
-      nextMonth.setMonth(nextMonth.getMonth() + 1);
+    // STRICT RULE: For ANY non-free plan, require active subscription
+    if (user.plan !== "free") {
+      const subscriptionStatus = await ctx.runQuery(api.users.verifyActiveSubscription, { userId: user.tokenIdentifier });
       
-      await ctx.db.patch(user._id, {
-        summary_count: 0,
-        quota_reset_date: nextMonth.getTime(),
-      });
+      if (!subscriptionStatus.hasActiveSubscription) {
+        // BLOCK ALL PAID FEATURES - force user to free plan quotas
+        throw new Error(`Subscription required: ${subscriptionStatus.reason}. You must have an active subscription to generate summaries or search podcasts beyond free limits.`);
+      }
+    }
+
+    const now = Date.now();
+    let currentSummaryCount = user.summary_count || 0;
+    let currentSearchCount = user.search_count || 0;
+
+    // ONLY reset quota if user is on PAID PLAN with active subscription AND reset date has passed
+    // FREE USERS NEVER GET QUOTA RESETS - they must upgrade after using signup allowance
+    if (user.plan !== "free" && (user.plan === "monthly" || user.plan === "lifetime" || user.plan === "basic" || user.plan === "pro" || user.plan === "premium") && user.quota_reset_date && now >= user.quota_reset_date) {
+      // Double-check subscription is still active before resetting
+      const subscriptionStatus = await ctx.runQuery(api.users.verifyActiveSubscription, { userId: user.tokenIdentifier });
+      
+      if (subscriptionStatus.hasActiveSubscription) {
+        // Reset quota only after confirming active subscription
+        currentSummaryCount = 0;
+        currentSearchCount = 0;
+        const nextMonth = new Date(user.quota_reset_date);
+        nextMonth.setMonth(nextMonth.getMonth() + 1);
+        
+        await ctx.db.patch(user._id, {
+          summary_count: 0,
+          search_count: 0,
+          quota_reset_date: nextMonth.getTime(),
+        });
+
+        console.log(`✅ QUOTA RESET: ${user.tokenIdentifier} (${user.plan}) - verified active subscription`);
+      } else {
+        console.log(`❌ QUOTA RESET DENIED: ${user.tokenIdentifier} - inactive subscription: ${subscriptionStatus.reason}`);
+        throw new Error(`Cannot reset quota: ${subscriptionStatus.reason}`);
+      }
+    } else if (user.plan === "free") {
+      console.log(`⏭️ FREE USER: ${user.tokenIdentifier} - no quota resets for free users, must upgrade after trial`);
     }
 
     // Return current quota status
-    const quotaLimits = {
-      free: 5,      // 5 summaries for free users
-      monthly: 50,  // 50 summaries per month
-      lifetime: 70, // 70 summaries per month for lifetime users
+    const summaryLimits = {
+      free: 5,        // 5 summaries for free users
+      basic: 35,      // 35 summaries per month (Basic Plan - $9.99)
+      pro: 60,        // 60 summaries per month (Pro Plan - $14.99)
+      premium: 300,   // 300 summaries per month (Premium Plan - $49.99)
+      monthly: 50,    // 50 summaries per month (legacy monthly plan)
+      lifetime: 70,   // 70 summaries per month for lifetime users
     };
 
-    const limit = quotaLimits[user.plan as keyof typeof quotaLimits] || quotaLimits.free;
-    const canGenerate = limit === -1 || currentCount < limit;
+    const searchLimits = {
+      free: 10,       // 10 searches for free users (updated requirement)
+      basic: 150,     // 150 searches per month (Basic Plan - $9.99)
+      pro: 200,       // 200 searches per month (Pro Plan - $14.99)
+      premium: 350,   // 350 searches per month (Premium Plan - $49.99)
+      monthly: 100,   // 100 searches per month (legacy monthly plan)
+      lifetime: 150,  // 150 searches per month for lifetime users
+    };
+
+    const summaryLimit = summaryLimits[user.plan as keyof typeof summaryLimits] || summaryLimits.free;
+    const searchLimit = searchLimits[user.plan as keyof typeof searchLimits] || searchLimits.free;
+    
+    const canGenerate = currentSummaryCount < summaryLimit;
+    const canSearch = currentSearchCount < searchLimit;
 
     return {
       canGenerate,
-      used: currentCount,
-      limit,
-      remaining: limit === -1 ? -1 : Math.max(0, limit - currentCount),
+      canSearch,
+      summaries: {
+        used: currentSummaryCount,
+        limit: summaryLimit,
+        remaining: Math.max(0, summaryLimit - currentSummaryCount),
+      },
+      searches: {
+        used: currentSearchCount,
+        limit: searchLimit,
+        remaining: Math.max(0, searchLimit - currentSearchCount),
+      },
+    };
+  },
+});
+
+// STRICT quota check - enforces subscription requirement for paid plans
+export const checkUserAccessAndQuota = internalMutation({
+  handler: async (ctx, args: { featureType: "summary" | "search" }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.subject))
+      .unique();
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const now = Date.now();
+    let currentSummaryCount = user.summary_count || 0;
+    let currentSearchCount = user.search_count || 0;
+
+    // For paid plans, STRICTLY enforce active subscription requirement
+    if (user.plan !== "free") {
+      const subscriptionStatus = await ctx.runQuery(api.users.verifyActiveSubscription, { userId: user.tokenIdentifier });
+      
+      if (!subscriptionStatus.hasActiveSubscription) {
+        // COMPLETE BLOCK - no access to paid features without active subscription
+        throw new Error(`❌ SUBSCRIPTION REQUIRED: ${subscriptionStatus.reason}. You must have an active, paid subscription to ${args.featureType === "summary" ? "generate summaries" : "search for podcasts"} beyond the free tier limits (5 summaries, 10 searches).`);
+      }
+
+      // Check if quota reset is needed (ONLY for paid plans with active subscription)
+      // FREE USERS NEVER GET QUOTA RESETS
+      if (user.quota_reset_date && now >= user.quota_reset_date) {
+        // Reset quota only after confirming active subscription (free users excluded)
+        currentSummaryCount = 0;
+        currentSearchCount = 0;
+        const nextMonth = new Date(user.quota_reset_date);
+        nextMonth.setMonth(nextMonth.getMonth() + 1);
+        
+        await ctx.db.patch(user._id, {
+          summary_count: 0,
+          search_count: 0,
+          quota_reset_date: nextMonth.getTime(),
+        });
+
+        console.log(`✅ QUOTA RESET: ${user.tokenIdentifier} (${user.plan}) - verified active subscription`);
+      }
+    }
+
+    // Determine quota limits
+    const summaryLimits = {
+      free: 5,        // 5 summaries for free users
+      basic: 35,      // 35 summaries per month (Basic Plan - $9.99)
+      pro: 60,        // 60 summaries per month (Pro Plan - $14.99)
+      premium: 300,   // 300 summaries per month (Premium Plan - $49.99)
+      monthly: 50,    // 50 summaries per month (legacy monthly plan)
+      lifetime: 70,   // 70 summaries per month for lifetime users
+    };
+
+    const searchLimits = {
+      free: 10,       // 10 searches for free users (updated requirement)
+      basic: 150,     // 150 searches per month (Basic Plan - $9.99)
+      pro: 200,       // 200 searches per month (Pro Plan - $14.99)
+      premium: 350,   // 350 searches per month (Premium Plan - $49.99)
+      monthly: 100,   // 100 searches per month (legacy monthly plan)
+      lifetime: 150,  // 150 searches per month for lifetime users
+    };
+
+    const summaryLimit = summaryLimits[user.plan as keyof typeof summaryLimits] || summaryLimits.free;
+    const searchLimit = searchLimits[user.plan as keyof typeof searchLimits] || searchLimits.free;
+
+    // STRICT ENFORCEMENT: Check specific feature quota
+    if (args.featureType === "summary") {
+      if (currentSummaryCount >= summaryLimit) {
+        if (user.plan === "free") {
+          throw new Error(`🚫 FREE TRIAL EXHAUSTED: You've used all ${summaryLimit} free summaries from your signup trial. To continue generating summaries, you must upgrade to a paid subscription plan. Free summaries are a one-time signup benefit only.`);
+        } else {
+          throw new Error(`❌ MONTHLY QUOTA EXCEEDED: You've used all ${currentSummaryCount}/${summaryLimit} summaries for your ${user.plan} plan. Your quota will reset next month.`);
+        }
+      }
+    } else { // search
+      if (currentSearchCount >= searchLimit) {
+        if (user.plan === "free") {
+          throw new Error(`🚫 FREE TRIAL EXHAUSTED: You've used all ${searchLimit} free searches from your signup trial. To continue searching for podcasts, you must upgrade to a paid subscription plan. Free searches are a one-time signup benefit only.`);
+        } else {
+          throw new Error(`❌ MONTHLY QUOTA EXCEEDED: You've used all ${currentSearchCount}/${searchLimit} searches for your ${user.plan} plan. Your quota will reset next month.`);
+        }
+      }
+    }
+
+    return {
+      canProceed: true,
+      currentSummaryCount,
+      currentSearchCount,
+      summaryLimit,
+      searchLimit,
+      plan: user.plan || "free",
+    };
+  },
+});
+
+// Check if free user has exhausted their one-time trial and must upgrade
+export const checkFreeTrialStatus = query({
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return { error: "Not authenticated" };
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.subject))
+      .unique();
+
+    if (!user) {
+      return { error: "User not found" };
+    }
+
+    if (user.plan !== "free") {
+      return { 
+        isFreeUser: false,
+        trialExhausted: false,
+        message: "User is on paid plan"
+      };
+    }
+
+    const currentSummaryCount = user.summary_count || 0;
+    const currentSearchCount = user.search_count || 0;
+    const summaryLimit = 5;
+    const searchLimit = 10;
+
+    const summariesExhausted = currentSummaryCount >= summaryLimit;
+    const searchesExhausted = currentSearchCount >= searchLimit;
+    const trialExhausted = summariesExhausted && searchesExhausted;
+
+    return {
+      isFreeUser: true,
+      trialExhausted,
+      summaries: {
+        used: currentSummaryCount,
+        limit: summaryLimit,
+        exhausted: summariesExhausted,
+        remaining: Math.max(0, summaryLimit - currentSummaryCount)
+      },
+      searches: {
+        used: currentSearchCount,
+        limit: searchLimit,
+        exhausted: searchesExhausted,
+        remaining: Math.max(0, searchLimit - currentSearchCount)
+      },
+      canContinue: !trialExhausted,
+      mustUpgrade: trialExhausted,
+      message: trialExhausted 
+        ? "Free trial exhausted - must upgrade to continue using the service"
+        : `Free trial: ${summaryLimit - currentSummaryCount} summaries, ${searchLimit - currentSearchCount} searches remaining`
     };
   },
 });
@@ -213,6 +565,32 @@ export const incrementSummaryCount = internalMutation({
     const currentCount = user.summary_count || 0;
     await ctx.db.patch(user._id, {
       summary_count: currentCount + 1,
+    });
+
+    return currentCount + 1;
+  },
+});
+
+// Increment user's search count
+export const incrementSearchCount = internalMutation({
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.subject))
+      .unique();
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const currentCount = user.search_count || 0;
+    await ctx.db.patch(user._id, {
+      search_count: currentCount + 1,
     });
 
     return currentCount + 1;
@@ -438,22 +816,116 @@ export const updateUserPlan = mutation({
 
     let quotaResetDate = user.quota_reset_date;
     
-    // Set quota reset date for monthly and lifetime subscribers
-    if (args.plan === "monthly" || args.plan === "lifetime") {
+    // Set quota reset date ONLY for paid plans - FREE USERS NEVER GET RESETS
+    if (args.plan === "monthly" || args.plan === "lifetime" || args.plan === "basic" || args.plan === "pro" || args.plan === "premium") {
       const now = new Date();
       const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
       quotaResetDate = nextMonth.getTime();
     } else {
-      // Clear reset date for free plans
+      // Clear reset date for free plans - FREE USERS NEVER GET QUOTA RESETS
       quotaResetDate = undefined;
     }
 
     await ctx.db.patch(user._id, {
       plan: args.plan,
       quota_reset_date: quotaResetDate,
-      // Reset summary count when upgrading plans
+      // Reset counts when upgrading plans
       summary_count: 0,
+      search_count: 0,
     });
+
+    return await ctx.db.get(user._id);
+  },
+});
+
+// Update user plan and optionally reset quota (called on successful payments)
+export const updateUserPlanAndResetQuota = mutation({
+  args: { 
+    tokenIdentifier: v.string(),
+    plan: v.string(),
+    resetQuota: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", args.tokenIdentifier))
+      .unique();
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    let quotaResetDate = user.quota_reset_date;
+    
+    // Set quota reset date ONLY for paid plans - FREE USERS NEVER GET RESETS
+    if (args.plan === "monthly" || args.plan === "lifetime" || args.plan === "basic" || args.plan === "pro" || args.plan === "premium") {
+      const now = new Date();
+      const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
+      quotaResetDate = nextMonth.getTime();
+    } else {
+      // Clear reset date for free plans - FREE USERS NEVER GET QUOTA RESETS
+      quotaResetDate = undefined;
+    }
+
+    const updateFields: any = {
+      plan: args.plan,
+      quota_reset_date: quotaResetDate,
+    };
+
+    // Reset quota only if explicitly requested (on successful payments)
+    if (args.resetQuota) {
+      updateFields.summary_count = 0;
+      updateFields.search_count = 0;
+      console.log(`🔄 QUOTA RESET: ${args.tokenIdentifier} - successful payment for ${args.plan} plan`);
+    }
+
+    await ctx.db.patch(user._id, updateFields);
+
+    return await ctx.db.get(user._id);
+  },
+});
+
+// Manual quota reset for renewal payments (called by webhooks)
+export const resetQuotaOnPayment = mutation({
+  args: { 
+    tokenIdentifier: v.string(),
+    reason: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", args.tokenIdentifier))
+      .unique();
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Only reset quota for paid plans
+    if (user.plan === "free") {
+      console.log(`⏭️ QUOTA RESET SKIPPED: ${args.tokenIdentifier} - free plan`);
+      return user;
+    }
+
+    // Verify user has active subscription before resetting
+    const subscriptionStatus = await ctx.runQuery(api.users.verifyActiveSubscription, { userId: user.tokenIdentifier });
+    
+    if (!subscriptionStatus.hasActiveSubscription) {
+      console.log(`❌ QUOTA RESET DENIED: ${args.tokenIdentifier} - inactive subscription: ${subscriptionStatus.reason}`);
+      throw new Error(`Cannot reset quota: ${subscriptionStatus.reason}`);
+    }
+
+    // Set next reset date
+    const now = new Date();
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
+
+    await ctx.db.patch(user._id, {
+      summary_count: 0,
+      search_count: 0,
+      quota_reset_date: nextMonth.getTime(),
+    });
+
+    console.log(`✅ QUOTA RESET: ${args.tokenIdentifier} (${user.plan}) - ${args.reason}`);
 
     return await ctx.db.get(user._id);
   },
@@ -479,6 +951,8 @@ export const testUseUpQuota = mutation({
     // Set summary count to the limit
     const quotaLimits = {
       free: 5,
+      basic: 50,
+      pro: 150,
       monthly: 50,
       lifetime: 70,
     };
@@ -534,6 +1008,8 @@ export const testForceQuotaReset = mutation({
     });
 
     const quotaLimits = {
+      basic: 50,
+      pro: 150,
       monthly: 50,
       lifetime: 70,
     };
@@ -593,13 +1069,13 @@ export const testTriggerAutomaticReset = mutation({
   },
 });
 
-// Daily cron job function: Reset quotas for all users whose reset date has passed
+// Daily cron job function: Reset quotas ONLY for users with active subscriptions
 export const resetExpiredQuotas = internalMutation({
   handler: async (ctx) => {
     const now = Date.now();
     console.log(`🕐 Daily quota reset check starting at ${new Date(now).toISOString()}`);
     
-    // Find all users with expired quota reset dates (monthly and lifetime plans)
+    // Find all users with expired quota reset dates (ONLY paid plans - FREE USERS EXCLUDED)
     const expiredUsers = await ctx.db
       .query("users")
       .filter((q) => 
@@ -608,11 +1084,16 @@ export const resetExpiredQuotas = internalMutation({
           q.neq(q.field("quota_reset_date"), undefined),
           // Reset date has passed
           q.lt(q.field("quota_reset_date"), now),
-          // User is on a paid plan
+          // User is on a paid plan (FREE USERS NEVER GET QUOTA RESETS)
           q.or(
             q.eq(q.field("plan"), "monthly"),
-            q.eq(q.field("plan"), "lifetime")
-          )
+            q.eq(q.field("plan"), "lifetime"),
+            q.eq(q.field("plan"), "basic"),
+            q.eq(q.field("plan"), "pro"),
+            q.eq(q.field("plan"), "premium")
+          ),
+          // EXPLICIT EXCLUSION: No free plan users
+          q.neq(q.field("plan"), "free")
         )
       )
       .collect();
@@ -620,12 +1101,23 @@ export const resetExpiredQuotas = internalMutation({
     console.log(`📊 Found ${expiredUsers.length} users with expired quotas`);
 
     let resetCount = 0;
+    let deniedCount = 0;
     let errorCount = 0;
 
-    // Reset quota for each expired user
+    // Reset quota for each expired user - BUT ONLY if subscription is active
     for (const user of expiredUsers) {
       try {
-        const oldCount = user.summary_count || 0;
+        // CRITICAL: Verify subscription is active before resetting quota
+        const subscriptionStatus = await ctx.runQuery(api.users.verifyActiveSubscription, { userId: user.tokenIdentifier });
+        
+        if (!subscriptionStatus.hasActiveSubscription) {
+          console.log(`❌ QUOTA RESET DENIED: ${user.tokenIdentifier} (${user.plan}) - ${subscriptionStatus.reason} | QUOTA FROZEN UNTIL PAYMENT`);
+          deniedCount++;
+          continue; // Skip this user - no active subscription
+        }
+
+        const oldSummaryCount = user.summary_count || 0;
+        const oldSearchCount = user.search_count || 0;
         
         // Calculate next reset date (same day next month)
         const currentResetDate = new Date(user.quota_reset_date!);
@@ -638,15 +1130,16 @@ export const resetExpiredQuotas = internalMutation({
           nextResetDate.setDate(0);
         }
 
-        // Reset the user's quota
+        // Reset the user's quotas ONLY after confirming active subscription
         await ctx.db.patch(user._id, {
           summary_count: 0,
+          search_count: 0,
           quota_reset_date: nextResetDate.getTime(),
         });
 
         console.log(
           `✅ QUOTA RESET: ${user.tokenIdentifier} (${user.plan}) ` +
-          `${oldCount} → 0, next reset: ${nextResetDate.toISOString().split('T')[0]}`
+          `summaries: ${oldSummaryCount} → 0, searches: ${oldSearchCount} → 0, next reset: ${nextResetDate.toISOString().split('T')[0]} - verified active subscription`
         );
         
         resetCount++;
@@ -660,8 +1153,9 @@ export const resetExpiredQuotas = internalMutation({
       timestamp: new Date(now).toISOString(),
       totalChecked: expiredUsers.length,
       successfulResets: resetCount,
+      deniedResets: deniedCount,
       errors: errorCount,
-      message: `Successfully reset ${resetCount} quotas, ${errorCount} errors`
+      message: `Reset ${resetCount} quotas, denied ${deniedCount} (inactive subscription), ${errorCount} errors`
     };
 
     console.log(`🏁 Daily quota reset completed:`, summary);
@@ -705,7 +1199,9 @@ export const getUpcomingQuotaResets = query({
           q.lt(q.field("quota_reset_date"), next7Days),
           q.or(
             q.eq(q.field("plan"), "monthly"),
-            q.eq(q.field("plan"), "lifetime")
+            q.eq(q.field("plan"), "lifetime"),
+            q.eq(q.field("plan"), "basic"),
+            q.eq(q.field("plan"), "pro")
           )
         )
       )
@@ -731,7 +1227,9 @@ export const getCronExecutionHistory = query({
         q.and(
           q.or(
             q.eq(q.field("plan"), "monthly"),
-            q.eq(q.field("plan"), "lifetime")
+            q.eq(q.field("plan"), "lifetime"),
+            q.eq(q.field("plan"), "basic"),
+            q.eq(q.field("plan"), "pro")
           ),
           q.neq(q.field("quota_reset_date"), undefined)
         )
@@ -753,10 +1251,26 @@ export const getCronExecutionHistory = query({
 
 // Check if user can access chat feature
 export const canUserAccessChat = query({
-  handler: async (ctx) => {
+  handler: async (ctx): Promise<{
+    canAccess: boolean;
+    reason: string;
+    plan: string;
+    used: number;
+    limit: number;
+    remaining: number;
+    isPaidUser: boolean;
+  }> => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      return { canAccess: false, reason: "Not authenticated" };
+      return { 
+        canAccess: false, 
+        reason: "Not authenticated",
+        plan: "free",
+        used: 0,
+        limit: 5,
+        remaining: 5,
+        isPaidUser: false
+      };
     }
 
     const user = await ctx.db
@@ -765,7 +1279,15 @@ export const canUserAccessChat = query({
       .unique();
 
     if (!user) {
-      return { canAccess: false, reason: "User not found" };
+      return { 
+        canAccess: false, 
+        reason: "User not found",
+        plan: "free",
+        used: 0,
+        limit: 5,
+        remaining: 5,
+        isPaidUser: false
+      };
     }
 
     // Check if user has quota available or is on paid plan
@@ -773,8 +1295,8 @@ export const canUserAccessChat = query({
     let currentCount = user.summary_count || 0;
     let quotaResetDate = user.quota_reset_date;
 
-    // Check if user needs quota reset (for monthly and lifetime subscribers)
-    if ((user.plan === "monthly" || user.plan === "lifetime") && quotaResetDate && now >= quotaResetDate) {
+    // Check if user needs quota reset (for all paid plan subscribers)
+    if ((user.plan === "monthly" || user.plan === "lifetime" || user.plan === "basic" || user.plan === "pro") && quotaResetDate && now >= quotaResetDate) {
       // User needs quota reset, but we can't mutate in a query
       // Show reset count in calculation
       currentCount = 0;
@@ -782,18 +1304,42 @@ export const canUserAccessChat = query({
 
     // Determine quota limits based on plan
     const quotaLimits = {
-      free: 5,      // 5 summaries for free users
-      monthly: 50,  // 50 summaries per month
-      lifetime: 70, // 70 summaries per month for lifetime users
+      free: 5,        // 5 summaries for free users
+      basic: 35,      // 35 summaries per month (Basic Plan - $9.99)
+      pro: 60,        // 60 summaries per month (Pro Plan - $14.99)
+      premium: 300,   // 300 summaries per month (Premium Plan - $49.99)
+      monthly: 50,    // 50 summaries per month (legacy monthly plan)
+      lifetime: 70,   // 70 summaries per month for lifetime users
     };
+
+    // STRICT SUBSCRIPTION CHECK for chat access
+    if (user.plan !== "free") {
+      const subscriptionStatus: {
+        hasActiveSubscription: boolean;
+        reason: string;
+        plan?: string;
+      } = await ctx.runQuery(api.users.verifyActiveSubscription, { userId: user.tokenIdentifier });
+      
+      if (!subscriptionStatus.hasActiveSubscription) {
+        return {
+          canAccess: false,
+          reason: `Subscription required: ${subscriptionStatus.reason}. Chat is only available to users with active subscriptions or free users with remaining quota.`,
+          plan: "free", // Force to free plan behavior
+          used: 0,
+          limit: 5,
+          remaining: 5,
+          isPaidUser: false,
+        };
+      }
+    }
 
     const limit = quotaLimits[user.plan as keyof typeof quotaLimits] || quotaLimits.free;
     const hasRemainingQuota = currentCount < limit;
 
     // Chat access rules:
-    // 1. Paid users (monthly/lifetime) can always access chat
+    // 1. Paid users (monthly/lifetime/basic/pro/premium) can always access chat
     // 2. Free users can access chat only if they have remaining summaries
-    const isPaidUser = user.plan === "monthly" || user.plan === "lifetime";
+    const isPaidUser = user.plan === "monthly" || user.plan === "lifetime" || user.plan === "basic" || user.plan === "pro" || user.plan === "premium";
     const canAccess = isPaidUser || (user.plan === "free" && hasRemainingQuota);
 
     let reason = "";
@@ -804,11 +1350,62 @@ export const canUserAccessChat = query({
     return {
       canAccess,
       reason,
-      plan: user.plan,
+      plan: user.plan || "free",
       used: currentCount,
       limit,
       remaining: Math.max(0, limit - currentCount),
       isPaidUser,
+    };
+  },
+});
+
+// System status check - comprehensive quota and subscription debugging
+export const getSystemStatus = query({
+  handler: async (ctx): Promise<any> => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return { error: "Not authenticated" };
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.subject))
+      .unique();
+
+    if (!user) {
+      return { error: "User not found" };
+    }
+
+    // Get subscription verification
+    let subscriptionStatus = null;
+    if (user.plan !== "free") {
+      subscriptionStatus = await ctx.runQuery(api.users.verifyActiveSubscription, { userId: user.tokenIdentifier });
+    }
+
+    // Get current quota status
+    const userQuota: any = await ctx.runQuery(api.users.getUserQuota, {});
+
+    return {
+      user: {
+        id: user._id,
+        tokenIdentifier: user.tokenIdentifier,
+        email: user.email,
+        plan: user.plan,
+        summary_count: user.summary_count || 0,
+        search_count: user.search_count || 0,
+        quota_reset_date: user.quota_reset_date,
+      },
+      subscription: subscriptionStatus,
+      currentQuota: userQuota,
+      systemRules: {
+        freeTrialLimits: "5 summaries, 10 searches (ONE-TIME signup benefit only)",
+        freeTrialPolicy: "After free trial exhausted, user MUST upgrade to continue using service",
+        noFreeRenewals: "Free users NEVER get quota resets - must pay to continue",
+        paidUserRequirement: "Active subscription required for all paid features",
+        quotaResetPolicy: "Only paid users with active subscriptions get monthly resets",
+        strictEnforcement: "No service access without payment after free trial used"
+      },
+      timestamp: new Date().toISOString()
     };
   },
 });

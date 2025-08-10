@@ -24,8 +24,8 @@ export const generateSummary = action({
     const quotaStatus = await ctx.runMutation(internal.users.checkAndResetQuota);
     
     if (!quotaStatus.canGenerate) {
-      throw new Error(`Quota exceeded. You have used ${quotaStatus.used}/${quotaStatus.limit} summaries. ${
-        quotaStatus.limit === 5 ? "Upgrade to get more summaries." : "Your quota will reset next month."
+      throw new Error(`Quota exceeded. You have used ${quotaStatus.summaries.used}/${quotaStatus.summaries.limit} summaries. ${
+        quotaStatus.summaries.limit === 5 ? "Upgrade to get more summaries." : "Your quota will reset next month."
       }`);
     }
 

@@ -32,6 +32,12 @@ export default function Pricing({ loaderData }: { loaderData: any }) {
   const upsertUser = useMutation(api.users.upsertUser);
 
   const handleSubscribe = async (priceId: string) => {
+    // Show professional popup message that upgrade is temporarily unavailable
+    alert("Upgrade functionality is temporarily unavailable.");
+    return;
+
+    // Original subscription logic (commented out)
+    /*
     if (!isSignedIn) {
       window.location.href = "/sign-in";
       return;
@@ -70,6 +76,7 @@ export default function Pricing({ loaderData }: { loaderData: any }) {
       setError(errorMessage);
       setLoadingPriceId(null);
     }
+    */
   };
 
   return (
@@ -94,7 +101,7 @@ export default function Pricing({ loaderData }: { loaderData: any }) {
             {error && <p className="text-red-500 mt-4 text-center">{error}</p>}
           </div>
         ) : (
-          <div className="mt-8 flex flex-wrap gap-6 md:mt-20 justify-center max-w-5xl mx-auto">
+          <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-6 md:mt-20 max-w-6xl mx-auto px-4">
             {loaderData.plans.items
               .sort((a: any, b: any) => {
                 const priceComparison = a.prices[0].amount - b.prices[0].amount;
@@ -127,7 +134,7 @@ export default function Pricing({ loaderData }: { loaderData: any }) {
                 return (
                   <Card
                     key={plan.id}
-                    className={`relative w-full max-w-sm ${isPopular ? "border-primary" : ""} ${
+                    className={`relative flex flex-col h-full ${isPopular ? "border-primary shadow-lg" : ""} ${
                       isCurrentPlan ? "border-green-500 bg-green-50/50" : ""
                     }`}
                   >
@@ -201,13 +208,25 @@ export default function Pricing({ loaderData }: { loaderData: any }) {
                       </Button>
                     </CardHeader>
 
-                    <CardContent className="space-y-4">
+                    <CardContent className="flex-grow space-y-4">
                       <hr className="border-dashed" />
 
                       <ul className="list-outside space-y-3 text-sm">
                         <li className="flex items-center gap-2">
                           <Check className="size-3" />
-                          {plan.isRecurring ? "50 summaries a month generated" : "70 summaries a month generated"}
+                          {plan.isRecurring ? 
+                            (price.amount <= 999 ? "35 summaries per month" : 
+                             price.amount <= 1499 ? "60 summaries per month" :
+                             price.amount <= 4999 ? "300 summaries per month" : "Unlimited summaries") 
+                            : "70 summaries per month"}
+                        </li>
+                        <li className="flex items-center gap-2">
+                          <Check className="size-3" />
+                          {plan.isRecurring ? 
+                            (price.amount <= 999 ? "150 searches per month" : 
+                             price.amount <= 1499 ? "200 searches per month" :
+                             price.amount <= 4999 ? "350 searches per month" : "Unlimited searches") 
+                            : "150 searches per month"}
                         </li>
                         <li className="flex items-center gap-2">
                           <Check className="size-3" />

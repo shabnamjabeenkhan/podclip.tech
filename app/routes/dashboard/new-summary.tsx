@@ -401,69 +401,115 @@ export default function NewSummary() {
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Create New Summary</h1>
           <p className="text-sm sm:text-base text-gray-600 mb-6">Search for a podcast and select an episode to generate an AI summary</p>
           
-          {/* Quota Indicator */}
+          {/* Quota Indicators */}
           {userQuota && (
-            <div className={`mb-8 p-4 rounded-lg border-2 ${
-              !userQuota.canGenerate 
-                ? 'bg-red-50 border-red-200' 
-                : userQuota.remaining !== -1 && userQuota.remaining <= 2
-                  ? 'bg-yellow-50 border-yellow-200'
-                  : 'bg-green-50 border-green-200'
-            }`}>
-              <div className="flex items-center justify-between">
+            <div className="mb-8 space-y-4">
+              {/* Summary Quota */}
+              <div className={`p-4 rounded-lg border-2 ${
+                !userQuota.summaries.canGenerate 
+                  ? 'bg-red-50 border-red-200' 
+                  : userQuota.summaries.remaining !== -1 && userQuota.summaries.remaining <= 2
+                    ? 'bg-yellow-50 border-yellow-200'
+                    : 'bg-green-50 border-green-200'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-3 h-3 rounded-full ${
+                      !userQuota.summaries.canGenerate 
+                        ? 'bg-red-500' 
+                        : userQuota.summaries.remaining !== -1 && userQuota.summaries.remaining <= 2
+                          ? 'bg-yellow-500'
+                          : 'bg-green-500'
+                    }`}></div>
+                    <div>
+                      <p className={`font-medium ${
+                        !userQuota.summaries.canGenerate 
+                          ? 'text-red-800' 
+                          : userQuota.summaries.remaining !== -1 && userQuota.summaries.remaining <= 2
+                            ? 'text-yellow-800'
+                            : 'text-green-800'
+                      }`}>
+                        {userQuota.summaries.limit === -1 
+                          ? "Unlimited summaries" 
+                          : `${userQuota.summaries.used}/${userQuota.summaries.limit} summaries used`}
+                      </p>
+                      <p className={`text-sm ${
+                        !userQuota.summaries.canGenerate 
+                          ? 'text-red-600' 
+                          : userQuota.summaries.remaining !== -1 && userQuota.summaries.remaining <= 2
+                            ? 'text-yellow-600'
+                            : 'text-green-600'
+                      }`}>
+                        {!userQuota.summaries.canGenerate 
+                          ? (userQuota.summaries.limit === 5 ? "Summary quota exhausted. Upgrade to continue." : "Monthly summary quota exhausted. Resets next month.")
+                          : userQuota.summaries.limit === -1 
+                            ? "You have unlimited summaries with your current plan"
+                            : `${userQuota.summaries.remaining} summaries remaining this month`}
+                      </p>
+                    </div>
+                  </div>
+                  {!userQuota.summaries.canGenerate && userQuota.summaries.limit === 5 && (
+                    <div className="flex gap-2">
+                      <a 
+                        href="/pricing"
+                        className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        Upgrade Plan
+                      </a>
+                      <button
+                        onClick={handleFixPlan}
+                        disabled={fixingPlan}
+                        className="px-3 py-2 bg-gray-500 text-white text-xs font-medium rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Try this if you've already paid but plan hasn't updated"
+                      >
+                        {fixingPlan ? "Checking..." : "Already Paid?"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Search Quota */}
+              <div className={`p-4 rounded-lg border-2 ${
+                !userQuota.searches.canSearch 
+                  ? 'bg-red-50 border-red-200' 
+                  : userQuota.searches.remaining !== -1 && userQuota.searches.remaining <= 10
+                    ? 'bg-yellow-50 border-yellow-200'
+                    : 'bg-green-50 border-green-200'
+              }`}>
                 <div className="flex items-center gap-3">
                   <div className={`w-3 h-3 rounded-full ${
-                    !userQuota.canGenerate 
+                    !userQuota.searches.canSearch 
                       ? 'bg-red-500' 
-                      : userQuota.remaining !== -1 && userQuota.remaining <= 2
+                      : userQuota.searches.remaining !== -1 && userQuota.searches.remaining <= 10
                         ? 'bg-yellow-500'
                         : 'bg-green-500'
                   }`}></div>
                   <div>
                     <p className={`font-medium ${
-                      !userQuota.canGenerate 
+                      !userQuota.searches.canSearch 
                         ? 'text-red-800' 
-                        : userQuota.remaining !== -1 && userQuota.remaining <= 2
+                        : userQuota.searches.remaining !== -1 && userQuota.searches.remaining <= 10
                           ? 'text-yellow-800'
                           : 'text-green-800'
                     }`}>
-                      {userQuota.limit === -1 
-                        ? "Unlimited summaries" 
-                        : `${userQuota.used}/${userQuota.limit} summaries used`}
+                      {userQuota.searches.limit === -1 
+                        ? "Unlimited searches" 
+                        : `${userQuota.searches.used}/${userQuota.searches.limit} searches used`}
                     </p>
                     <p className={`text-sm ${
-                      !userQuota.canGenerate 
+                      !userQuota.searches.canSearch 
                         ? 'text-red-600' 
-                        : userQuota.remaining !== -1 && userQuota.remaining <= 2
+                        : userQuota.searches.remaining !== -1 && userQuota.searches.remaining <= 10
                           ? 'text-yellow-600'
                           : 'text-green-600'
                     }`}>
-                      {!userQuota.canGenerate 
-                        ? (userQuota.limit === 5 ? "Quota exhausted. Upgrade to continue." : "Monthly quota exhausted. Resets next month.")
-                        : userQuota.limit === -1 
-                          ? "You have unlimited summaries with your current plan"
-                          : `${userQuota.remaining} summaries remaining${userQuota.plan === 'monthly' ? ' this month' : ''}`}
+                      {!userQuota.searches.canSearch 
+                        ? "Search quota exhausted. Upgrade to continue searching."
+                        : `${userQuota.searches.remaining} searches remaining this month`}
                     </p>
                   </div>
                 </div>
-                {!userQuota.canGenerate && userQuota.limit === 5 && (
-                  <div className="flex gap-2">
-                    <a 
-                      href="/pricing"
-                      className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      Upgrade Plan
-                    </a>
-                    <button
-                      onClick={handleFixPlan}
-                      disabled={fixingPlan}
-                      className="px-3 py-2 bg-gray-500 text-white text-xs font-medium rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      title="Try this if you've already paid but plan hasn't updated"
-                    >
-                      {fixingPlan ? "Checking..." : "Already Paid?"}
-                    </button>
-                  </div>
-                )}
               </div>
             </div>
           )}
@@ -473,7 +519,6 @@ export default function NewSummary() {
             <label className="block text-sm font-medium text-gray-700 mb-3">
               Search for podcasts
             </label>
-            
             
             <div className="flex flex-col sm:flex-row gap-3">
               <input 
@@ -651,15 +696,15 @@ export default function NewSummary() {
                           
                           <button 
                             onClick={() => handleGenerateSummary(episode)}
-                            disabled={generatingSummary[episode.id] || !userQuota?.canGenerate}
+                            disabled={generatingSummary[episode.id] || !userQuota?.summaries?.canGenerate}
                             className={`w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base ${
-                              !userQuota?.canGenerate 
+                              !userQuota?.summaries?.canGenerate 
                                 ? 'bg-gray-400 text-white cursor-not-allowed'
                                 : summaryErrors[episode.id] && !summaries[episode.id]
                                   ? 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500'
                                   : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 focus:ring-blue-500'
                             }`}
-                            title={!userQuota?.canGenerate ? "Quota exceeded. Upgrade or wait for reset." : ""}
+                            title={!userQuota?.summaries?.canGenerate ? "Quota exceeded. Upgrade or wait for reset." : ""}
                           >
                             {generatingSummary[episode.id] ? (
                               <span className="flex items-center gap-2">
@@ -686,7 +731,7 @@ export default function NewSummary() {
                                 <span className="hidden sm:inline">Retry</span>
                                 <span className="sm:hidden">Retry</span>
                               </span>
-                            ) : !userQuota?.canGenerate ? (
+                            ) : !userQuota?.summaries?.canGenerate ? (
                               <span className="hidden sm:inline">Quota Exceeded</span>
                             ) : (
                               <span>

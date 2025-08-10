@@ -95,6 +95,12 @@ export default function IntegratedPricing() {
   }, [getPlans]);
 
   const handleSubscribe = async (priceId: string) => {
+    // Show professional popup message that upgrade is temporarily unavailable
+    alert("Upgrade functionality is temporarily unavailable.");
+    return;
+
+    // Original subscription logic (commented out)
+    /*
     if (!isSignedIn) {
       // Redirect to sign in
       window.location.href = "/sign-in";
@@ -134,6 +140,7 @@ export default function IntegratedPricing() {
       setError(errorMessage);
       setLoadingPriceId(null);
     }
+    */
   };
 
   if (!plans) {
@@ -154,9 +161,18 @@ export default function IntegratedPricing() {
         <h1 className="text-4xl font-bold tracking-tight mb-4">
           Simple, transparent pricing
         </h1>
-        <p className="text-xl text-muted-foreground">
-          Choose the plan that fits your needs
+        <p className="text-xl text-muted-foreground mb-6">
+          Choose the plan that fits your podcast listening needs
         </p>
+        <div className="max-w-3xl mx-auto bg-blue-50 border border-blue-200 rounded-lg p-6 text-left">
+          <h3 className="font-semibold text-blue-900 mb-3">📋 How it works:</h3>
+          <ul className="text-blue-800 space-y-2 text-sm">
+            <li><strong>Generate summaries</strong> by searching and clicking on podcast episodes</li>
+            <li><strong>Monthly quotas reset automatically</strong> at the start of each month</li>
+            <li><strong>When you reach your limit</strong>, you can't generate new summaries until your quota resets</li>
+            <li><strong>Need more summaries?</strong> Upgrade to a higher plan anytime</li>
+          </ul>
+        </div>
         {isSignedIn && !subscriptionStatus?.hasActiveSubscription && (
           <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg max-w-md mx-auto">
             <p className="text-blue-800 font-medium">📋 Complete your setup</p>
@@ -168,7 +184,7 @@ export default function IntegratedPricing() {
         )}
       </div>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl w-full">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-6xl w-full px-4">
         {plans.items
           .sort((a: any, b: any) => {
             const priceComparison = a.prices[0].amount - b.prices[0].amount;
@@ -190,8 +206,8 @@ export default function IntegratedPricing() {
             return (
               <Card
                 key={plan.id}
-                className={`relative h-fit ${
-                  isPopular ? "border-primary" : ""
+                className={`relative flex flex-col h-full ${
+                  isPopular ? "border-primary shadow-lg" : ""
                 } ${isCurrentPlan ? "border-green-500 bg-green-50/50" : ""}`}
               >
                 {isPopular && !isCurrentPlan && (
@@ -222,25 +238,43 @@ export default function IntegratedPricing() {
                   </div>
                 </CardHeader>
 
-                <CardContent className="space-y-4">
+                <CardContent className="flex-grow space-y-4">
                   <div className="flex items-center gap-3">
                     <Check className="h-5 w-5 text-green-500" />
-                    <span>All features included</span>
+                    <span>{(() => {
+                      if (!plan.isRecurring) return "70 summaries per month";
+                      if (price.amount <= 999) return "35 summaries per month"; // Basic plan $9.99
+                      if (price.amount <= 1499) return "60 summaries per month"; // Pro plan $14.99
+                      if (price.amount <= 4999) return "300 summaries per month"; // Premium plan $49.99
+                      return "Unlimited summaries"; // Higher tier plans
+                    })()}</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <Check className="h-5 w-5 text-green-500" />
-                    <span>Priority support</span>
+                    <span>{(() => {
+                      if (!plan.isRecurring) return "150 searches per month";
+                      if (price.amount <= 999) return "150 searches per month"; // Basic plan $9.99
+                      if (price.amount <= 1499) return "200 searches per month"; // Pro plan $14.99
+                      if (price.amount <= 4999) return "350 searches per month"; // Premium plan $49.99
+                      return "Unlimited searches"; // Higher tier plans
+                    })()}</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Check className="h-5 w-5 text-green-500" />
+                    <span>Chat with your podcast library</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Check className="h-5 w-5 text-green-500" />
+                    <span>AI-generated summaries</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <Check className="h-5 w-5 text-green-500" />
                     <span>Cancel anytime</span>
                   </div>
-                  {plan.isRecurring && (
-                    <div className="flex items-center gap-3">
-                      <Check className="h-5 w-5 text-green-500" />
-                      <span>Recurring billing</span>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-3">
+                    <Check className="h-5 w-5 text-green-500" />
+                    <span>Monthly quota resets automatically</span>
+                  </div>
                 </CardContent>
 
                 <CardFooter>
@@ -286,7 +320,70 @@ export default function IntegratedPricing() {
           })}
       </div>
 
-      <div className="mt-12 text-center">
+      <div className="mt-12 text-center max-w-4xl mx-auto">
+        <div className="bg-gray-50 border rounded-lg p-8 mb-8">
+          <h2 className="text-2xl font-semibold mb-6">Summary Quotas & Usage Policy</h2>
+          
+          <div className="grid md:grid-cols-3 gap-6 mb-8">
+            <div className="text-center">
+              <div className="bg-blue-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl">📊</span>
+              </div>
+              <h3 className="font-semibold text-lg mb-2">Basic Plan</h3>
+              <p className="text-sm text-gray-600">$9.99/month</p>
+              <p className="font-medium text-blue-600">35 summaries/month</p>
+              <p className="font-medium text-blue-600">150 searches/month</p>
+            </div>
+            
+            <div className="text-center">
+              <div className="bg-purple-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl">🚀</span>
+              </div>
+              <h3 className="font-semibold text-lg mb-2">Pro Plan</h3>
+              <p className="text-sm text-gray-600">$14.99/month</p>
+              <p className="font-medium text-purple-600">60 summaries/month</p>
+              <p className="font-medium text-purple-600">200 searches/month</p>
+            </div>
+            
+            <div className="text-center">
+              <div className="bg-amber-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl">💎</span>
+              </div>
+              <h3 className="font-semibold text-lg mb-2">Premium Plan</h3>
+              <p className="text-sm text-gray-600">$49.99/month</p>
+              <p className="font-medium text-amber-600">300 summaries/month</p>
+              <p className="font-medium text-amber-600">350 searches/month</p>
+            </div>
+          </div>
+
+          <div className="text-left space-y-4 text-sm text-gray-700 max-w-2xl mx-auto">
+            <div className="flex items-start gap-3">
+              <span className="text-green-500 mt-1">✅</span>
+              <div>
+                <strong>Generate summaries</strong> by searching for and clicking on podcast episodes
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-green-500 mt-1">🔄</span>
+              <div>
+                <strong>Quotas reset automatically</strong> at the start of each month for all plans
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-red-500 mt-1">🚫</span>
+              <div>
+                <strong>When you reach your limit</strong>, you cannot search for or generate new summaries until your quota resets next month
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="text-blue-500 mt-1">⬆️</span>
+              <div>
+                <strong>Need more summaries?</strong> Upgrade to a higher plan anytime to increase your monthly quota
+              </div>
+            </div>
+          </div>
+        </div>
+        
         <p className="text-muted-foreground">
           Need a custom plan?{" "}
           <span className="text-primary cursor-pointer hover:underline">
