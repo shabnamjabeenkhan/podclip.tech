@@ -32,14 +32,8 @@ export default function Pricing({ loaderData }: { loaderData: any }) {
   const upsertUser = useMutation(api.users.upsertUser);
 
   const handleSubscribe = async (priceId: string) => {
-    // Show professional popup message that upgrade is temporarily unavailable
-    alert("Upgrade functionality is temporarily unavailable.");
-    return;
-
-    // Original subscription logic (commented out)
-    /*
     if (!isSignedIn) {
-      window.location.href = "/sign-in";
+      window.location.href = "/sign-up";
       return;
     }
 
@@ -50,20 +44,25 @@ export default function Pricing({ loaderData }: { loaderData: any }) {
       // Ensure user exists in database before action
       await upsertUser();
 
-      // If user has active subscription, redirect to customer portal for plan changes
+      // If user has active subscription, try to redirect to customer portal for plan changes
       if (
         userSubscription?.status === "active" &&
         userSubscription?.customerId
       ) {
-        const portalResult = await createPortalUrl({
-          customerId: userSubscription.customerId,
-        });
-        window.open(portalResult.url, "_blank");
-        setLoadingPriceId(null);
-        return;
+        try {
+          const portalResult = await createPortalUrl({
+            customerId: userSubscription.customerId,
+          });
+          window.open(portalResult.url, "_blank");
+          setLoadingPriceId(null);
+          return;
+        } catch (portalError) {
+          console.warn("Failed to open customer portal, falling back to checkout:", portalError);
+          // Continue to checkout flow as fallback
+        }
       }
 
-      // Otherwise, create new checkout for first-time subscription
+      // Create new checkout for first-time subscription or as fallback
       const checkoutUrl = await createCheckout({ priceId });
 
       window.location.href = checkoutUrl;
@@ -76,7 +75,6 @@ export default function Pricing({ loaderData }: { loaderData: any }) {
       setError(errorMessage);
       setLoadingPriceId(null);
     }
-    */
   };
 
   return (
@@ -117,15 +115,26 @@ export default function Pricing({ loaderData }: { loaderData: any }) {
                 const price = plan.prices[0];
                 // Check if this plan matches the user's current plan
                 const isCurrentPlan = (() => {
-                  // For monthly subscribers (recurring)
-                  if (userSubscription?.status === "active" && userSubscription?.amount === price.amount) {
-                    return true;
+                  if (!userQuota?.plan || userQuota.plan === 'free') return false;
+                  
+                  // Direct plan name matching for Basic, Pro, Premium
+                  const planName = plan.name.toLowerCase();
+                  const userPlan = userQuota.plan.toLowerCase();
+                  
+                  if ((planName.includes('basic') && userPlan === 'basic') ||
+                      (planName.includes('pro') && userPlan === 'pro') ||
+                      (planName.includes('premium') && userPlan === 'premium')) {
+                    return userSubscription?.status === "active";
                   }
                   
                   // For lifetime users (one-time payments)
-                  if (userQuota?.plan === "lifetime" && !plan.isRecurring) {
-                    // Match lifetime plan by price amount or plan characteristics
+                  if (userPlan === "lifetime" && !plan.isRecurring) {
                     return price.amount >= 3900; // Assuming lifetime plans are $39+ (in cents)
+                  }
+                  
+                  // Legacy matching by amount for monthly plans
+                  if (userPlan === "monthly" && userSubscription?.status === "active") {
+                    return userSubscription.amount === price.amount;
                   }
                   
                   return false;

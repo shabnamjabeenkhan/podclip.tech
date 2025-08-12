@@ -15,6 +15,14 @@ function logStructured(event: string, payload: Record<string, unknown> = {}): vo
   }
 }
 
+type TierPlan = "basic" | "pro" | "premium";
+
+function mapMonthlyPlan(amountCents: number): TierPlan {
+  if (amountCents <= 999) return "basic"; // $9.99
+  if (amountCents <= 1499) return "pro"; // $14.99
+  return "premium"; // $49.99 (or higher monthly tiers)
+}
+
 const createCheckout = async ({
   customerEmail,
   productPriceId,
@@ -360,15 +368,12 @@ export const handleWebhookEvent = mutation({
         console.log("- amount:", subscriptionData.amount);
         console.log("- currency:", subscriptionData.currency);
         
-        // Determine if this is a monthly subscription or lifetime purchase
-        // Check for both recurring_interval and null/undefined values
-        const isMonthly = subscriptionData.recurring_interval === "month";
-        const isLifetime = !subscriptionData.recurring_interval || subscriptionData.recurring_interval === null || subscriptionData.recurring_interval === "none";
-        const plan = isMonthly ? "monthly" : "lifetime";
+        const plan: TierPlan = mapMonthlyPlan(subscriptionData.amount ?? 0);
         
-        console.log(`📋 Plan type detected: ${plan} (isMonthly: ${isMonthly}, isLifetime: ${isLifetime})`);
+        console.log(`📋 Plan type detected: ${plan} (amount: $${(subscriptionData.amount ?? 0)/100})`);
         
-        if (isMonthly) {
+        // All subscriptions are monthly recurring
+        if (subscriptionData.recurring_interval === "month") {
           // Check if subscription record already exists (idempotent)
           const existingSubscription = await ctx.db
             .query("subscriptions")
@@ -432,7 +437,7 @@ export const handleWebhookEvent = mutation({
               polarProductId: subscriptionData.product_id || "unknown",
               polarPriceId: subscriptionData.price_id,
               status: subscriptionData.status === "active" ? "confirmed" : "pending",
-              plan: "lifetime",
+              plan: plan,
               amount: subscriptionData.amount,
               currency: subscriptionData.currency,
               customerId: subscriptionData.customer_id,
@@ -487,7 +492,10 @@ export const handleWebhookEvent = mutation({
           // Check if this is a subscription renewal (new billing period started)
           const isRenewal = newPeriodEnd > oldPeriodEnd && updatedData.status === "active";
           
-          await ctx.db.patch(existingSub._id, {
+          // Calculate new plan based on updated amount
+          const newPlan: TierPlan = mapMonthlyPlan(updatedData.amount || 0);
+          
+          const patchData: any = {
             amount: updatedData.amount,
             status: updatedData.status,
             currentPeriodStart: new Date(updatedData.current_period_start).getTime(),
@@ -495,7 +503,39 @@ export const handleWebhookEvent = mutation({
             cancelAtPeriodEnd: updatedData.cancel_at_period_end,
             metadata: updatedData.metadata || {},
             customFieldData: updatedData.custom_field_data || {},
-          });
+          };
+
+          // Update polarPriceId and customerId if present
+          if (updatedData.price_id) {
+            patchData.polarPriceId = updatedData.price_id;
+          }
+          if (updatedData.customer_id) {
+            patchData.customerId = updatedData.customer_id;
+          }
+
+          // Update plan if changed
+          if (existingSub.plan !== newPlan) {
+            patchData.plan = newPlan;
+          }
+
+          await ctx.db.patch(existingSub._id, patchData);
+
+          // If plan changed, update user plan WITHOUT resetting quotas (mid-cycle change)
+          if (existingSub.plan !== newPlan) {
+            logStructured("plan.changed", { 
+              oldPlan: existingSub.plan, 
+              newPlan, 
+              userId: updatedData.metadata?.userId 
+            });
+            
+            if (updatedData.metadata?.userId) {
+              await ctx.runMutation(api.users.updateUserPlanAndResetQuota, {
+                tokenIdentifier: updatedData.metadata.userId,
+                plan: newPlan,
+                resetQuota: false, // IMPORTANT: preserve usage counts on mid-cycle plan changes
+              });
+            }
+          }
 
           // Reset quota if this is a renewal payment
           if (isRenewal && updatedData.metadata?.userId) {
@@ -525,10 +565,9 @@ export const handleWebhookEvent = mutation({
         console.log("- price_id:", activeData.price_id);
         
         const isMonthlyActive = activeData.recurring_interval === "month";
-        const isLifetimeActive = !activeData.recurring_interval || activeData.recurring_interval === null || activeData.recurring_interval === "none";
-        const activePlan = isMonthlyActive ? "monthly" : "lifetime";
+        const activePlan: TierPlan = mapMonthlyPlan(activeData.amount ?? 0);
         
-        console.log(`📋 Activating ${activePlan} plan (isMonthlyActive: ${isMonthlyActive}, isLifetimeActive: ${isLifetimeActive})`);
+        console.log(`📋 Activating ${activePlan} plan (isMonthlyActive: ${isMonthlyActive})`);
 
         if (isMonthlyActive) {
           // Update monthly subscription
@@ -541,6 +580,7 @@ export const handleWebhookEvent = mutation({
             await ctx.db.patch(activeSub._id, {
               status: activeData.status,
               startedAt: new Date(activeData.started_at).getTime(),
+              plan: activePlan,
             });
             console.log("✅ Monthly subscription activated");
           }
@@ -556,18 +596,18 @@ export const handleWebhookEvent = mutation({
               status: "confirmed",
               confirmedAt: Date.now(),
               updated_at: Date.now(),
+              plan: activePlan,
             });
-            console.log("✅ Lifetime payment confirmed");
+            console.log("✅ Payment confirmed");
           }
         }
         
-        // Update user plan for both types and reset quotas for recurring payments
+        // Update user plan for both types
         try {
           console.log(`🔄 Attempting to activate user plan to: ${activePlan} for userId: ${activeData.metadata.userId}`);
           
-          // For monthly subscriptions, reset quota when subscription becomes active
-          // This handles renewal payments
-          const shouldResetQuota = isMonthlyActive;
+          // Do NOT reset on activation/plan change; only reset on true renewals (handled in subscription.updated)
+          const shouldResetQuota = false;
           
           await ctx.runMutation(api.users.updateUserPlanAndResetQuota, {
             tokenIdentifier: activeData.metadata.userId,
@@ -649,6 +689,10 @@ export const handleWebhookEvent = mutation({
         // Handle one-time payments (lifetime purchases)
         const orderData = args.body.data;
         
+        const orderAmount = orderData.amount || 0;
+        const orderPlan: TierPlan = mapMonthlyPlan(orderAmount);
+        console.log(`📋 Order plan type detected: ${orderPlan} (amount: $${(orderAmount/100).toFixed(2)})`);
+        
         // Check if payment record already exists (idempotent)
         const existingPaymentRecord = await ctx.db
           .query("payments")
@@ -665,7 +709,7 @@ export const handleWebhookEvent = mutation({
             polarProductId: orderData.product_id,
             polarPriceId: orderData.product_price_id,
             status: "pending", // Initially pending
-            plan: "lifetime", // One-time payments are always lifetime
+            plan: orderPlan, // Use detected plan type
             amount: orderData.amount,
             currency: orderData.currency,
             customerId: orderData.customer_id,
@@ -740,7 +784,7 @@ export const handleWebhookEvent = mutation({
             polarProductId: paidOrder.product_id,
             polarPriceId: paidOrder.product_price_id,
             status: "confirmed",
-            plan: "lifetime",
+            plan: mapMonthlyPlan(paidOrder.amount || 0),
             amount: paidOrder.amount,
             currency: paidOrder.currency,
             customerId: paidOrder.customer_id,
@@ -761,15 +805,24 @@ export const handleWebhookEvent = mutation({
           await ctx.db.insert("payments", insertPayment);
         }
 
-        // Update user plan to lifetime
+        // Update user plan based on payment record
         if (paidOrder.metadata?.userId) {
           try {
-            console.log(`🔄 Activating lifetime plan for userId: ${paidOrder.metadata.userId}`);
-            await ctx.runMutation(api.users.updateUserPlan, {
+            // Get the plan type from the payment record
+            const finalPayment = await ctx.db
+              .query("payments")
+              .withIndex("polarOrderId", (q) => q.eq("polarOrderId", paidOrder.id))
+              .first();
+            
+            const planToActivate = finalPayment?.plan || "basic"; // Default to basic if no plan found
+            console.log(`🔄 Activating ${planToActivate} plan for userId: ${paidOrder.metadata.userId}`);
+            
+            await ctx.runMutation(api.users.updateUserPlanAndResetQuota, {
               tokenIdentifier: paidOrder.metadata.userId,
-              plan: "lifetime",
+              plan: planToActivate,
+              resetQuota: false, // IMPORTANT: preserve usage on payment activation
             });
-            console.log("✅ User plan updated to lifetime for order:", paidOrder.id);
+            console.log(`✅ User plan updated to ${planToActivate} for order:`, paidOrder.id);
           } catch (error) {
             console.error("❌ Failed to update user plan:", error);
             console.error("❌ Error details:", JSON.stringify(error, null, 2));
@@ -798,14 +851,24 @@ export const handleWebhookEvent = mutation({
           });
         }
 
-        // Update user plan to lifetime
+        // Update user plan based on payment record
         if (confirmedOrder.metadata?.userId) {
           try {
-            await ctx.runMutation(api.users.updateUserPlan, {
+            // Get the plan type from the payment record
+            const confirmedPayment = await ctx.db
+              .query("payments")
+              .withIndex("polarOrderId", (q) => q.eq("polarOrderId", confirmedOrder.id))
+              .first();
+            
+            const planToActivate = confirmedPayment?.plan || "basic"; // Default to basic if no plan found
+            console.log(`🔄 Activating ${planToActivate} plan for userId: ${confirmedOrder.metadata.userId}`);
+            
+            await ctx.runMutation(api.users.updateUserPlanAndResetQuota, {
               tokenIdentifier: confirmedOrder.metadata.userId,
-              plan: "lifetime",
+              plan: planToActivate,
+              resetQuota: false, // IMPORTANT: preserve usage on order confirmation
             });
-            console.log("✅ User plan updated to lifetime for order:", confirmedOrder.id);
+            console.log(`✅ User plan updated to ${planToActivate} for order:`, confirmedOrder.id);
           } catch (error) {
             console.error("❌ Failed to update user plan:", error);
             // Don't throw error - let the payment record exist for manual fixing
@@ -1077,7 +1140,7 @@ export const debugUserPaymentStatus = query({
 export const createCustomerPortalUrl = action({
   handler: async (ctx, args: { customerId: string }) => {
     const polar = new Polar({
-      server: "production",
+      server: (process.env.POLAR_SERVER as "sandbox" | "production") || "sandbox",
       accessToken: process.env.POLAR_ACCESS_TOKEN,
     });
 

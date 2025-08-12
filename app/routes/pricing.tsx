@@ -69,6 +69,7 @@ export default function IntegratedPricing() {
     }
   );
   const userSubscription = useQuery(api.subscriptions.fetchUserSubscription);
+  const userQuota = useQuery(api.users.getUserQuota, isSignedIn ? {} : "skip");
   const createCheckout = useAction(api.subscriptions.createCheckoutSession);
   const createPortalUrl = useAction(api.subscriptions.createCustomerPortalUrl);
   const upsertUser = useMutation(api.users.upsertUser);
@@ -95,15 +96,9 @@ export default function IntegratedPricing() {
   }, [getPlans]);
 
   const handleSubscribe = async (priceId: string) => {
-    // Show professional popup message that upgrade is temporarily unavailable
-    alert("Upgrade functionality is temporarily unavailable.");
-    return;
-
-    // Original subscription logic (commented out)
-    /*
     if (!isSignedIn) {
-      // Redirect to sign in
-      window.location.href = "/sign-in";
+      // Redirect to sign up
+      window.location.href = "/sign-up";
       return;
     }
 
@@ -114,20 +109,25 @@ export default function IntegratedPricing() {
       // Ensure user exists in database before action
       await upsertUser();
 
-      // If user has active subscription, redirect to customer portal for plan changes
+      // If user has active subscription, try to redirect to customer portal for plan changes
       if (
         userSubscription?.status === "active" &&
         userSubscription?.customerId
       ) {
-        const portalResult = await createPortalUrl({
-          customerId: userSubscription.customerId,
-        });
-        window.open(portalResult.url, "_blank");
-        setLoadingPriceId(null);
-        return;
+        try {
+          const portalResult = await createPortalUrl({
+            customerId: userSubscription.customerId,
+          });
+          window.open(portalResult.url, "_blank");
+          setLoadingPriceId(null);
+          return;
+        } catch (portalError) {
+          console.warn("Failed to open customer portal, falling back to checkout:", portalError);
+          // Continue to checkout flow as fallback
+        }
       }
 
-      // Otherwise, create new checkout for first-time subscription
+      // Create new checkout for first-time subscription or as fallback
       const checkoutUrl = await createCheckout({ priceId });
 
       window.location.href = checkoutUrl;
@@ -140,7 +140,6 @@ export default function IntegratedPricing() {
       setError(errorMessage);
       setLoadingPriceId(null);
     }
-    */
   };
 
   if (!plans) {
@@ -198,10 +197,33 @@ export default function IntegratedPricing() {
                 ? index === 1
                 : index === Math.floor(plans.items.length / 2); // Mark middle/higher priced plan as popular
             const price = plan.prices[0]; // Use first price for display
-            // More robust current plan detection - prioritize amount matching due to price ID inconsistencies
-            const isCurrentPlan =
-              userSubscription?.status === "active" &&
-              userSubscription?.amount === price.amount;
+            // More robust current plan detection - use both plan name and amount matching
+            const isCurrentPlan = (() => {
+              if (!userSubscription?.status || userSubscription.status !== "active") return false;
+              if (!userQuota?.plan || userQuota.plan === 'free') return false;
+              
+              // Primary method: plan name matching
+              const planName = plan.name.toLowerCase();
+              const userPlan = userQuota.plan.toLowerCase();
+              
+              if ((planName.includes('basic') && userPlan === 'basic') ||
+                  (planName.includes('pro') && userPlan === 'pro') ||
+                  (planName.includes('premium') && userPlan === 'premium')) {
+                return true;
+              }
+              
+              // Fallback method: amount matching for edge cases
+              if (userSubscription.amount === price.amount) {
+                return true;
+              }
+              
+              // Legacy plans
+              if (userPlan === "monthly" && userSubscription.amount === price.amount) {
+                return true;
+              }
+              
+              return false;
+            })();
 
             return (
               <Card

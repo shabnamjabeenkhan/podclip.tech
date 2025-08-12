@@ -113,7 +113,12 @@ export const searchEpisodes = action({
     offset: v.optional(v.number()),
     limit: v.optional(v.number())
   },
-  handler: async (_, args) => {
+  handler: async (ctx, args) => {
+    // STRICT quota and subscription check before searching episodes
+    await ctx.runMutation(internal.users.checkUserAccessAndQuota, { 
+      featureType: "search" 
+    });
+    
     const offset = args.offset || 0;
     const limit = Math.min(args.limit || 10, 10); // Cap at 10 results per page (API maximum)
     
@@ -136,6 +141,9 @@ export const searchEpisodes = action({
     
     const data = await response.json();
     console.log(`Episode search results: ${data.results?.length || 0} episodes returned, offset: ${offset}, total: ${data.total || 0}`);
+    
+    // Increment search count after successful episode search
+    await ctx.runMutation(internal.users.incrementSearchCount);
     
       return {
         ...data,
