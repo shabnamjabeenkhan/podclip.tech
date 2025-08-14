@@ -100,8 +100,8 @@ export const links: Route.LinksFunction = () => [
   // Icon
   {
     rel: "icon",
-    type: "image/svg+xml",
-    href: "/favicon.svg",
+    type: "image/png",
+    href: "/podclip.png",
   },
 ];
 
