@@ -8,6 +8,7 @@ import Pricing from "~/components/homepage/pricing";
 import Team from "~/components/homepage/team";
 import FAQ from "~/components/homepage/faq";
 import AiChatSection from "~/components/homepage/ai-chat-section";
+import DemoSection from "~/components/homepage/demo-section";
 import { api } from "../../convex/_generated/api";
 import type { Route } from "./+types/home";
 
@@ -111,6 +112,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <Integrations loaderData={loaderData} />
       <ContentSection />
       <CoreFeaturesSection />
+      <DemoSection />
       <AiChatSection />
       <ConvexComparison />
       <Pricing loaderData={loaderData} />

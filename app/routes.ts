@@ -10,6 +10,8 @@ function buildRoutes(): RouteConfig {
   const routes: RouteConfig = [
     // Home route is always available
   index("routes/home.tsx"),
+    // Demo route is always available
+    route("demo", "routes/demo.tsx"),
     // Changelog is always available
     route("changelog", "routes/changelog.tsx"),
     

@@ -470,16 +470,6 @@ export default function NewSummary() {
                       >
                         Upgrade Plan
                       </a>
-                      <Button
-                        onClick={handleFixPlan}
-                        loading={fixingPlan}
-                        variant="secondary"
-                        size="sm"
-                        className="px-3 py-2 text-xs"
-                        title="Try this if you've already paid but plan hasn't updated"
-                      >
-                        Already Paid?
-                      </Button>
                     </div>
                   )}
                 </div>
