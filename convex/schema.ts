@@ -9,6 +9,7 @@ export default defineSchema({
     summary_count: v.optional(v.number()), // Number of summaries generated
     search_count: v.optional(v.number()), // Number of podcast searches performed
     quota_reset_date: v.optional(v.number()), // For monthly subscribers, timestamp of next reset
+    time_saved_minutes: v.optional(v.number()), // Total time saved in minutes from summaries
     notion_token: v.optional(v.string()), // Notion API token (optional)
     notion_workspace_id: v.optional(v.string()), // Notion workspace ID
     notion_workspace_name: v.optional(v.string()), // Notion workspace name

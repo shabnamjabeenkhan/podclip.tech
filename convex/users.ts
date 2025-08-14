@@ -62,6 +62,7 @@ export const upsertUser = mutation({
       plan: "free", // Default plan
       summary_count: 0, // Starting count
       search_count: 0, // Starting search count
+      time_saved_minutes: 0, // Starting time saved
       quota_reset_date: undefined, // No reset needed for free plan
     });
 
@@ -79,6 +80,7 @@ export const getUserQuota = query({
   handler: async (ctx): Promise<{
     summaries: { used: number; limit: number; remaining: number; canGenerate: boolean };
     searches: { used: number; limit: number; remaining: number; canSearch: boolean };
+    timeSavedMinutes: number;
     plan: string;
     resetDate?: number;
     needsReset: boolean;
@@ -100,6 +102,7 @@ export const getUserQuota = query({
       return {
         summaries: { used: 0, limit: 5, remaining: 5, canGenerate: true },
         searches: { used: 0, limit: 10, remaining: 10, canSearch: true }, // Free users: 10 searches
+        timeSavedMinutes: 0,
         plan: "free",
         resetDate: undefined,
         needsReset: false,
@@ -120,6 +123,7 @@ export const getUserQuota = query({
         return {
           summaries: { used: 0, limit: 5, remaining: 5, canGenerate: true },
           searches: { used: 0, limit: 10, remaining: 10, canSearch: true }, // Free users: 10 searches
+          timeSavedMinutes: 0,
           plan: "free", // Show as free until subscription is active
           resetDate: undefined,
           needsReset: false,
@@ -191,6 +195,7 @@ export const getUserQuota = query({
         remaining: searchRemaining,
         canSearch,
       },
+      timeSavedMinutes: user.time_saved_minutes || 0,
       plan: user.plan || "free",
       resetDate: quotaResetDate,
       needsReset,
@@ -594,6 +599,44 @@ export const incrementSearchCount = internalMutation({
     });
 
     return currentCount + 1;
+  },
+});
+
+// Add time saved when a summary is generated (assumes average podcast is 45 minutes, summary takes 2 minutes to read)
+export const addTimeSaved = internalMutation({
+  args: { episodeDurationMinutes: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.subject))
+      .unique();
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Calculate time saved: episode duration minus summary reading time (2 minutes)
+    // Default to 45 minutes for average podcast episode if duration not provided
+    const episodeDuration = args.episodeDurationMinutes || 45;
+    const summaryReadingTime = 2;
+    const timeSaved = Math.max(episodeDuration - summaryReadingTime, 0);
+
+    const currentTimeSaved = user.time_saved_minutes || 0;
+    const newTimeSaved = currentTimeSaved + timeSaved;
+
+    await ctx.db.patch(user._id, {
+      time_saved_minutes: newTimeSaved,
+    });
+
+    return {
+      timeSavedThisSession: timeSaved,
+      totalTimeSaved: newTimeSaved
+    };
   },
 });
 

@@ -168,6 +168,9 @@ KEY TAKEAWAYS:
 
       // Increment user's summary count after successful generation (fallback case)
       await ctx.runMutation(internal.users.incrementSummaryCount);
+      
+      // Track time saved from generating summary
+      await ctx.runMutation(internal.users.addTimeSaved, {});
 
       return {
         id: "temp-id",
@@ -199,6 +202,9 @@ KEY TAKEAWAYS:
 
     // Increment user's summary count after successful generation
     await ctx.runMutation(internal.users.incrementSummaryCount);
+    
+    // Track time saved from generating summary
+    await ctx.runMutation(internal.users.addTimeSaved, {});
 
     return {
       id: "temp-id",

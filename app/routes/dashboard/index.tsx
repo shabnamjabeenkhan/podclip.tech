@@ -46,6 +46,10 @@ export default function Page() {
   const showUpgradePrompt = userQuota && !subscriptionStatus?.hasActiveSubscription && 
     (userQuota.summaries.limit === 5) && (userQuota.summaries.remaining <= 1 || !userQuota.summaries.canGenerate);
   
+  // Show general upgrade banner for all free users
+  const showUpgradeBanner = userQuota && !subscriptionStatus?.hasActiveSubscription && 
+    (userQuota.summaries.limit === 5) && !showUpgradePrompt;
+  
   return (
     <div className="flex flex-1 flex-col">
       <div className="@container/main flex flex-1 flex-col gap-2">
@@ -79,6 +83,46 @@ export default function Page() {
                   >
                     Upgrade
                   </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* General Upgrade Banner for Free Users */}
+          {showUpgradeBanner && (
+            <div className="px-4 lg:px-6">
+              <div className="bg-gradient-to-r from-emerald-50 via-blue-50 to-purple-50 border border-emerald-200 rounded-lg p-4 relative overflow-hidden">
+                {/* Background decorative elements */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full blur-2xl opacity-30 transform translate-x-16 -translate-y-16"></div>
+                <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-emerald-100 to-blue-100 rounded-full blur-xl opacity-40 transform -translate-x-8 translate-y-8"></div>
+                
+                <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                  <div className="flex items-start lg:items-center gap-4">
+                    <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg flex-shrink-0">
+                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                        🚀 Unlock Your Full Potential
+                      </h3>
+                      <p className="text-sm text-gray-600">
+                        You've used {userQuota.summaries.used} of {userQuota.summaries.limit} free summaries. Upgrade for unlimited AI-powered insights!
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-2 lg:flex-shrink-0">
+                    <Button
+                      loading={upgradeLoading}
+                      onClick={handleUpgradeClick}
+                      variant="hero"
+                      className="px-6 py-3 text-sm font-semibold shadow-lg hover:shadow-xl w-full sm:w-auto"
+                    >
+                      Upgrade Now
+                    </Button>
+                    <p className="text-xs text-center text-gray-500">Starting at $9.99/mo</p>
+                  </div>
                 </div>
               </div>
             </div>
