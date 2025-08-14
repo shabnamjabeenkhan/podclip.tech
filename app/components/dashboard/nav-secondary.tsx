@@ -2,13 +2,13 @@
 
 import * as React from "react"
 import { type Icon } from "@tabler/icons-react"
-import { Link, useLocation } from "react-router"
+import { useLocation, useNavigate } from "react-router"
+import { Button } from "~/components/ui/button"
 
 import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
 } from "~/components/ui/sidebar"
 
@@ -23,6 +23,18 @@ export function NavSecondary({
   }[]
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [loadingItems, setLoadingItems] = React.useState<{[key: string]: boolean}>({});
+
+  const handleItemClick = React.useCallback((url: string) => {
+    setLoadingItems(prev => ({ ...prev, [url]: true }));
+    navigate(url);
+  }, [navigate]);
+
+  // Clear loading state when navigation completes
+  React.useEffect(() => {
+    setLoadingItems({});
+  }, [location.pathname]);
 
   return (
     <SidebarGroup {...props}>
@@ -36,17 +48,24 @@ export function NavSecondary({
             return (
               <SidebarMenuItem key={item.title}>
                 {isImplemented ? (
-                  <SidebarMenuButton isActive={isActive} asChild>
-                    <Link to={item.url} prefetch="intent">
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                ) : (
-                  <SidebarMenuButton disabled>
-                    <item.icon />
+                  <Button
+                    variant={isActive ? "secondary" : "ghost"}
+                    loading={loadingItems[item.url]}
+                    onClick={() => handleItemClick(item.url)}
+                    className="w-full justify-start h-8 px-2"
+                  >
+                    <item.icon size={16} className="mr-2" />
                     <span>{item.title}</span>
-                  </SidebarMenuButton>
+                  </Button>
+                ) : (
+                  <Button 
+                    disabled 
+                    variant="ghost"
+                    className="w-full justify-start h-8 px-2"
+                  >
+                    <item.icon size={16} className="mr-2" />
+                    <span>{item.title}</span>
+                  </Button>
                 )}
               </SidebarMenuItem>
             );

@@ -1,7 +1,8 @@
 import type { MetaFunction } from "react-router";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useAction } from "convex/react";
 import { useUser } from "@clerk/react-router";
+import { useNavigate } from "react-router";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Textarea } from "~/components/ui/textarea";
@@ -18,6 +19,7 @@ export const meta: MetaFunction = () => {
 
 export default function Contact() {
   const { user } = useUser();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: user?.fullName || "",
     email: user?.emailAddresses?.[0]?.emailAddress || "",
@@ -25,6 +27,7 @@ export default function Contact() {
     message: ""
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoingBack, setIsGoingBack] = useState(false);
 
   const sendContactEmail = useAction(api.sendEmails.sendContactEmail);
 
@@ -70,9 +73,25 @@ export default function Contact() {
     });
   };
 
+  const handleGoBack = useCallback(() => {
+    setIsGoingBack(true);
+    navigate(-1);
+  }, [navigate]);
+
   return (
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="container mx-auto px-4 max-w-2xl">
+        <div className="mb-6">
+          <Button
+            variant="ghost"
+            loading={isGoingBack}
+            onClick={handleGoBack}
+            className="mb-4"
+          >
+            ← Go Back
+          </Button>
+        </div>
+        
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-4">Contact Us</h1>
           <p className="text-lg text-gray-600">

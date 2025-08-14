@@ -16,9 +16,9 @@ export function StatsCards() {
 
   if (!userQuota || !listeningStats) {
     return (
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 xs:grid-cols-2 lg:grid-cols-4">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="bg-white p-6 rounded-lg border border-gray-200 animate-pulse">
+          <div key={i} className="bg-white p-4 sm:p-6 rounded-lg border border-gray-200 animate-pulse">
             <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
             <div className="h-8 bg-gray-200 rounded w-1/2"></div>
           </div>
@@ -72,17 +72,6 @@ export function StatsCards() {
         </svg>
       ),
     },
-    {
-      title: "Unique Podcasts",
-      value: listeningStats.uniquePodcasts.toString(),
-      subtitle: "Different shows",
-      color: "orange",
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4V2a1 1 0 011-1h8a1 1 0 011 1v2m-9 2v12a1 1 0 001 1h8a1 1 0 001-1V6M9 10h6m-6 4h6" />
-        </svg>
-      ),
-    },
   ];
 
   const getColorClasses = (color: string) => {
@@ -91,7 +80,6 @@ export function StatsCards() {
       indigo: "text-indigo-600 bg-indigo-50",
       green: "text-green-600 bg-green-50",
       purple: "text-purple-600 bg-purple-50",
-      orange: "text-orange-600 bg-orange-50",
     };
     return colors[color as keyof typeof colors] || colors.blue;
   };

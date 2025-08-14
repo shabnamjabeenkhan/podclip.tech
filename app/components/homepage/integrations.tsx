@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useState, useCallback } from "react";
 import { Link } from "react-router";
 import { LogoIcon } from "~/components/logo";
 import {
@@ -19,6 +19,11 @@ export default function IntegrationsSection({
 }: {
   loaderData?: { isSignedIn: boolean; hasActiveSubscription: boolean };
 }) {
+  const [isHeroLoading, setIsHeroLoading] = useState(false);
+
+  const handleHeroClick = useCallback(() => {
+    setIsHeroLoading(true);
+  }, []);
   return (
     <section id="hero">
       <Navbar loaderData={loaderData} />
@@ -104,12 +109,12 @@ export default function IntegrationsSection({
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row gap-4">
-              <Link to="/sign-up" prefetch="viewport">
-              <Button  variant="hero" size="lg" className="group">
-                🚀 Start summarising!
-                <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              <Button asChild variant="hero" size="lg" className="group" loading={isHeroLoading} onClick={handleHeroClick}>
+                <Link to="/sign-up" prefetch="viewport">
+                  🚀 Start summarising!
+                  <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </Link>
               </Button>
-              </Link>
             </div>
 
               {/* <div className="flex gap-2 justify-center sm:justify-start">

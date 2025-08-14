@@ -1,11 +1,13 @@
 import { StatsCards } from "~/components/dashboard/stats-cards";
 import { RecentlyPlayed } from "~/components/dashboard/recently-played";
 import { RecentSummaries } from "~/components/dashboard/recent-summaries";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { useQuery } from "convex/react";
 import { useAuth } from "@clerk/react-router";
 import { api } from "../../../convex/_generated/api";
 import type { Route } from "./+types/index";
+import { Button } from "~/components/ui/button";
+import { useState, useCallback } from "react";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -17,6 +19,19 @@ export function meta({}: Route.MetaArgs) {
 
 export default function Page() {
   const { isSignedIn } = useAuth();
+  const navigate = useNavigate();
+  const [newSummaryLoading, setNewSummaryLoading] = useState(false);
+  const [upgradeLoading, setUpgradeLoading] = useState(false);
+  
+  const handleNewSummaryClick = useCallback(() => {
+    setNewSummaryLoading(true);
+    navigate("/dashboard/new-summary");
+  }, [navigate]);
+
+  const handleUpgradeClick = useCallback(() => {
+    setUpgradeLoading(true);
+    navigate("/pricing");
+  }, [navigate]);
   
   const userQuota = useQuery(
     api.users.getUserQuota,
@@ -57,12 +72,13 @@ export default function Page() {
                       </p>
                     </div>
                   </div>
-                  <Link
-                    to="/pricing"
-                    className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                  <Button
+                    loading={upgradeLoading}
+                    onClick={handleUpgradeClick}
+                    className="px-4 py-2 text-sm font-medium"
                   >
                     Upgrade
-                  </Link>
+                  </Button>
                 </div>
               </div>
             </div>
@@ -76,16 +92,17 @@ export default function Page() {
                 <p className="text-sm sm:text-base text-gray-600">Your podcast listening and summary activity</p>
               </div>
               <div className="flex gap-3">
-                <Link
-                  to="/dashboard/new-summary"
-                  className="inline-flex items-center px-3 sm:px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                <Button
+                  loading={newSummaryLoading}
+                  onClick={handleNewSummaryClick}
+                  className="inline-flex items-center px-3 sm:px-4 py-2 text-sm font-medium"
                 >
                   <svg className="w-4 h-4 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
                   <span className="hidden sm:inline">New Summary</span>
                   <span className="sm:hidden">New</span>
-                </Link>
+                </Button>
               </div>
             </div>
           </div>

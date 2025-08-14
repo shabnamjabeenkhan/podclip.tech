@@ -1,12 +1,12 @@
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState, useCallback, useEffect } from "react";
 import { type Icon } from "@tabler/icons-react";
 
-import { Link, useLocation } from "react-router";
+import { useLocation, useNavigate } from "react-router";
+import { Button } from "~/components/ui/button";
 import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
 } from "~/components/ui/sidebar";
 
@@ -20,6 +20,13 @@ export const NavMain = memo(({
   }[];
 }) => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [loadingItems, setLoadingItems] = useState<{[key: string]: boolean}>({});
+
+  const handleItemClick = useCallback((url: string) => {
+    setLoadingItems(prev => ({ ...prev, [url]: true }));
+    navigate(url);
+  }, [navigate]);
 
   const navItems = useMemo(() => 
     items.map((item) => ({
@@ -29,22 +36,26 @@ export const NavMain = memo(({
     [items, location.pathname]
   );
 
+  // Clear loading state when navigation completes
+  useEffect(() => {
+    setLoadingItems({});
+  }, [location.pathname]);
+
   return (
     <SidebarGroup>
       <SidebarGroupContent className="flex flex-col gap-2">
         <SidebarMenu>
           {navItems.map((item) => (
             <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton
-                tooltip={item.title}
-                isActive={item.isActive}
-                asChild
+              <Button
+                variant={item.isActive ? "secondary" : "ghost"}
+                loading={loadingItems[item.url]}
+                onClick={() => handleItemClick(item.url)}
+                className="w-full justify-start h-8 px-2"
               >
-                <Link to={item.url} prefetch="intent">
-                  {item.icon && <item.icon />}
-                  <span>{item.title}</span>
-                </Link>
-              </SidebarMenuButton>
+                {item.icon && <item.icon size={16} className="mr-2" />}
+                <span>{item.title}</span>
+              </Button>
             </SidebarMenuItem>
           ))}
         </SidebarMenu>

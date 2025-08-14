@@ -1,6 +1,6 @@
 "use client";
 import { UserButton } from "@clerk/react-router";
-import { Menu, X, Loader2 } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import React, { useCallback, useState } from "react";
 import { Link } from "react-router";
 import { Button } from "~/components/ui/button";
@@ -173,16 +173,12 @@ export const Navbar = ({
                     <Button 
                       asChild 
                       size="sm" 
-                      disabled={isDashboardLoading}
+                      loading={isDashboardLoading}
                       onClick={handleDashboardClick}
                       className="min-w-[90px]"
                     >
                       <Link to={dashboardLink} prefetch="viewport">
-                        {isDashboardLoading ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <span>{dashboardText}</span>
-                        )}
+                        <span>{dashboardText}</span>
                       </Link>
                     </Button>
                     <UserButton />
@@ -212,15 +208,11 @@ export const Navbar = ({
                       asChild
                       size="sm"
                       className={cn(isScrolled ? "lg:inline-flex" : "hidden", "min-w-[90px]")}
-                      disabled={isDashboardLoading}
+                      loading={isDashboardLoading}
                       onClick={handleDashboardClick}
                     >
                       <Link to={dashboardLink} prefetch="viewport">
-                        {isDashboardLoading ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <span>{dashboardText}</span>
-                        )}
+                        <span>{dashboardText}</span>
                       </Link>
                     </Button>
                   </>
@@ -229,16 +221,12 @@ export const Navbar = ({
                   <Button
                     asChild
                     size="sm"
-                    disabled={isDashboardLoading}
+                    loading={isDashboardLoading}
                     onClick={handleDashboardClick}
                     className="min-w-[90px]"
                   >
                     <Link to={dashboardLink} prefetch="viewport">
-                      {isDashboardLoading ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <span>{dashboardText}</span>
-                      )}
+                      <span>{dashboardText}</span>
                     </Link>
                   </Button>
                 )}

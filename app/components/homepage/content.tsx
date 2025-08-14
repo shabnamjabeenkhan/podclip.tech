@@ -1,8 +1,14 @@
 import { Button } from "~/components/ui/button";
 import { GraduationCap, Heart, Laptop, Search, ArrowRight } from "lucide-react";
 import { Link } from "react-router";
+import { useState, useCallback } from "react";
 
 export default function ContentSection() {
+  const [isSignUpLoading, setIsSignUpLoading] = useState(false);
+
+  const handleSignUpClick = useCallback(() => {
+    setIsSignUpLoading(true);
+  }, []);
   return (
     <section id="content" className="py-16 md:py-32">
       <div className="mx-auto max-w-7xl px-6">
@@ -156,7 +162,7 @@ export default function ContentSection() {
             <p className="text-lg text-muted-foreground mb-8">
               All features working together for your podcast insight journey
             </p>
-            <Button asChild size="lg" className="group">
+            <Button asChild variant="hero" size="lg" className="group" loading={isSignUpLoading} onClick={handleSignUpClick}>
               <Link to="/sign-up" prefetch="viewport">
                 🚀 Start Summarising!
                 <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />

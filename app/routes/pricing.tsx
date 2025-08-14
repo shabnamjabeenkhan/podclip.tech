@@ -303,15 +303,10 @@ export default function IntegratedPricing() {
                   <Button
                     className="w-full"
                     onClick={() => handleSubscribe(price.id)}
-                    disabled={loadingPriceId === price.id}
+                    loading={loadingPriceId === price.id}
                     variant={isCurrentPlan ? "secondary" : "default"}
                   >
-                    {loadingPriceId === price.id ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Setting up checkout...
-                      </>
-                    ) : isCurrentPlan ? (
+                    {isCurrentPlan ? (
                       "✓ Current Plan"
                     ) : userSubscription?.status === "active" ? (
                       (() => {

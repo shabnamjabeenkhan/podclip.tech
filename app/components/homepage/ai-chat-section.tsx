@@ -1,8 +1,19 @@
 import { Button } from "~/components/ui/button";
 import { ArrowRight, MessageCircle, Brain, Sparkles, Zap } from "lucide-react";
 import { Link } from "react-router";
+import { useState, useCallback } from "react";
 
 export default function AiChatSection() {
+  const [isChatLoading, setIsChatLoading] = useState(false);
+  const [isLearnMoreLoading, setIsLearnMoreLoading] = useState(false);
+
+  const handleChatClick = useCallback(() => {
+    setIsChatLoading(true);
+  }, []);
+
+  const handleLearnMoreClick = useCallback(() => {
+    setIsLearnMoreLoading(true);
+  }, []);
   const features = [
     {
       icon: MessageCircle,
@@ -65,13 +76,13 @@ export default function AiChatSection() {
             </div>
 
             <div className="flex gap-4">
-              <Button asChild size="lg" className="group">
+              <Button asChild variant="hero" size="lg" className="group" loading={isChatLoading} onClick={handleChatClick}>
                 <Link to="/sign-up" prefetch="viewport">
                   Try AI Chat
                   <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </Link>
               </Button>
-              <Button asChild variant="outline" size="lg">
+              <Button asChild variant="outline" size="lg" loading={isLearnMoreLoading} onClick={handleLearnMoreClick}>
                 <Link to="#features">Learn More</Link>
               </Button>
             </div>

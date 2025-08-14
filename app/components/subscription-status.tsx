@@ -47,9 +47,7 @@ export default function SubscriptionStatus() {
   const { isSignedIn, userId } = useAuth();
   const [loadingDashboard, setLoadingDashboard] = useState(false);
   const [fixingPlan, setFixingPlan] = useState(false);
-  const [forceUpgrading, setForceUpgrading] = useState(false);
   const fixUserPlan = useMutation(api.users.fixUserPlan);
-  const forceUpgradeToLifetime = useMutation(api.users.forceUpgradeToLifetime);
 
   const subscription = useQuery(
     api.subscriptions.fetchUserSubscription,
@@ -98,25 +96,6 @@ export default function SubscriptionStatus() {
       setFixingPlan(false);
     }
   };
-
-  const handleForceUpgrade = async () => {
-    setForceUpgrading(true);
-    try {
-      const result = await forceUpgradeToLifetime();
-      if (result.success) {
-        alert(`Success! ${result.message} You now have ${result.quota} summaries per month. Please refresh the page.`);
-        window.location.reload();
-      } else {
-        alert("Failed to upgrade to lifetime plan.");
-      }
-    } catch (error) {
-      console.error("Failed to force upgrade:", error);
-      alert("Failed to upgrade to lifetime plan. Please try again.");
-    } finally {
-      setForceUpgrading(false);
-    }
-  };
-
 
   if (!isSignedIn) {
     return (
@@ -270,57 +249,17 @@ export default function SubscriptionStatus() {
           
           <div className="flex flex-col gap-2">
             {hasSubscriptionButFreePlan ? (
-              <>
-                <Button 
-                  onClick={handleFixPlan}
-                  disabled={fixingPlan}
-                  className="w-full bg-green-600 hover:bg-green-700"
-                >
-                  {fixingPlan ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Fixing Plan...
-                    </>
-                  ) : (
-                    "Activate My Paid Plan"
-                  )}
-                </Button>
-                <Button 
-                  onClick={handleForceUpgrade}
-                  disabled={forceUpgrading}
-                  className="w-full bg-blue-600 hover:bg-blue-700"
-                >
-                  {forceUpgrading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Upgrading...
-                    </>
-                  ) : (
-                    "Force Upgrade to Lifetime"
-                  )}
-                </Button>
-              </>
+              <Button 
+                onClick={handleFixPlan}
+                loading={fixingPlan}
+                className="w-full bg-green-600 hover:bg-green-700"
+              >
+                Activate My Paid Plan
+              </Button>
             ) : (
-              <>
-                <Button asChild className="w-full">
-                  <a href="/pricing">Upgrade to Pro</a>
-                </Button>
-                <Button 
-                  onClick={handleForceUpgrade}
-                  disabled={forceUpgrading}
-                  variant="outline"
-                  className="w-full"
-                >
-                  {forceUpgrading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Upgrading...
-                    </>
-                  ) : (
-                    "Force Upgrade to Lifetime (if you paid)"
-                  )}
-                </Button>
-              </>
+              <Button asChild className="w-full">
+                <a href="/pricing">Upgrade to Pro</a>
+              </Button>
             )}
           </div>
         </CardContent>
@@ -407,20 +346,12 @@ export default function SubscriptionStatus() {
           <Button
             variant="outline"
             onClick={handleManageSubscription}
-            disabled={loadingDashboard || !subscription.customerId}
+            loading={loadingDashboard}
+            disabled={!subscription.customerId}
             className="flex-1"
           >
-            {loadingDashboard ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Loading...
-              </>
-            ) : (
-              <>
-                <ExternalLink className="mr-2 h-4 w-4" />
-                Manage Subscription
-              </>
-            )}
+            <ExternalLink className="mr-2 h-4 w-4" />
+            Manage Subscription
           </Button>
         </div>
       </CardContent>

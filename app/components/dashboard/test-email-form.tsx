@@ -11,7 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "~/components/ui/card";
-import { Mail, Send, Loader2 } from "lucide-react";
+import { Mail, Send } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "../../../convex/_generated/api";
 
@@ -119,18 +119,9 @@ export function TestEmailForm() {
             />
           </div>
           
-          <Button type="submit" disabled={isLoading} className="w-full min-w-[160px]">
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Sending Test Email
-              </>
-            ) : (
-              <>
-                <Send className="mr-2 h-4 w-4" />
-                Send Test Email
-              </>
-            )}
+          <Button type="submit" loading={isLoading} className="w-full min-w-[160px]">
+            <Send className="mr-2 h-4 w-4" />
+            Send Test Email
           </Button>
         </form>
       </CardContent>

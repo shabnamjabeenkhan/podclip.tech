@@ -1,10 +1,25 @@
 import { useQuery } from "convex/react";
 import { useAuth } from "@clerk/react-router";
 import { api } from "../../../convex/_generated/api";
-import { Link } from "react-router";
+import { useNavigate } from "react-router";
+import { Button } from "~/components/ui/button";
+import { useState, useCallback } from "react";
 
 export function RecentSummaries() {
   const { isSignedIn } = useAuth();
+  const navigate = useNavigate();
+  const [createSummaryLoading, setCreateSummaryLoading] = useState(false);
+  const [viewAllLoading, setViewAllLoading] = useState(false);
+
+  const handleCreateSummaryClick = useCallback(() => {
+    setCreateSummaryLoading(true);
+    navigate("/dashboard/new-summary");
+  }, [navigate]);
+
+  const handleViewAllClick = useCallback(() => {
+    setViewAllLoading(true);
+    navigate("/dashboard/all-summaries");
+  }, [navigate]);
   
   const userQuota = useQuery(
     api.users.getUserQuota,
@@ -45,12 +60,13 @@ export function RecentSummaries() {
           <h4 className="mt-2 text-sm font-medium text-gray-900">No summaries yet</h4>
           <p className="mt-1 text-xs sm:text-sm text-gray-500">Generate your first AI summary</p>
           <div className="mt-4 sm:mt-6">
-            <Link
-              to="/dashboard/new-summary"
-              className="inline-flex items-center px-3 sm:px-4 py-2 border border-transparent shadow-sm text-xs sm:text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+            <Button
+              loading={createSummaryLoading}
+              onClick={handleCreateSummaryClick}
+              className="inline-flex items-center px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium"
             >
               Create Summary
-            </Link>
+            </Button>
           </div>
         </div>
       </div>
@@ -61,12 +77,14 @@ export function RecentSummaries() {
     <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
       <div className="flex items-center justify-between mb-3 sm:mb-4">
         <h3 className="text-base sm:text-lg font-semibold text-gray-900">Recent Summaries</h3>
-        <Link
-          to="/dashboard/all-summaries"
-          className="text-xs sm:text-sm text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap"
+        <Button
+          variant="link"
+          loading={viewAllLoading}
+          onClick={handleViewAllClick}
+          className="text-xs sm:text-sm text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap p-0 h-auto"
         >
           View all
-        </Link>
+        </Button>
       </div>
       <div className="space-y-3 sm:space-y-4">
         {recentSummaries.map((summary, index) => (

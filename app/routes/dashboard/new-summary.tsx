@@ -6,6 +6,7 @@ import { useAuth } from "@clerk/react-router";
 import { toast } from "sonner";
 import type { Route } from "./+types/new-summary";
 import { Pagination } from "~/components/ui/pagination";
+import { Button } from "~/components/ui/button";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -28,6 +29,7 @@ export default function NewSummary() {
   const [summaries, setSummaries] = useState<{[key: string]: any}>({});
   const [summaryErrors, setSummaryErrors] = useState<{[key: string]: string}>({});
   const [copiedStates, setCopiedStates] = useState<{[key: string]: { summary?: boolean, takeaways?: boolean, header?: boolean }}>({});
+  const [copyingStates, setCopyingStates] = useState<{[key: string]: { summary?: boolean, takeaways?: boolean, header?: boolean }}>({});
   const [transcripts, setTranscripts] = useState<{[key: string]: { text: string, loading: boolean, visible: boolean }}>({});
   const [exportingStates, setExportingStates] = useState<{[key: string]: boolean}>({});
   const [userReady, setUserReady] = useState(false);
@@ -68,6 +70,12 @@ export default function NewSummary() {
   // Helper function to handle copy actions with visual feedback
   const handleCopy = async (episodeId: string, content: string, type: 'summary' | 'takeaways' | 'header') => {
     try {
+      // Set copying state
+      setCopyingStates(prev => ({
+        ...prev,
+        [episodeId]: { ...prev[episodeId], [type]: true }
+      }));
+
       await navigator.clipboard.writeText(content);
       
       // Set copied state
@@ -85,6 +93,12 @@ export default function NewSummary() {
       }, 2000);
     } catch (err) {
       console.error('Failed to copy text: ', err);
+    } finally {
+      // Clear copying state
+      setCopyingStates(prev => ({
+        ...prev,
+        [episodeId]: { ...prev[episodeId], [type]: false }
+      }));
     }
   };
 
@@ -456,14 +470,16 @@ export default function NewSummary() {
                       >
                         Upgrade Plan
                       </a>
-                      <button
+                      <Button
                         onClick={handleFixPlan}
-                        disabled={fixingPlan}
-                        className="px-3 py-2 bg-gray-500 text-white text-xs font-medium rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        loading={fixingPlan}
+                        variant="secondary"
+                        size="sm"
+                        className="px-3 py-2 text-xs"
                         title="Try this if you've already paid but plan hasn't updated"
                       >
-                        {fixingPlan ? "Checking..." : "Already Paid?"}
-                      </button>
+                        Already Paid?
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -529,13 +545,14 @@ export default function NewSummary() {
                 className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               />
-              <button 
+              <Button
                 onClick={() => handleSearch()}
-                disabled={isLoading || !searchQuery.trim()}
-                className="px-4 sm:px-6 py-2.5 sm:py-3 bg-blue-600 text-white text-sm sm:text-base font-medium rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                loading={isLoading}
+                disabled={!searchQuery.trim()}
+                className="px-4 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base whitespace-nowrap"
               >
-                {isLoading ? "Searching..." : "Search"}
-              </button>
+                Search
+              </Button>
             </div>
           </div>
 
@@ -611,15 +628,17 @@ export default function NewSummary() {
           {selectedPodcast && episodes && (
             <div className="space-y-6">
               <div className="flex items-center gap-4">
-                <button 
+                <Button 
                   onClick={() => {setSelectedPodcast(null); setEpisodes(null);}}
-                  className="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                  variant="ghost"
+                  size="sm"
+                  className="text-blue-600 hover:text-blue-800 font-medium"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                   </svg>
                   Back to podcasts
-                </button>
+                </Button>
               </div>
               
               <div className="bg-gray-50 rounded-lg sm:rounded-xl p-4 sm:p-6 border border-gray-200">
@@ -682,40 +701,33 @@ export default function NewSummary() {
                                   <p className="text-sm text-red-800 mb-2">
                                     {summaryErrors[episode.id]}
                                   </p>
-                                  <button
+                                  <Button
                                     onClick={() => handleGenerateSummary(episode)}
-                                    disabled={generatingSummary[episode.id]}
-                                    className="text-sm font-medium text-red-700 hover:text-red-900 underline disabled:opacity-50"
+                                    loading={generatingSummary[episode.id]}
+                                    variant="link"
+                                    size="sm"
+                                    className="text-sm font-medium text-red-700 hover:text-red-900 underline h-auto p-0"
                                   >
                                     Try Again
-                                  </button>
+                                  </Button>
                                 </div>
                               </div>
                             </div>
                           )}
                           
-                          <button 
+                          <Button
                             onClick={() => handleGenerateSummary(episode)}
-                            disabled={generatingSummary[episode.id] || !userQuota?.summaries?.canGenerate}
-                            className={`w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base ${
-                              !userQuota?.summaries?.canGenerate 
-                                ? 'bg-gray-400 text-white cursor-not-allowed'
-                                : summaryErrors[episode.id] && !summaries[episode.id]
-                                  ? 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500'
-                                  : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 focus:ring-blue-500'
-                            }`}
+                            loading={generatingSummary[episode.id]}
+                            disabled={!userQuota?.summaries?.canGenerate}
+                            variant={
+                              summaryErrors[episode.id] && !summaries[episode.id] ? "destructive" : 
+                              !userQuota?.summaries?.canGenerate ? "secondary" :
+                              summaries[episode.id] ? "secondary" : "hero"
+                            }
+                            className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base"
                             title={!userQuota?.summaries?.canGenerate ? "Quota exceeded. Upgrade or wait for reset." : ""}
                           >
-                            {generatingSummary[episode.id] ? (
-                              <span className="flex items-center gap-2">
-                                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                  <path className="opacity-75" fill="currentColor" d="m12 2 1 9-1 9a10 10 0 0 1 0-18Z"></path>
-                                </svg>
-                                <span className="hidden sm:inline">Generating...</span>
-                                <span className="sm:hidden">...</span>
-                              </span>
-                            ) : summaries[episode.id] ? (
+                            {summaries[episode.id] ? (
                               <span className="flex items-center gap-2">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -739,7 +751,7 @@ export default function NewSummary() {
                                 <span className="sm:hidden">Generate</span>
                               </span>
                             )}
-                          </button>
+                          </Button>
                         </div>
                       </div>
 
@@ -774,8 +786,11 @@ export default function NewSummary() {
                                 </span>
                               )}
                             </h4>
-                            <button
+                            <Button
                               onClick={() => handleCopy(episode.id, summaries[episode.id].summary, 'header')}
+                              loading={copyingStates[episode.id]?.header}
+                              variant="ghost"
+                              size="sm"
                               className={`p-2 rounded-lg transition-colors touch-manipulation ${
                                 copiedStates[episode.id]?.header 
                                   ? 'text-green-600 bg-green-100' 
@@ -792,7 +807,7 @@ export default function NewSummary() {
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                 </svg>
                               )}
-                            </button>
+                            </Button>
                           </div>
                           
                           <div className="space-y-6">
@@ -831,8 +846,11 @@ export default function NewSummary() {
 
                             {/* Action Buttons */}
                             <div className="flex flex-wrap gap-2">
-                              <button
+                              <Button
                                 onClick={() => handleCopy(episode.id, summaries[episode.id].summary, 'summary')}
+                                loading={copyingStates[episode.id]?.summary}
+                                variant="secondary"
+                                size="sm"
                                 className={`inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md transition-colors touch-manipulation ${
                                   copiedStates[episode.id]?.summary
                                     ? 'text-green-700 bg-green-100 hover:bg-green-200'
@@ -846,13 +864,16 @@ export default function NewSummary() {
                                 ) : (
                                   <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                  </svg>
+                                    </svg>
                                 )}
                                 {copiedStates[episode.id]?.summary ? 'Copied!' : 'Copy Summary'}
-                              </button>
+                              </Button>
                               {summaries[episode.id].takeaways && (
-                                <button
+                                <Button
                                   onClick={() => handleCopy(episode.id, summaries[episode.id].takeaways.join('\n• '), 'takeaways')}
+                                  loading={copyingStates[episode.id]?.takeaways}
+                                  variant="secondary"
+                                  size="sm"
                                   className={`inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md transition-colors touch-manipulation ${
                                     copiedStates[episode.id]?.takeaways
                                       ? 'text-green-700 bg-green-200 hover:bg-green-300'
@@ -869,42 +890,35 @@ export default function NewSummary() {
                                     </svg>
                                   )}
                                   {copiedStates[episode.id]?.takeaways ? 'Copied!' : 'Copy Takeaways'}
-                                </button>
+                                </Button>
                               )}
                               
                               {/* Export to Notion Button */}
                               {notionConnection?.connected ? (
-                                <button
+                                <Button
                                   onClick={() => handleExportToNotion(episode.id)}
-                                  disabled={exportingStates[episode.id]}
-                                  className={`inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md transition-colors touch-manipulation ${
-                                    exportingStates[episode.id]
-                                      ? 'text-purple-500 bg-purple-50 cursor-not-allowed'
-                                      : 'text-purple-700 bg-purple-100 hover:bg-purple-200'
-                                  }`}
+                                  loading={exportingStates[episode.id]}
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-purple-700 bg-purple-50 hover:bg-purple-100 border-purple-200 text-xs"
                                 >
-                                  {exportingStates[episode.id] ? (
-                                    <svg className="animate-spin w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24">
-                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                      <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                  ) : (
-                                    <svg className="w-3 h-3 mr-1" viewBox="0 0 24 24" fill="currentColor">
-                                      <path d="M4.459 4.208c.746.606 1.026.56 2.428.467l13.212-.535c.467 0 .7.233.7.7 0 .233-.066.467-.233.7L18.26 7.31c-.167.3-.367.234-.6.234l-13.056.467c-.266 0-.467-.167-.467-.434 0-.2.067-.4.234-.567l.088-.8zm.7 2.8l13.212-.534c.4 0 .534.234.534.6 0 .167-.067.4-.2.534l-3.267 3.266c-.167.167-.434.234-.7.234H4.592c-.367 0-.6-.234-.6-.6 0-.167.066-.334.2-.467l.967-2.6c.133-.4.266-.433.6-.433zm-.233 3.533l13.212-.533c.4 0 .667.2.667.533 0 .134-.067.334-.2.467l-3.267 3.267c-.166.166-.433.233-.7.233H4.926c-.367 0-.6-.233-.6-.6 0-.166.067-.333.2-.466l.967-2.6c.133-.334.266-.467.6-.467z"/>
-                                    </svg>
-                                  )}
-                                  {exportingStates[episode.id] ? 'Exporting...' : 'Export to Notion'}
-                                </button>
+                                  <svg className="w-3 h-3 mr-1" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M4.459 4.208c.746.606 1.026.56 2.428.467l13.212-.535c.467 0 .7.233.7.7 0 .233-.066.467-.233.7L18.26 7.31c-.167.3-.367.234-.6.234l-13.056.467c-.266 0-.467-.167-.467-.434 0-.2.067-.4.234-.567l.088-.8zm.7 2.8l13.212-.534c.4 0 .534.234.534.6 0 .167-.067.4-.2.534l-3.267 3.266c-.167.167-.434.234-.7.234H4.592c-.367 0-.6-.234-.6-.6 0-.167.066-.334.2-.467l.967-2.6c.133-.4.266-.433.6-.433zm-.233 3.533l13.212-.533c.4 0 .667.2.667.533 0 .134-.067.334-.2.467l-3.267 3.267c-.166.166-.433.233-.7.233H4.926c-.367 0-.6-.233-.6-.6 0-.166.067-.333.2-.466l.967-2.6c.133-.334.266-.467.6-.467z"/>
+                                  </svg>
+                                  Export to Notion
+                                </Button>
                               ) : (
-                                <button
+                                <Button
                                   onClick={() => toast.info("Connect your Notion account in Settings to export summaries")}
-                                  className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors touch-manipulation"
+                                  variant="secondary"
+                                  size="sm"
+                                  className="text-xs"
                                 >
                                   <svg className="w-3 h-3 mr-1" viewBox="0 0 24 24" fill="currentColor">
                                     <path d="M4.459 4.208c.746.606 1.026.56 2.428.467l13.212-.535c.467 0 .7.233.7.7 0 .233-.066.467-.233.7L18.26 7.31c-.167.3-.367.234-.6.234l-13.056.467c-.266 0-.467-.167-.467-.434 0-.2.067-.4.234-.567l.088-.8zm.7 2.8l13.212-.534c.4 0 .534.234.534.6 0 .167-.067.4-.2.534l-3.267 3.266c-.167.167-.434.234-.7.234H4.592c-.367 0-.6-.234-.6-.6 0-.167.066-.334.2-.467l.967-2.6c.133-.4.266-.433.6-.433zm-.233 3.533l13.212-.533c.4 0 .667.2.667.533 0 .134-.067.334-.2.467l-3.267 3.267c-.166.166-.433.233-.7.233H4.926c-.367 0-.6-.233-.6-.6 0-.166.067-.333.2-.466l.967-2.6c.133-.334.266-.467.6-.467z"/>
                                   </svg>
                                   Connect Notion
-                                </button>
+                                </Button>
                               )}
                             </div>
 
@@ -940,25 +954,29 @@ export default function NewSummary() {
                                         </div>
                                       )}
                                       <div className="mt-3 flex gap-2">
-                                        <button 
+                                        <Button 
                                           onClick={() => handleShowTranscript(episode.id)}
+                                          variant="secondary"
+                                          size="sm"
                                           className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 transition-colors touch-manipulation"
                                         >
                                           <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L8.05 8.05M9.878 9.878A3 3 0 1059.121 14.121m4.243-4.243L15.95 15.95M14.121 14.121A3 3 0 109.878 9.878" />
                                           </svg>
                                           Hide Transcript
-                                        </button>
+                                        </Button>
                                         {transcripts[episode.id]?.text && !transcripts[episode.id]?.loading && (
-                                          <button 
+                                          <Button 
                                             onClick={() => handleCopy(episode.id, transcripts[episode.id].text, 'transcript' as any)}
+                                            variant="secondary"
+                                            size="sm"
                                             className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-purple-700 bg-purple-100 hover:bg-purple-200 transition-colors touch-manipulation"
                                           >
                                             <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                             </svg>
                                             Copy Transcript
-                                          </button>
+                                          </Button>
                                         )}
                                       </div>
                                     </>
@@ -967,8 +985,11 @@ export default function NewSummary() {
                                       <p className="italic text-gray-500 text-center py-8">
                                         Click "Show Transcript" to view the full episode transcript
                                       </p>
-                                      <button 
+                                      <Button 
                                         onClick={() => handleShowTranscript(episode.id)}
+                                        loading={transcripts[episode.id]?.loading}
+                                        variant="secondary"
+                                        size="sm"
                                         className="mt-3 inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 transition-colors touch-manipulation"
                                       >
                                         <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -976,7 +997,7 @@ export default function NewSummary() {
                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                         </svg>
                                         Show Transcript
-                                      </button>
+                                      </Button>
                                     </>
                                   )}
                                 </div>
@@ -993,13 +1014,13 @@ export default function NewSummary() {
               {/* Load More Episodes Button */}
               {episodes.pagination && episodes.pagination.hasNext && (
                 <div className="flex justify-center mt-8">
-                  <button
+                  <Button
                     onClick={() => handleLoadMoreEpisodes(episodes.pagination.nextEpisodePubDate)}
-                    disabled={isLoading}
-                    className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                    loading={isLoading}
+                    className="px-6 py-3"
                   >
-                    {isLoading ? "Loading..." : "Load More Episodes"}
-                  </button>
+                    Load More Episodes
+                  </Button>
                 </div>
               )}
             </div>

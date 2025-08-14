@@ -1,10 +1,25 @@
 import { useQuery } from "convex/react";
 import { useAuth } from "@clerk/react-router";
 import { api } from "../../../convex/_generated/api";
-import { Link } from "react-router";
+import { useNavigate } from "react-router";
+import { Button } from "~/components/ui/button";
+import { useState, useCallback } from "react";
 
 export function RecentlyPlayed() {
   const { isSignedIn } = useAuth();
+  const navigate = useNavigate();
+  const [findPodcastsLoading, setFindPodcastsLoading] = useState(false);
+  const [browseMoreLoading, setBrowseMoreLoading] = useState(false);
+
+  const handleFindPodcastsClick = useCallback(() => {
+    setFindPodcastsLoading(true);
+    navigate("/dashboard/new-summary");
+  }, [navigate]);
+
+  const handleBrowseMoreClick = useCallback(() => {
+    setBrowseMoreLoading(true);
+    navigate("/dashboard/new-summary");
+  }, [navigate]);
   
   const recentlyPlayed = useQuery(
     api.listening.getRecentlyPlayed, 
@@ -41,12 +56,13 @@ export function RecentlyPlayed() {
           <h4 className="mt-2 text-sm font-medium text-gray-900">No episodes played yet</h4>
           <p className="mt-1 text-sm text-gray-500">Start listening to podcasts to see them here</p>
           <div className="mt-6">
-            <Link
-              to="/dashboard/new-summary"
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+            <Button
+              loading={findPodcastsLoading}
+              onClick={handleFindPodcastsClick}
+              className="inline-flex items-center px-4 py-2 text-sm font-medium"
             >
               Find Podcasts
-            </Link>
+            </Button>
           </div>
         </div>
       </div>
@@ -57,13 +73,15 @@ export function RecentlyPlayed() {
     <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base sm:text-lg font-semibold text-gray-900">Recently Played</h3>
-        <Link
-          to="/dashboard/new-summary"
-          className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+        <Button
+          variant="link"
+          loading={browseMoreLoading}
+          onClick={handleBrowseMoreClick}
+          className="text-sm text-blue-600 hover:text-blue-800 font-medium p-0 h-auto"
         >
           <span className="hidden sm:inline">Browse more</span>
           <span className="sm:hidden">More</span>
-        </Link>
+        </Button>
       </div>
       <div className="space-y-3 sm:space-y-4">
         {recentlyPlayed.map((episode) => (
