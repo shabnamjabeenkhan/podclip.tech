@@ -18,7 +18,7 @@ export function meta({}: Route.MetaArgs) {
     "Transform your podcast listening experience with AI-generated summaries, key takeaways, and full transcriptions. Save time and never miss important insights from your favorite shows.";
   const keywords = "podcast summaries, AI transcription, podcast player, key takeaways, audio summaries, podcast insights";
   const siteUrl = "https://podclip.tech";
-  const imageUrl = "/kaizen.png"; // Update with your podcast app logo
+  const imageUrl = "/podclip.png"; // Update with your podcast app logo
 
   return [
     { title },
