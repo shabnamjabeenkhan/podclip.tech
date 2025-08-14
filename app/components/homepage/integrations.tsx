@@ -47,7 +47,6 @@ export default function IntegrationsSection({
         <div className="mx-auto max-w-5xl px-6 mt-[2rem]">
           <div className="grid items-center sm:grid-cols-2">
             <div className="dark:bg-muted/50 relative mx-auto w-fit">
-              <div className="bg-radial to-muted dark:to-background absolute inset-0 z-10 from-transparent to-75%"></div>
               
               {/* Brain Icon Illustration */}
               <div className="relative w-48 h-48 mx-auto">
