@@ -5,12 +5,13 @@ import { useSearchParams, useNavigate } from "react-router";
 import { useQuery } from "convex/react";
 import { useUser, useAuth } from "@clerk/react-router";
 import { useState, useEffect } from "react";
+import { useIsMobile } from "~/hooks/use-mobile";
 import Markdown from "react-markdown";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "~/components/ui/select";
 import { cn } from "~/lib/utils";
 import { isFeatureEnabled, config } from "../../../config";
 import { api } from "../../../convex/_generated/api";
@@ -23,6 +24,7 @@ export default function Chat() {
   const initialSummaryId = searchParams.get('summaryId');
   const { user } = useUser();
   const { isSignedIn } = useAuth();
+  const isMobile = useIsMobile();
   
   // Local state for selected episode
   const [selectedSummaryId, setSelectedSummaryId] = useState<string | null>(initialSummaryId);
@@ -152,30 +154,34 @@ export default function Chat() {
           </CardHeader>
           <CardContent className="pt-0">
             {userSummaries && userSummaries.length > 0 ? (
-              <Select
-                value={selectedSummaryId || ""}
-                onValueChange={handleEpisodeSelect}
-              >
-                <SelectTrigger className="w-full min-w-0 h-20 border-2 border-gray-200 hover:border-blue-300 focus:border-blue-500 bg-white shadow-sm py-4 px-4 text-left">
-                  <div className="flex-1 min-w-0 flex flex-col justify-center px-4 py-1">
+              <div className="relative w-full">
+                <Select
+                  value={selectedSummaryId || ""}
+                  onValueChange={handleEpisodeSelect}
+                >
+                <SelectTrigger className="w-full min-w-0 h-20 border-2 border-gray-200 hover:border-blue-300 focus:border-blue-500 bg-white shadow-sm py-4 px-4 text-left overflow-hidden">
+                  <div className="flex-1 min-w-0 flex flex-col justify-center px-4 py-1 overflow-hidden">
                     {selectedSummaryId && summary ? (
-                      <div className="font-semibold text-base text-gray-900 leading-tight truncate">
+                      <div className="font-semibold text-base text-gray-900 leading-tight truncate w-full">
                         {summary.episode_title || "Episode Summary"}
                       </div>
                     ) : (
-                      <SelectValue placeholder="🔍 Choose an episode from your summaries..." />
+                      <div className="truncate w-full text-gray-500">
+                        <span className="hidden sm:inline">🔍 Choose an episode from your summaries...</span>
+                        <span className="sm:hidden">🔍 Choose an episode...</span>
+                      </div>
                     )}
                   </div>
                 </SelectTrigger>
-                <SelectContent className="max-h-60 border-2 border-gray-200 w-full">
+                <SelectContent className="max-h-72 border-2 border-gray-200 w-full max-w-[calc(100vw-2rem)] sm:max-w-none p-1">
                   {userSummaries.map((summary) => (
-                    <SelectItem key={summary._id} value={summary._id} className="py-2 h-auto min-h-[2.5rem] hover:bg-blue-50 focus:bg-blue-50">
-                      <div className="flex flex-col items-start w-full min-w-0 space-y-0.5">
-                        <div className="font-semibold text-sm text-gray-900 w-full leading-snug group-hover:text-gray-900">
+                    <SelectItem key={summary._id} value={summary._id} className="py-3 h-auto min-h-[3rem] hover:bg-blue-50 focus:bg-blue-50 whitespace-normal">
+                      <div className="flex flex-col items-start w-full min-w-0 space-y-1">
+                        <div className="font-semibold text-sm text-gray-900 w-full leading-relaxed group-hover:text-gray-900 break-words line-clamp-2 sm:truncate sm:line-clamp-1">
                           {summary.episode_title || `Episode Summary`}
                         </div>
                         {summary.podcast_title && (
-                          <div className="text-xs text-blue-600 w-full leading-tight group-hover:text-blue-700">
+                          <div className="text-xs text-blue-600 w-full leading-relaxed group-hover:text-blue-700 break-words line-clamp-2 sm:truncate sm:line-clamp-1">
                             📻 {summary.podcast_title}
                           </div>
                         )}
@@ -183,7 +189,8 @@ export default function Chat() {
                     </SelectItem>
                   ))}
                 </SelectContent>
-              </Select>
+                </Select>
+              </div>
             ) : userSummaries === undefined ? (
               <div className="flex items-center justify-center py-8 bg-white rounded-lg border-2 border-dashed border-gray-200">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-3"></div>
@@ -333,12 +340,12 @@ export default function Chat() {
             <form onSubmit={handleSubmit}>
               <div className="flex gap-3 items-end bg-white rounded-2xl border-2 border-gray-200 focus-within:border-blue-400 shadow-sm p-3">
                 <Input
-                  className="flex-1 border-0 focus:ring-0 focus-visible:ring-0 text-lg placeholder:text-gray-500 bg-transparent h-12 py-3"
+                  className="flex-1 border-0 focus:ring-0 focus-visible:ring-0 text-lg placeholder:text-gray-500 bg-transparent h-12 py-3 min-w-0"
                   value={input}
                   placeholder={
                     summary && summary.episode_title
-                      ? `💭 Ask about "${summary.episode_title.substring(0, 35)}${summary.episode_title.length > 35 ? '...' : ''}"` 
-                      : "💭 Ask about this podcast episode..."
+                      ? `💭 Ask about "${summary.episode_title.substring(0, isMobile ? 15 : 35)}${summary.episode_title.length > (isMobile ? 15 : 35) ? '...' : ''}"` 
+                      : isMobile ? "💭 Ask about episode..." : "💭 Ask about this podcast episode..."
                   }
                   onChange={handleInputChange}
                   disabled={chatIsLoading}

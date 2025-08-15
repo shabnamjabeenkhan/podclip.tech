@@ -8,6 +8,7 @@ import {
   SidebarGroupContent,
   SidebarMenu,
   SidebarMenuItem,
+  useSidebar,
 } from "~/components/ui/sidebar";
 
 export const NavMain = memo(({
@@ -21,12 +22,18 @@ export const NavMain = memo(({
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { isMobile, setOpenMobile } = useSidebar();
   const [loadingItems, setLoadingItems] = useState<{[key: string]: boolean}>({});
 
   const handleItemClick = useCallback((url: string) => {
     setLoadingItems(prev => ({ ...prev, [url]: true }));
     navigate(url);
-  }, [navigate]);
+    
+    // Close mobile sidebar when navigating
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  }, [navigate, isMobile, setOpenMobile]);
 
   const navItems = useMemo(() => 
     items.map((item) => ({

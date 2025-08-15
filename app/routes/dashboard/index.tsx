@@ -168,7 +168,7 @@ export default function Page() {
           <div className="px-4 lg:px-6">
             <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
               <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 sm:gap-4">
                 <Link
                   to="/dashboard/new-summary"
                   className="flex items-center p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow"

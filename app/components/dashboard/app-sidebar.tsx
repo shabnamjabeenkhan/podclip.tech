@@ -10,6 +10,7 @@ import {
   SidebarHeader,
   SidebarMenu,
   SidebarMenuItem,
+  useSidebar,
 } from "~/components/ui/sidebar";
 
 const data = {
@@ -56,12 +57,20 @@ export function AppSidebar({
   variant: "sidebar" | "floating" | "inset";
   user: any;
 }) {
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  const handleHeaderLinkClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
+
   return (
     <Sidebar collapsible="offcanvas" variant={variant}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <Link to="/" prefetch="viewport">
+            <Link to="/" prefetch="viewport" onClick={handleHeaderLinkClick}>
               <span className="text-base font-semibold">Podclip</span>
             </Link>
           </SidebarMenuItem>

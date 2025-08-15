@@ -10,6 +10,7 @@ import {
   SidebarGroupContent,
   SidebarMenu,
   SidebarMenuItem,
+  useSidebar,
 } from "~/components/ui/sidebar"
 
 export function NavSecondary({
@@ -24,12 +25,18 @@ export function NavSecondary({
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { isMobile, setOpenMobile } = useSidebar();
   const [loadingItems, setLoadingItems] = React.useState<{[key: string]: boolean}>({});
 
   const handleItemClick = React.useCallback((url: string) => {
     setLoadingItems(prev => ({ ...prev, [url]: true }));
     navigate(url);
-  }, [navigate]);
+    
+    // Close mobile sidebar when navigating
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  }, [navigate, isMobile, setOpenMobile]);
 
   // Clear loading state when navigation completes
   React.useEffect(() => {
