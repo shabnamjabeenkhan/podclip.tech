@@ -1,5 +1,4 @@
 import { StatsCards } from "~/components/dashboard/stats-cards";
-import { RecentlyPlayed } from "~/components/dashboard/recently-played";
 import { RecentSummaries } from "~/components/dashboard/recent-summaries";
 import { Link, useNavigate } from "react-router";
 import { useQuery } from "convex/react";
@@ -72,7 +71,7 @@ export default function Page() {
                       <p className="text-sm text-gray-600">
                         {userQuota.summaries.canGenerate 
                           ? `You have ${userQuota.summaries.remaining} summary remaining. Upgrade for unlimited access.`
-                          : "You've used all your free summaries. Upgrade to generate unlimited summaries."}
+                          : "You've used all your free summaries. Upgrade to generate summaries."}
                       </p>
                     </div>
                   </div>
@@ -141,11 +140,11 @@ export default function Page() {
                   onClick={handleNewSummaryClick}
                   className="inline-flex items-center px-3 sm:px-4 py-2 text-sm font-medium"
                 >
-                  <svg className="w-4 h-4 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {/* <svg className="w-4 h-4 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  <span className="hidden sm:inline">New Summary</span>
-                  <span className="sm:hidden">New</span>
+                  </svg> */}
+                  <span className="hidden sm:inline">Browse Podcasts</span>
+                  {/* <span className="sm:hidden">New</span> */}
                 </Button>
               </div>
             </div>
@@ -156,12 +155,9 @@ export default function Page() {
             <StatsCards />
           </div>
 
-          {/* Main Content Grid */}
+          {/* Main Content */}
           <div className="px-4 lg:px-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <RecentlyPlayed />
-              <RecentSummaries />
-            </div>
+            <RecentSummaries />
           </div>
 
           {/* Quick Actions */}

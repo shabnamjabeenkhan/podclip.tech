@@ -19,6 +19,45 @@ export const trackListeningStart = mutation({
     }
 
     const now = Date.now();
+    
+    console.log("🎧 trackListeningStart called with:", {
+      episodeId: args.episodeId,
+      userId: identity.subject,
+      episodeTitle: args.episodeTitle
+    });
+
+    // Ensure podcast exists
+    const existingPodcast = await ctx.db
+      .query("podcasts")
+      .withIndex("by_podcast_id", (q) => q.eq("podcast_id", args.podcastId))
+      .unique();
+
+    if (!existingPodcast) {
+      console.log("📻 Creating new podcast:", args.podcastTitle);
+      await ctx.db.insert("podcasts", {
+        podcast_id: args.podcastId,
+        title: args.podcastTitle,
+        description: "", // We don't have description from audio player
+        thumbnail: args.episodeThumbnail || "",
+      });
+    }
+
+    // Ensure episode exists
+    const existingEpisode = await ctx.db
+      .query("episodes")
+      .withIndex("by_episode_id", (q) => q.eq("episode_id", args.episodeId))
+      .unique();
+
+    if (!existingEpisode) {
+      console.log("📺 Creating new episode:", args.episodeTitle);
+      await ctx.db.insert("episodes", {
+        episode_id: args.episodeId,
+        podcast_id: args.podcastId,
+        title: args.episodeTitle,
+        description: "", // We don't have description from audio player
+        audio_url: args.audioUrl,
+      });
+    }
 
     // Check if user has listened to this episode before
     const existingHistory = await ctx.db
@@ -29,6 +68,7 @@ export const trackListeningStart = mutation({
       .unique();
 
     if (existingHistory) {
+      console.log("🔄 Updating existing listening history");
       // Update existing record
       await ctx.db.patch(existingHistory._id, {
         last_played_at: now,
@@ -38,8 +78,9 @@ export const trackListeningStart = mutation({
       });
       return existingHistory._id;
     } else {
+      console.log("✨ Creating new listening history record");
       // Create new listening history record
-      return await ctx.db.insert("listening_history", {
+      const historyId = await ctx.db.insert("listening_history", {
         user_id: identity.subject,
         episode_id: args.episodeId,
         podcast_id: args.podcastId,
@@ -54,6 +95,8 @@ export const trackListeningStart = mutation({
         started_at: now,
         last_played_at: now,
       });
+      console.log("✅ Created listening history with ID:", historyId);
+      return historyId;
     }
   },
 });
@@ -71,6 +114,12 @@ export const updateListeningProgress = mutation({
       throw new Error("Not authenticated");
     }
 
+    console.log("📊 updateListeningProgress called with:", {
+      episodeId: args.episodeId,
+      currentTime: args.currentTime,
+      listenedDuration: args.listenedDuration
+    });
+
     const historyRecord = await ctx.db
       .query("listening_history")
       .withIndex("by_episode_user", (q) => 
@@ -80,6 +129,7 @@ export const updateListeningProgress = mutation({
 
     if (historyRecord) {
       const completed = args.currentTime >= (historyRecord.duration * 0.95); // 95% completion
+      console.log("🔄 Updating progress - completed:", completed, "position:", args.currentTime);
 
       await ctx.db.patch(historyRecord._id, {
         last_position: args.currentTime,
@@ -87,6 +137,9 @@ export const updateListeningProgress = mutation({
         completed,
         last_played_at: Date.now(),
       });
+      console.log("✅ Progress updated successfully");
+    } else {
+      console.log("❌ No history record found for episode:", args.episodeId);
     }
   },
 });
@@ -103,14 +156,20 @@ export const getRecentlyPlayed = query({
     }
 
     const limit = args.limit || 10;
+    
+    console.log("🎵 getRecentlyPlayed called for user:", identity.subject);
 
-    return await ctx.db
+    const results = await ctx.db
       .query("listening_history")
       .withIndex("by_user_last_played", (q) => 
         q.eq("user_id", identity.subject)
       )
       .order("desc")
       .take(limit);
+      
+    console.log("🎵 Found", results.length, "recently played episodes");
+    
+    return results;
   },
 });
 

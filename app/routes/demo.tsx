@@ -3,8 +3,8 @@ import { CursorfulVideo } from '~/components/video/cursorful-video';
 
 export const meta: MetaFunction = () => {
   return [
-    { title: 'Demo - Kaizen' },
-    { name: 'description', content: 'Watch our Cursorful demo recording' },
+    { title: 'Demo - Podclip' },
+    { name: 'description', content: 'Watch our Podclip demo recording' },
   ];
 };
 

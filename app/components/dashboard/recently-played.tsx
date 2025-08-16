@@ -26,6 +26,10 @@ export function RecentlyPlayed() {
     isSignedIn ? { limit: 5 } : "skip"
   );
 
+  // Debug logging
+  console.log('🎵 Recently Played - isSignedIn:', isSignedIn);
+  console.log('🎵 Recently Played - data:', recentlyPlayed);
+
   if (!recentlyPlayed) {
     return (
       <div className="bg-white rounded-lg border border-gray-200 p-6">

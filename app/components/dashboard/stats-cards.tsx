@@ -25,8 +25,8 @@ export function StatsCards() {
 
   if (!userQuota || !listeningStats) {
     return (
-      <div className="grid grid-cols-1 gap-3 xs:grid-cols-2 lg:grid-cols-5">
-        {[1, 2, 3, 4, 5].map((i) => (
+      <div className="grid grid-cols-1 gap-3 xs:grid-cols-2 lg:grid-cols-3">
+        {[1, 2, 3].map((i) => (
           <div key={i} className={`p-4 sm:p-6 rounded-lg border animate-pulse ${i === 1 ? 'bg-gradient-to-br from-green-50 to-emerald-100 border-green-200' : 'bg-white border-gray-200'}`}>
             <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
             <div className="h-8 bg-gray-200 rounded w-1/2"></div>
@@ -72,28 +72,6 @@ export function StatsCards() {
         </svg>
       ),
     },
-    {
-      title: "Episodes Listened",
-      value: listeningStats.totalEpisodes.toString(),
-      subtitle: `${listeningStats.completedEpisodes} completed`,
-      color: "green",
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1.01M15 10h1.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      ),
-    },
-    {
-      title: "Listening Time",
-      value: listeningStats.totalListenedFormatted,
-      subtitle: "Total time",
-      color: "purple",
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      ),
-    },
   ];
 
   const getColorClasses = (color: string) => {
@@ -108,7 +86,7 @@ export function StatsCards() {
   };
 
   return (
-    <div className="grid grid-cols-1 gap-3 xs:grid-cols-2 lg:grid-cols-5">
+    <div className="grid grid-cols-1 gap-3 xs:grid-cols-2 lg:grid-cols-3">
       {stats.map((stat) => (
         <div 
           key={stat.title} 

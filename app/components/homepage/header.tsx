@@ -35,7 +35,7 @@ const Header = () => {
             <Button variant="ghost" size="sm">
               Sign In
             </Button>
-            <Button variant="hero" size="sm">
+            <Button variant="outline" size="sm" className="border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white transition-colors">
               Get Started
             </Button>
           </div>
@@ -70,7 +70,7 @@ const Header = () => {
                 <Button variant="ghost" size="sm">
                   Sign In
                 </Button>
-                <Button variant="hero" size="sm">
+                <Button variant="outline" size="sm" className="border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white transition-colors">
                   Get Started
                 </Button>
               </div>

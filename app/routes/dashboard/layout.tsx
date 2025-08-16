@@ -70,12 +70,12 @@ export default function DashboardLayout() {
         } as React.CSSProperties
       }
     >
-      <AppSidebar variant="inset" user={user} />
+      <AppSidebar variant="sidebar" user={user} />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 px-4 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
           <SidebarTrigger className="-ml-1" />
         </header>
-        <div className="pb-20"> {/* Add padding for mini player */}
+        <div>
           <Outlet />
         </div>
       </SidebarInset>

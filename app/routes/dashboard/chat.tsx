@@ -136,19 +136,19 @@ export default function Chat() {
   }, [selectedSummaryId, initialSummaryId, setMessages]);
 
   return (
-    <div className="flex flex-col w-full min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30">
-      <div className="flex flex-col w-full py-8 justify-center items-center">
-        <div className="w-full max-w-4xl space-y-8">
+    <div className="flex flex-col w-full min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30 relative overflow-x-hidden">
+      <div className="flex flex-col w-full py-8 justify-center items-center pb-24">
+        <div className="w-full max-w-4xl space-y-6 lg:space-y-8 px-3 sm:px-4 lg:px-6">
         {/* Episode Selection Dropdown */}
-        <Card className="mx-4 border-2 border-blue-100 bg-gradient-to-br from-blue-50/50 to-indigo-50/50">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-xl font-semibold text-gray-800 flex items-center gap-3">
-              <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-full">
+        <Card className="border-2 border-blue-100 bg-gradient-to-br from-blue-50/50 to-indigo-50/50">
+          <CardHeader className="pb-3 lg:pb-4">
+            <CardTitle className="text-lg lg:text-xl font-semibold text-gray-800 flex items-center gap-2 lg:gap-3">
+              <div className="flex items-center justify-center w-8 lg:w-10 h-8 lg:h-10 bg-blue-100 rounded-full">
                 🎧
               </div>
-              Select an Episode to Chat About
+              <span className="text-base lg:text-xl">Select an Episode to Chat About</span>
             </CardTitle>
-            <p className="text-sm text-gray-600 mt-2">
+            <p className="text-xs lg:text-sm text-gray-600 mt-1 lg:mt-2">
               Choose from your podcast summaries to start an AI conversation
             </p>
           </CardHeader>
@@ -159,16 +159,16 @@ export default function Chat() {
                   value={selectedSummaryId || ""}
                   onValueChange={handleEpisodeSelect}
                 >
-                <SelectTrigger className="w-full min-w-0 h-20 border-2 border-gray-200 hover:border-blue-300 focus:border-blue-500 bg-white shadow-sm py-4 px-4 text-left overflow-hidden">
-                  <div className="flex-1 min-w-0 flex flex-col justify-center px-4 py-1 overflow-hidden">
+                <SelectTrigger className="w-full min-w-0 h-16 lg:h-20 border-2 border-gray-200 hover:border-blue-300 focus:border-blue-500 bg-white shadow-sm py-3 lg:py-4 px-3 lg:px-4 text-left overflow-hidden">
+                  <div className="flex-1 min-w-0 flex flex-col justify-center px-2 lg:px-4 py-1 overflow-hidden">
                     {selectedSummaryId && summary ? (
-                      <div className="font-semibold text-base text-gray-900 leading-tight truncate w-full">
+                      <div className="font-semibold text-sm lg:text-base text-gray-900 leading-tight truncate w-full">
                         {summary.episode_title || "Episode Summary"}
                       </div>
                     ) : (
-                      <div className="truncate w-full text-gray-500">
-                        <span className="hidden sm:inline">🔍 Choose an episode from your summaries...</span>
-                        <span className="sm:hidden">🔍 Choose an episode...</span>
+                      <div className="truncate w-full text-gray-500 text-sm lg:text-base">
+                        <span className="hidden md:inline">🔍 Choose an episode from your summaries...</span>
+                        <span className="md:hidden">🔍 Choose an episode...</span>
                       </div>
                     )}
                   </div>
@@ -220,7 +220,7 @@ export default function Chat() {
         
         {/* Episode Context Card */}
         {summary && (
-          <Card className="mx-4 border-l-4 border-l-blue-500 bg-gradient-to-r from-blue-50/50 to-indigo-50/30 shadow-sm">
+          <Card className="border-l-4 border-l-blue-500 bg-gradient-to-r from-blue-50/50 to-indigo-50/30 shadow-sm">
             <CardHeader className="pb-4">
               <CardTitle className="text-lg font-semibold text-gray-800 flex items-center gap-3">
                 <div className="flex items-center justify-center w-8 h-8 bg-blue-100 rounded-full">
@@ -258,7 +258,7 @@ export default function Chat() {
 
         {/* Chat Messages */}
         {selectedSummaryId && (
-          <div className="w-full max-w-3xl mx-auto space-y-6 mb-24 px-4">
+          <div className="w-full max-w-3xl mx-auto space-y-6 mb-32">
             {messages.length === 0 && (
               <div className="text-center py-12">
                 <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -334,39 +334,42 @@ export default function Chat() {
           </div>
         )}
 
-        {/* Chat Input */}
+        {/* Chat Input - Only visible when episode is selected */}
         {selectedSummaryId && (
-          <div className="sticky bottom-0 w-full max-w-3xl mx-auto p-4 bg-gradient-to-t from-white via-white to-white/90 backdrop-blur-sm border-t border-gray-200 shadow-lg">
-            <form onSubmit={handleSubmit}>
-              <div className="flex gap-3 items-end bg-white rounded-2xl border-2 border-gray-200 focus-within:border-blue-400 shadow-sm p-3">
-                <Input
-                  className="flex-1 border-0 focus:ring-0 focus-visible:ring-0 text-lg placeholder:text-gray-500 bg-transparent h-12 py-3 min-w-0"
-                  value={input}
-                  placeholder={
-                    summary && summary.episode_title
-                      ? `💭 Ask about "${summary.episode_title.substring(0, isMobile ? 15 : 35)}${summary.episode_title.length > (isMobile ? 15 : 35) ? '...' : ''}"` 
-                      : isMobile ? "💭 Ask about episode..." : "💭 Ask about this podcast episode..."
-                  }
-                  onChange={handleInputChange}
-                  disabled={chatIsLoading}
-                />
-                <Button 
-                  type="submit" 
-                  loading={chatIsLoading} 
-                  disabled={!input.trim()}
-                  className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl px-10 py-5 h-12 text-base font-medium shadow-sm transition-all duration-200 hover:shadow-md"
-                >
-                  {chatIsLoading ? "Sending..." : "Send ✨"}
-                </Button>
-              </div>
-              {summary && (
-                <p className="text-xs text-gray-500 mt-3 text-center">
-                  AI has access to the full summary and takeaways for context
-                </p>
-              )}
-            </form>
+          <div className="w-full max-w-4xl mx-auto mt-6 lg:mt-8 px-3 sm:px-4 lg:px-6">
+            <div className="bg-white rounded-xl border-2 border-gray-200 shadow-sm p-3 lg:p-4">
+              <form onSubmit={handleSubmit} className="w-full">
+                <div className="flex flex-col md:flex-row gap-2 lg:gap-3 items-stretch md:items-end">
+                  <Input
+                    className="flex-1 border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-sm lg:text-base placeholder:text-gray-500 bg-white rounded-lg h-10 md:h-12 lg:h-14 px-3 lg:px-4 min-w-0 transition-all duration-200"
+                    value={input}
+                    placeholder={
+                      summary && summary.episode_title
+                        ? `💭 Ask about "${summary.episode_title.substring(0, isMobile ? 15 : 35)}${summary.episode_title.length > (isMobile ? 15 : 35) ? '...' : ''}"` 
+                        : "💭 Ask about this episode..."
+                    }
+                    onChange={handleInputChange}
+                    disabled={chatIsLoading}
+                  />
+                  <Button 
+                    type="submit" 
+                    loading={chatIsLoading} 
+                    disabled={!input.trim()}
+                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 md:px-6 lg:px-8 py-2 md:py-3 lg:py-4 h-10 md:h-12 lg:h-14 text-sm lg:text-base font-medium shadow-sm transition-all duration-200 hover:shadow-md whitespace-nowrap"
+                  >
+                    {chatIsLoading ? "Sending..." : "Send ✨"}
+                  </Button>
+                </div>
+                {summary && (
+                  <p className="text-xs text-gray-500 mt-2 lg:mt-3 text-center">
+                    AI has access to the full summary and takeaways for context
+                  </p>
+                )}
+              </form>
+            </div>
           </div>
         )}
+
         </div>
       </div>
     </div>

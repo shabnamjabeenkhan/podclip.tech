@@ -5,8 +5,6 @@ import { EnhancedAudioPlayer } from "~/components/audio/enhanced-audio-player";
 import { useAuth } from "@clerk/react-router";
 import { toast } from "sonner";
 import type { Route } from "./+types/new-summary";
-import { Pagination } from "~/components/ui/pagination";
-import { Button } from "~/components/ui/button";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -18,33 +16,24 @@ export function meta({}: Route.MetaArgs) {
 
 export default function NewSummary() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchType, setSearchType] = useState<'podcast'>('podcast');
   const [podcastResults, setPodcastResults] = useState<any>(null);
   const [selectedPodcast, setSelectedPodcast] = useState<any>(null);
   const [episodes, setEpisodes] = useState<any>(null);
-  const [episodePage, setEpisodePage] = useState<{[key: string]: number}>({});
-  const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [generatingSummary, setGeneratingSummary] = useState<{[key: string]: boolean}>({});
   const [summaries, setSummaries] = useState<{[key: string]: any}>({});
   const [summaryErrors, setSummaryErrors] = useState<{[key: string]: string}>({});
   const [copiedStates, setCopiedStates] = useState<{[key: string]: { summary?: boolean, takeaways?: boolean, header?: boolean }}>({});
-  const [copyingStates, setCopyingStates] = useState<{[key: string]: { summary?: boolean, takeaways?: boolean, header?: boolean }}>({});
   const [transcripts, setTranscripts] = useState<{[key: string]: { text: string, loading: boolean, visible: boolean }}>({});
   const [exportingStates, setExportingStates] = useState<{[key: string]: boolean}>({});
-  const [userReady, setUserReady] = useState(false);
-  const [fixingPlan, setFixingPlan] = useState(false);
   
   const { userId, isSignedIn } = useAuth();
   const searchPodcasts = useAction(api.podcasts.searchPodcasts);
-  const searchEpisodes = useAction(api.podcasts.searchEpisodes);
   const getPodcastEpisodes = useAction(api.podcasts.getPodcastEpisodes);
   const generateSummary = useAction(api.summaries.generateSummary);
   const createSummary = useMutation(api.summaries.createSummary);
-  const checkExistingSummary = useAction(api.summaries.checkExistingSummary);
   const upsertUser = useMutation(api.users.upsertUser);
-  const fixUserPlan = useMutation(api.users.fixUserPlan);
-  const userQuota = useQuery(api.users.getUserQuota, userReady && isSignedIn ? undefined : "skip");
+  const userQuota = useQuery(api.users.getUserQuota);
   const getTranscript = useAction(api.transcriptions.getEpisodeTranscription);
   const exportToNotion = useAction(api.notion.exportToNotion);
   const notionConnection = useQuery(api.notion.getNotionConnection, 
@@ -53,29 +42,14 @@ export default function NewSummary() {
 
   // Ensure user exists in database
   useEffect(() => {
-    if (isSignedIn && !userReady) {
-      upsertUser()
-        .then(() => {
-          console.log("User created successfully");
-          setUserReady(true);
-        })
-        .catch((error) => {
-          console.error("Failed to create user:", error);
-          // Still set userReady to true to prevent infinite loop
-          setUserReady(true);
-        });
+    if (isSignedIn) {
+      upsertUser().catch(console.error);
     }
-  }, [isSignedIn, upsertUser, userReady]);
+  }, [isSignedIn, upsertUser]);
 
   // Helper function to handle copy actions with visual feedback
   const handleCopy = async (episodeId: string, content: string, type: 'summary' | 'takeaways' | 'header') => {
     try {
-      // Set copying state
-      setCopyingStates(prev => ({
-        ...prev,
-        [episodeId]: { ...prev[episodeId], [type]: true }
-      }));
-
       await navigator.clipboard.writeText(content);
       
       // Set copied state
@@ -93,12 +67,6 @@ export default function NewSummary() {
       }, 2000);
     } catch (err) {
       console.error('Failed to copy text: ', err);
-    } finally {
-      // Clear copying state
-      setCopyingStates(prev => ({
-        ...prev,
-        [episodeId]: { ...prev[episodeId], [type]: false }
-      }));
     }
   };
 
@@ -213,79 +181,18 @@ export default function NewSummary() {
     }
   };
 
-  // Handle fixing the user plan when payment was processed but plan not updated
-  const handleFixPlan = async () => {
-    setFixingPlan(true);
-    try {
-      const result = await fixUserPlan();
-      if (result.success) {
-        toast.success(`${result.message}. Refreshing page...`);
-        setTimeout(() => window.location.reload(), 2000);
-      } else {
-        // Show more detailed error information
-        const details = result.details ? 
-          `\nDetails: Subscription: ${result.details.subscriptionStatus}, Payment: ${result.details.paymentStatus}` : '';
-        toast.error(`${result.message}${details}`);
-      }
-    } catch (error: any) {
-      console.error("Failed to fix plan:", error);
-      toast.error(error.message || "Failed to check plan status. Please try again.");
-    } finally {
-      setFixingPlan(false);
-    }
-  };
-
-  const handleSearch = async (page: number = 1) => {
+  const handleSearch = async () => {
     if (!searchQuery.trim()) return;
     
     setIsLoading(true);
-    setCurrentPage(page);
-    // Align with API page_size cap (10)
-    const pageSize = 10;
-    const offset = (page - 1) * pageSize;
-    
     try {
-      const results = await searchPodcasts({ 
-        query: searchQuery, 
-        offset, 
-        limit: pageSize 
-      });
+      const results = await searchPodcasts({ query: searchQuery });
       setPodcastResults(results);
       setSelectedPodcast(null);
       setEpisodes(null);
       console.log("Podcast results:", results);
-    } catch (error: any) {
-      console.error("Search failed:", error);
-      toast.error(error.message || "Failed to search podcasts. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  const handlePageChange = (page: number) => {
-    handleSearch(page);
-  };
-
-  const handleLoadMoreEpisodes = async (nextEpisodePubDate: number) => {
-    if (!selectedPodcast) return;
-    
-    setIsLoading(true);
-    try {
-      const moreEpisodes = await getPodcastEpisodes({ 
-        podcastId: selectedPodcast.id,
-        nextEpisodePubDate 
-      });
-      
-      // Append new episodes to existing ones
-      setEpisodes((prev: any) => ({
-        ...prev,
-        episodes: [...(prev?.episodes || []), ...(moreEpisodes.episodes || [])],
-        pagination: moreEpisodes.pagination
-      }));
-      
-      console.log("Loaded more episodes:", moreEpisodes);
     } catch (error) {
-      console.error("Failed to load more episodes:", error);
+      console.error("Search failed:", error);
     } finally {
       setIsLoading(false);
     }
@@ -296,40 +203,8 @@ export default function NewSummary() {
     setIsLoading(true);
     try {
       const podcastData = await getPodcastEpisodes({ podcastId: podcast.id });
-      setEpisodes(podcastData);
-      console.log("Episodes:", podcastData);
-      
-      // Check for existing summaries for all episodes
-      if (userQuota?.userId && podcastData.episodes) {
-        const existingSummariesChecks = podcastData.episodes.map(async (episode: any) => {
-          try {
-            const existingSummary = await checkExistingSummary({
-              episodeId: episode.id,
-              userId: userQuota.userId,
-            });
-            
-            if (existingSummary) {
-              setSummaries(prev => ({ 
-                ...prev, 
-                [episode.id]: {
-                  summary: existingSummary.content,
-                  takeaways: existingSummary.takeaways,
-                  episodeId: episode.id,
-                  userId: existingSummary.user_id,
-                  createdAt: existingSummary.created_at,
-                  hasTranscript: false, // We don't store this info currently
-                  transcriptUsed: false,
-                }
-              }));
-            }
-          } catch (error) {
-            console.error(`Failed to check existing summary for episode ${episode.id}:`, error);
-          }
-        });
-        
-        // Execute all checks in parallel
-        await Promise.allSettled(existingSummariesChecks);
-      }
+      setEpisodes(podcastData.episodes);
+      console.log("Episodes:", podcastData.episodes);
     } catch (error) {
       console.error("Failed to get episodes:", error);
     } finally {
@@ -341,7 +216,7 @@ export default function NewSummary() {
   const handleGenerateSummary = async (episode: any) => {
     const episodeId = episode.id;
     
-    // Check if summary already exists in local state
+    // Check if summary already exists
     if (summaries[episodeId]) {
       return;
     }
@@ -351,29 +226,6 @@ export default function NewSummary() {
     setGeneratingSummary(prev => ({ ...prev, [episodeId]: true }));
     
     try {
-      // Check if summary already exists in database
-      const existingSummary = await checkExistingSummary({
-        episodeId: episodeId,
-        userId: userQuota?.userId || "temp-user-id",
-      });
-      
-      if (existingSummary) {
-        // Summary already exists, load it into local state
-        setSummaries(prev => ({ 
-          ...prev, 
-          [episodeId]: {
-            summary: existingSummary.content,
-            takeaways: existingSummary.takeaways,
-            episodeId: episodeId,
-            userId: existingSummary.user_id,
-            createdAt: existingSummary.created_at,
-            hasTranscript: false, // We don't store this info currently
-            transcriptUsed: false,
-          }
-        }));
-        setGeneratingSummary(prev => ({ ...prev, [episodeId]: false }));
-        return;
-      }
       const summary = await generateSummary({
         episodeId: episodeId,
         episodeTitle: episode.title,
@@ -409,113 +261,65 @@ export default function NewSummary() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-var(--header-height))] bg-gray-50 w-full overflow-hidden">
-      <div className="max-w-4xl mx-auto p-3 sm:p-4 md:p-6 w-full">
-        <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4 md:p-6 lg:p-8 w-full overflow-hidden">
+    <div className="min-h-[calc(100vh-var(--header-height))] bg-gray-50">
+      <div className="max-w-4xl mx-auto p-4 sm:p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-8">
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Create New Summary</h1>
           <p className="text-sm sm:text-base text-gray-600 mb-6">Search for a podcast and select an episode to generate an AI summary</p>
           
-          {/* Quota Indicators */}
+          {/* Quota Indicator */}
           {userQuota && (
-            <div className="mb-8 space-y-4">
-              {/* Summary Quota */}
-              <div className={`p-4 rounded-lg border-2 ${
-                !userQuota.summaries.canGenerate 
-                  ? 'bg-red-50 border-red-200' 
-                  : userQuota.summaries.remaining !== -1 && userQuota.summaries.remaining <= 2
-                    ? 'bg-yellow-50 border-yellow-200'
-                    : 'bg-green-50 border-green-200'
-              }`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-3 h-3 rounded-full ${
-                      !userQuota.summaries.canGenerate 
-                        ? 'bg-red-500' 
-                        : userQuota.summaries.remaining !== -1 && userQuota.summaries.remaining <= 2
-                          ? 'bg-yellow-500'
-                          : 'bg-green-500'
-                    }`}></div>
-                    <div>
-                      <p className={`font-medium ${
-                        !userQuota.summaries.canGenerate 
-                          ? 'text-red-800' 
-                          : userQuota.summaries.remaining !== -1 && userQuota.summaries.remaining <= 2
-                            ? 'text-yellow-800'
-                            : 'text-green-800'
-                      }`}>
-                        {userQuota.summaries.limit === -1 
-                          ? "Unlimited summaries" 
-                          : `${userQuota.summaries.used}/${userQuota.summaries.limit} summaries used`}
-                      </p>
-                      <p className={`text-sm ${
-                        !userQuota.summaries.canGenerate 
-                          ? 'text-red-600' 
-                          : userQuota.summaries.remaining !== -1 && userQuota.summaries.remaining <= 2
-                            ? 'text-yellow-600'
-                            : 'text-green-600'
-                      }`}>
-                        {!userQuota.summaries.canGenerate 
-                          ? (userQuota.summaries.limit === 5 ? "Summary quota exhausted. Upgrade to continue." : "Monthly summary quota exhausted. Resets next month.")
-                          : userQuota.summaries.limit === -1 
-                            ? "You have unlimited summaries with your current plan"
-                            : `${userQuota.summaries.remaining} summaries remaining this month`}
-                      </p>
-                    </div>
-                  </div>
-                  {!userQuota.summaries.canGenerate && userQuota.summaries.limit === 5 && (
-                    <div className="flex gap-2">
-                      <a 
-                        href="/pricing"
-                        className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                      >
-                        Upgrade Plan
-                      </a>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Search Quota */}
-              <div className={`p-4 rounded-lg border-2 ${
-                !userQuota.searches.canSearch 
-                  ? 'bg-red-50 border-red-200' 
-                  : userQuota.searches.remaining !== -1 && userQuota.searches.remaining <= 10
-                    ? 'bg-yellow-50 border-yellow-200'
-                    : 'bg-green-50 border-green-200'
-              }`}>
+            <div className={`mb-8 p-4 rounded-lg border-2 ${
+              !userQuota.summaries.canGenerate 
+                ? 'bg-red-50 border-red-200' 
+                : userQuota.summaries.remaining !== -1 && userQuota.summaries.remaining <= 2
+                  ? 'bg-yellow-50 border-yellow-200'
+                  : 'bg-green-50 border-green-200'
+            }`}>
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className={`w-3 h-3 rounded-full ${
-                    !userQuota.searches.canSearch 
+                    !userQuota.summaries.canGenerate 
                       ? 'bg-red-500' 
-                      : userQuota.searches.remaining !== -1 && userQuota.searches.remaining <= 10
+                      : userQuota.summaries.remaining !== -1 && userQuota.summaries.remaining <= 2
                         ? 'bg-yellow-500'
                         : 'bg-green-500'
                   }`}></div>
                   <div>
                     <p className={`font-medium ${
-                      !userQuota.searches.canSearch 
+                      !userQuota.summaries.canGenerate 
                         ? 'text-red-800' 
-                        : userQuota.searches.remaining !== -1 && userQuota.searches.remaining <= 10
+                        : userQuota.summaries.remaining !== -1 && userQuota.summaries.remaining <= 2
                           ? 'text-yellow-800'
                           : 'text-green-800'
                     }`}>
-                      {userQuota.searches.limit === -1 
-                        ? "Unlimited searches" 
-                        : `${userQuota.searches.used}/${userQuota.searches.limit} searches used`}
+                      {userQuota.summaries.limit === -1 
+                        ? "Unlimited summaries" 
+                        : `${userQuota.summaries.used}/${userQuota.summaries.limit} summaries used`}
                     </p>
                     <p className={`text-sm ${
-                      !userQuota.searches.canSearch 
+                      !userQuota.summaries.canGenerate 
                         ? 'text-red-600' 
-                        : userQuota.searches.remaining !== -1 && userQuota.searches.remaining <= 10
+                        : userQuota.summaries.remaining !== -1 && userQuota.summaries.remaining <= 2
                           ? 'text-yellow-600'
                           : 'text-green-600'
                     }`}>
-                      {!userQuota.searches.canSearch 
-                        ? "Search quota exhausted. Upgrade to continue searching."
-                        : `${userQuota.searches.remaining} searches remaining this month`}
+                      {!userQuota.summaries.canGenerate 
+                        ? (userQuota.summaries.limit === 5 ? "Quota exhausted. Upgrade to continue." : "Monthly quota exhausted. Resets next month.")
+                        : userQuota.summaries.limit === -1 
+                          ? "You have unlimited summaries with your current plan"
+                          : `${userQuota.summaries.remaining} summaries remaining${userQuota.plan === 'monthly' ? ' this month' : ''}`}
                     </p>
                   </div>
                 </div>
+                {!userQuota.summaries.canGenerate && userQuota.summaries.limit === 5 && (
+                  <a 
+                    href="/pricing"
+                    className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Upgrade Plan
+                  </a>
+                )}
               </div>
             </div>
           )}
@@ -525,24 +329,22 @@ export default function NewSummary() {
             <label className="block text-sm font-medium text-gray-700 mb-3">
               Search for podcasts
             </label>
-            
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex gap-3">
               <input 
                 type="text" 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Enter podcast name (e.g., tech)"
-                className="flex-1 px-3 sm:px-4 py-2.5 sm:py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Enter podcast name (e.g., The Daily, Joe Rogan Experience)"
+                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               />
-              <Button
-                onClick={() => handleSearch()}
-                loading={isLoading}
-                disabled={!searchQuery.trim()}
-                className="px-4 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base whitespace-nowrap"
+              <button 
+                onClick={handleSearch}
+                disabled={isLoading || !searchQuery.trim()}
+                className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
               >
-                Search
-              </Button>
+                {isLoading ? "Searching..." : "Search"}
+              </button>
             </div>
           </div>
 
@@ -551,47 +353,42 @@ export default function NewSummary() {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-gray-900">
-                  Found {podcastResults.pagination?.total || podcastResults.results?.length || 0} podcasts
-                  {podcastResults.pagination?.total && (
-                    <span className="text-base font-normal text-gray-500 ml-2">
-                      (showing {podcastResults.results?.length || 0})
-                    </span>
-                  )}
+                  Found {podcastResults.results?.length || 0} podcasts
                 </h2>
                 <span className="text-sm text-gray-500">Click a podcast to see episodes</span>
               </div>
-              <div className="grid gap-4 w-full">
+              <div className="grid gap-4">
                 {podcastResults.results?.map((podcast: any, index: number) => (
                   <div 
                     key={index} 
-                    className="group border border-gray-200 rounded-lg sm:rounded-xl p-3 sm:p-4 md:p-6 cursor-pointer hover:border-blue-300 hover:shadow-md transition-all duration-200 overflow-hidden"
+                    className="group border border-gray-200 rounded-xl p-6 cursor-pointer hover:border-blue-300 hover:shadow-md transition-all duration-200"
                     onClick={() => handlePodcastSelect(podcast)}
                   >
-                    <div className="flex items-start gap-3 sm:gap-4 min-w-0">
+                    <div className="flex items-start gap-4">
                       <img 
                         src={podcast.image} 
                         alt={podcast.title_original}
-                        className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg object-cover flex-shrink-0"
+                        className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
                       />
-                      <div className="flex-1 min-w-0 overflow-hidden">
-                        <h3 className="font-semibold text-base sm:text-lg text-gray-900 group-hover:text-blue-600 transition-colors leading-tight line-clamp-2">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-lg text-gray-900 group-hover:text-blue-600 transition-colors">
                           {podcast.title_original}
                         </h3>
-                        <p className="text-gray-600 text-xs sm:text-sm mt-1 sm:mt-2 leading-relaxed line-clamp-2 sm:line-clamp-3 break-words">
+                        <p className="text-gray-600 text-sm mt-2 leading-relaxed">
                           {(() => {
                             const cleanText = podcast.description_original?.replace(/<[^>]*>/g, '') || '';
-                            return cleanText.length > 100 ? `${cleanText.substring(0, 100)}...` : cleanText;
+                            return cleanText.length > 150 ? `${cleanText.substring(0, 150)}...` : cleanText;
                           })()}
                         </p>
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 mt-2 sm:mt-3 text-xs text-gray-500 min-w-0">
-                          <span className="bg-gray-100 px-2 py-1 rounded-full text-center w-fit flex-shrink-0">
+                        <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
+                          <span className="bg-gray-100 px-2 py-1 rounded-full">
                             {podcast.total_episodes} episodes
                           </span>
-                          <span className="truncate min-w-0">Publisher: {podcast.publisher_original}</span>
+                          <span>Publisher: {podcast.publisher_original}</span>
                         </div>
                       </div>
                       <div className="flex-shrink-0">
-                        <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 group-hover:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
                       </div>
@@ -599,88 +396,69 @@ export default function NewSummary() {
                   </div>
                 ))}
               </div>
-              
-              {/* Pagination for Podcasts */}
-              {podcastResults.pagination && podcastResults.pagination.totalPages > 1 && (
-                <div className="mt-8">
-                  <Pagination
-                    currentPage={podcastResults.pagination.currentPage}
-                    totalPages={podcastResults.pagination.totalPages}
-                    onPageChange={handlePageChange}
-                  />
-                </div>
-              )}
             </div>
           )}
-
 
           {/* Episodes from Selected Podcast */}
           {selectedPodcast && episodes && (
             <div className="space-y-6">
               <div className="flex items-center gap-4">
-                <Button 
+                <button 
                   onClick={() => {setSelectedPodcast(null); setEpisodes(null);}}
-                  variant="ghost"
-                  size="sm"
-                  className="text-blue-600 hover:text-blue-800 font-medium"
+                  className="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                   </svg>
                   Back to podcasts
-                </Button>
+                </button>
               </div>
               
-              <div className="bg-gray-50 rounded-lg sm:rounded-xl p-4 sm:p-6 border border-gray-200">
-                <div className="flex items-start gap-3 sm:gap-4">
+              <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
+                <div className="flex items-start gap-4">
                   <img 
                     src={selectedPodcast.image} 
                     alt={selectedPodcast.title_original}
-                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg object-cover flex-shrink-0"
+                    className="w-20 h-20 rounded-lg object-cover flex-shrink-0"
                   />
-                  <div className="flex-1 min-w-0">
-                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 leading-tight">
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">
                       {selectedPodcast.title_original}
                     </h2>
-                    <p className="text-gray-600 text-sm sm:text-base mt-1">
+                    <p className="text-gray-600 mt-1">
                       Choose an episode to generate an AI summary
                     </p>
-                    {episodes.pagination && (
-                      <p className="text-xs sm:text-sm text-gray-500 mt-1 sm:mt-2">
-                        Showing {episodes.episodes?.length || 0} of {episodes.pagination.total} episodes
-                      </p>
-                    )}
                   </div>
                 </div>
               </div>
 
               <div className="space-y-4">
-                {episodes.episodes?.map((episode: any, index: number) => (
-                  <div key={index} className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-4 sm:p-6 hover:shadow-md transition-shadow">
-                    <div className="space-y-3 sm:space-y-4">
+                {episodes?.map((episode: any, index: number) => (
+                  <div key={index} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow">
+                    <div className="space-y-4">
                       {/* Episode Info */}
-                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-6">
+                      <div className="flex items-start justify-between gap-6">
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-base sm:text-lg text-gray-900 leading-tight line-clamp-2">
+                          <h3 className="font-semibold text-lg text-gray-900 leading-tight">
                             {episode.title}
                           </h3>
-                          <p className="text-gray-600 text-xs sm:text-sm mt-2 sm:mt-3 leading-relaxed line-clamp-3 sm:line-clamp-4">
+                          <p className="text-gray-600 text-sm mt-3 leading-relaxed">
                             {(() => {
                               const cleanText = episode.description?.replace(/<[^>]*>/g, '') || '';
-                              return cleanText.length > 150 ? `${cleanText.substring(0, 150)}...` : cleanText;
+                              return cleanText.length > 200 ? `${cleanText.substring(0, 200)}...` : cleanText;
                             })()}
                           </p>
-                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-3 sm:mt-4 text-xs sm:text-sm text-gray-500">
+                          <div className="flex items-center gap-4 mt-4 text-sm text-gray-500">
                             <span className="flex items-center gap-1">
-                              <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
                               {Math.floor(episode.audio_length_sec / 60)} minutes
                             </span>
-                            <span className="truncate">Published: {new Date(episode.pub_date_ms).toLocaleDateString()}</span>
+                            <span>Published: {new Date(episode.pub_date_ms).toLocaleDateString()}</span>
                           </div>
                         </div>
-                        <div className="flex-shrink-0 w-full sm:w-auto">
+                        <div className="flex-shrink-0">
                           {summaryErrors[episode.id] && !summaries[episode.id] && (
                             <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
                               <div className="flex items-start gap-2">
@@ -691,33 +469,40 @@ export default function NewSummary() {
                                   <p className="text-sm text-red-800 mb-2">
                                     {summaryErrors[episode.id]}
                                   </p>
-                                  <Button
+                                  <button
                                     onClick={() => handleGenerateSummary(episode)}
-                                    loading={generatingSummary[episode.id]}
-                                    variant="link"
-                                    size="sm"
-                                    className="text-sm font-medium text-red-700 hover:text-red-900 underline h-auto p-0"
+                                    disabled={generatingSummary[episode.id]}
+                                    className="text-sm font-medium text-red-700 hover:text-red-900 underline disabled:opacity-50"
                                   >
                                     Try Again
-                                  </Button>
+                                  </button>
                                 </div>
                               </div>
                             </div>
                           )}
                           
-                          <Button
+                          <button 
                             onClick={() => handleGenerateSummary(episode)}
-                            loading={generatingSummary[episode.id]}
-                            disabled={!userQuota?.summaries?.canGenerate}
-                            variant={
-                              summaryErrors[episode.id] && !summaries[episode.id] ? "destructive" : 
-                              !userQuota?.summaries?.canGenerate ? "secondary" :
-                              summaries[episode.id] ? "secondary" : "hero"
-                            }
-                            className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base"
-                            title={!userQuota?.summaries?.canGenerate ? "Quota exceeded. Upgrade or wait for reset." : ""}
+                            disabled={generatingSummary[episode.id] || !userQuota?.summaries.canGenerate}
+                            className={`px-4 sm:px-6 py-2 sm:py-3 font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base ${
+                              !userQuota?.summaries.canGenerate 
+                                ? 'bg-gray-400 text-white cursor-not-allowed'
+                                : summaryErrors[episode.id] && !summaries[episode.id]
+                                  ? 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500'
+                                  : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 focus:ring-blue-500'
+                            }`}
+                            title={!userQuota?.summaries.canGenerate ? "Quota exceeded. Upgrade or wait for reset." : ""}
                           >
-                            {summaries[episode.id] ? (
+                            {generatingSummary[episode.id] ? (
+                              <span className="flex items-center gap-2">
+                                <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                  <path className="opacity-75" fill="currentColor" d="m12 2 1 9-1 9a10 10 0 0 1 0-18Z"></path>
+                                </svg>
+                                <span className="hidden sm:inline">Generating...</span>
+                                <span className="sm:hidden">...</span>
+                              </span>
+                            ) : summaries[episode.id] ? (
                               <span className="flex items-center gap-2">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -733,7 +518,7 @@ export default function NewSummary() {
                                 <span className="hidden sm:inline">Retry</span>
                                 <span className="sm:hidden">Retry</span>
                               </span>
-                            ) : !userQuota?.summaries?.canGenerate ? (
+                            ) : !userQuota?.summaries.canGenerate ? (
                               <span className="hidden sm:inline">Quota Exceeded</span>
                             ) : (
                               <span>
@@ -741,7 +526,7 @@ export default function NewSummary() {
                                 <span className="sm:hidden">Generate</span>
                               </span>
                             )}
-                          </Button>
+                          </button>
                         </div>
                       </div>
 
@@ -776,11 +561,8 @@ export default function NewSummary() {
                                 </span>
                               )}
                             </h4>
-                            <Button
+                            <button
                               onClick={() => handleCopy(episode.id, summaries[episode.id].summary, 'header')}
-                              loading={copyingStates[episode.id]?.header}
-                              variant="ghost"
-                              size="sm"
                               className={`p-2 rounded-lg transition-colors touch-manipulation ${
                                 copiedStates[episode.id]?.header 
                                   ? 'text-green-600 bg-green-100' 
@@ -797,7 +579,7 @@ export default function NewSummary() {
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                 </svg>
                               )}
-                            </Button>
+                            </button>
                           </div>
                           
                           <div className="space-y-6">
@@ -836,11 +618,8 @@ export default function NewSummary() {
 
                             {/* Action Buttons */}
                             <div className="flex flex-wrap gap-2">
-                              <Button
+                              <button
                                 onClick={() => handleCopy(episode.id, summaries[episode.id].summary, 'summary')}
-                                loading={copyingStates[episode.id]?.summary}
-                                variant="secondary"
-                                size="sm"
                                 className={`inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md transition-colors touch-manipulation ${
                                   copiedStates[episode.id]?.summary
                                     ? 'text-green-700 bg-green-100 hover:bg-green-200'
@@ -854,16 +633,13 @@ export default function NewSummary() {
                                 ) : (
                                   <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                    </svg>
+                                  </svg>
                                 )}
                                 {copiedStates[episode.id]?.summary ? 'Copied!' : 'Copy Summary'}
-                              </Button>
+                              </button>
                               {summaries[episode.id].takeaways && (
-                                <Button
+                                <button
                                   onClick={() => handleCopy(episode.id, summaries[episode.id].takeaways.join('\n• '), 'takeaways')}
-                                  loading={copyingStates[episode.id]?.takeaways}
-                                  variant="secondary"
-                                  size="sm"
                                   className={`inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md transition-colors touch-manipulation ${
                                     copiedStates[episode.id]?.takeaways
                                       ? 'text-green-700 bg-green-200 hover:bg-green-300'
@@ -880,35 +656,42 @@ export default function NewSummary() {
                                     </svg>
                                   )}
                                   {copiedStates[episode.id]?.takeaways ? 'Copied!' : 'Copy Takeaways'}
-                                </Button>
+                                </button>
                               )}
                               
                               {/* Export to Notion Button */}
                               {notionConnection?.connected ? (
-                                <Button
+                                <button
                                   onClick={() => handleExportToNotion(episode.id)}
-                                  loading={exportingStates[episode.id]}
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-purple-700 bg-purple-50 hover:bg-purple-100 border-purple-200 text-xs"
+                                  disabled={exportingStates[episode.id]}
+                                  className={`inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md transition-colors touch-manipulation ${
+                                    exportingStates[episode.id]
+                                      ? 'text-purple-500 bg-purple-50 cursor-not-allowed'
+                                      : 'text-purple-700 bg-purple-100 hover:bg-purple-200'
+                                  }`}
                                 >
-                                  <svg className="w-3 h-3 mr-1" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M4.459 4.208c.746.606 1.026.56 2.428.467l13.212-.535c.467 0 .7.233.7.7 0 .233-.066.467-.233.7L18.26 7.31c-.167.3-.367.234-.6.234l-13.056.467c-.266 0-.467-.167-.467-.434 0-.2.067-.4.234-.567l.088-.8zm.7 2.8l13.212-.534c.4 0 .534.234.534.6 0 .167-.067.4-.2.534l-3.267 3.266c-.167.167-.434.234-.7.234H4.592c-.367 0-.6-.234-.6-.6 0-.167.066-.334.2-.467l.967-2.6c.133-.4.266-.433.6-.433zm-.233 3.533l13.212-.533c.4 0 .667.2.667.533 0 .134-.067.334-.2.467l-3.267 3.267c-.166.166-.433.233-.7.233H4.926c-.367 0-.6-.233-.6-.6 0-.166.067-.333.2-.466l.967-2.6c.133-.334.266-.467.6-.467z"/>
-                                  </svg>
-                                  Export to Notion
-                                </Button>
+                                  {exportingStates[episode.id] ? (
+                                    <svg className="animate-spin w-3 h-3 mr-1" fill="none" viewBox="0 0 24 24">
+                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                      <path className="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                  ) : (
+                                    <svg className="w-3 h-3 mr-1" viewBox="0 0 24 24" fill="currentColor">
+                                      <path d="M4.459 4.208c.746.606 1.026.56 2.428.467l13.212-.535c.467 0 .7.233.7.7 0 .233-.066.467-.233.7L18.26 7.31c-.167.3-.367.234-.6.234l-13.056.467c-.266 0-.467-.167-.467-.434 0-.2.067-.4.234-.567l.088-.8zm.7 2.8l13.212-.534c.4 0 .534.234.534.6 0 .167-.067.4-.2.534l-3.267 3.266c-.167.167-.434.234-.7.234H4.592c-.367 0-.6-.234-.6-.6 0-.167.066-.334.2-.467l.967-2.6c.133-.4.266-.433.6-.433zm-.233 3.533l13.212-.533c.4 0 .667.2.667.533 0 .134-.067.334-.2.467l-3.267 3.267c-.166.166-.433.233-.7.233H4.926c-.367 0-.6-.233-.6-.6 0-.166.067-.333.2-.466l.967-2.6c.133-.334.266-.467.6-.467z"/>
+                                    </svg>
+                                  )}
+                                  {exportingStates[episode.id] ? 'Exporting...' : 'Export to Notion'}
+                                </button>
                               ) : (
-                                <Button
+                                <button
                                   onClick={() => toast.info("Connect your Notion account in Settings to export summaries")}
-                                  variant="secondary"
-                                  size="sm"
-                                  className="text-xs"
+                                  className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors touch-manipulation"
                                 >
                                   <svg className="w-3 h-3 mr-1" viewBox="0 0 24 24" fill="currentColor">
                                     <path d="M4.459 4.208c.746.606 1.026.56 2.428.467l13.212-.535c.467 0 .7.233.7.7 0 .233-.066.467-.233.7L18.26 7.31c-.167.3-.367.234-.6.234l-13.056.467c-.266 0-.467-.167-.467-.434 0-.2.067-.4.234-.567l.088-.8zm.7 2.8l13.212-.534c.4 0 .534.234.534.6 0 .167-.067.4-.2.534l-3.267 3.266c-.167.167-.434.234-.7.234H4.592c-.367 0-.6-.234-.6-.6 0-.167.066-.334.2-.467l.967-2.6c.133-.4.266-.433.6-.433zm-.233 3.533l13.212-.533c.4 0 .667.2.667.533 0 .134-.067.334-.2.467l-3.267 3.267c-.166.166-.433.233-.7.233H4.926c-.367 0-.6-.233-.6-.6 0-.166.067-.333.2-.466l.967-2.6c.133-.334.266-.467.6-.467z"/>
                                   </svg>
                                   Connect Notion
-                                </Button>
+                                </button>
                               )}
                             </div>
 
@@ -944,29 +727,25 @@ export default function NewSummary() {
                                         </div>
                                       )}
                                       <div className="mt-3 flex gap-2">
-                                        <Button 
+                                        <button 
                                           onClick={() => handleShowTranscript(episode.id)}
-                                          variant="secondary"
-                                          size="sm"
                                           className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 transition-colors touch-manipulation"
                                         >
                                           <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L8.05 8.05M9.878 9.878A3 3 0 1059.121 14.121m4.243-4.243L15.95 15.95M14.121 14.121A3 3 0 109.878 9.878" />
                                           </svg>
                                           Hide Transcript
-                                        </Button>
+                                        </button>
                                         {transcripts[episode.id]?.text && !transcripts[episode.id]?.loading && (
-                                          <Button 
+                                          <button 
                                             onClick={() => handleCopy(episode.id, transcripts[episode.id].text, 'transcript' as any)}
-                                            variant="secondary"
-                                            size="sm"
                                             className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-purple-700 bg-purple-100 hover:bg-purple-200 transition-colors touch-manipulation"
                                           >
                                             <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                             </svg>
                                             Copy Transcript
-                                          </Button>
+                                          </button>
                                         )}
                                       </div>
                                     </>
@@ -975,11 +754,8 @@ export default function NewSummary() {
                                       <p className="italic text-gray-500 text-center py-8">
                                         Click "Show Transcript" to view the full episode transcript
                                       </p>
-                                      <Button 
+                                      <button 
                                         onClick={() => handleShowTranscript(episode.id)}
-                                        loading={transcripts[episode.id]?.loading}
-                                        variant="secondary"
-                                        size="sm"
                                         className="mt-3 inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200 transition-colors touch-manipulation"
                                       >
                                         <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -987,7 +763,7 @@ export default function NewSummary() {
                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                         </svg>
                                         Show Transcript
-                                      </Button>
+                                      </button>
                                     </>
                                   )}
                                 </div>
@@ -1000,19 +776,6 @@ export default function NewSummary() {
                   </div>
                 ))}
               </div>
-              
-              {/* Load More Episodes Button */}
-              {episodes.pagination && episodes.pagination.hasNext && (
-                <div className="flex justify-center mt-8">
-                  <Button
-                    onClick={() => handleLoadMoreEpisodes(episodes.pagination.nextEpisodePubDate)}
-                    loading={isLoading}
-                    className="px-6 py-3"
-                  >
-                    Load More Episodes
-                  </Button>
-                </div>
-              )}
             </div>
           )}
         </div>
