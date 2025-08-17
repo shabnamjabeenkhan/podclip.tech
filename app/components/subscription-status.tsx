@@ -241,7 +241,7 @@ export default function SubscriptionStatus() {
             <p className="text-sm text-blue-800 font-medium mb-1">Free Plan Includes:</p>
             <ul className="text-sm text-blue-700 space-y-1">
               <li>• {userQuota?.plan === 'free' ? 5 : (userQuota?.summaries?.limit || 5)} AI-generated summaries per month</li>
-              <li>• {userQuota?.plan === 'free' ? 50 : (userQuota?.searches?.limit || 50)} podcast searches per month</li>
+              <li>• {userQuota?.plan === 'free' ? 10 : (userQuota?.searches?.limit || 10)} podcast searches per month</li>
               <li>• Key takeaways extraction</li>
               <li>• Basic export features</li>
             </ul>
