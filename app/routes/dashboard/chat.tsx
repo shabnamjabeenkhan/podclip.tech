@@ -10,7 +10,6 @@ import Markdown from "react-markdown";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import { Badge } from "~/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "~/components/ui/select";
 import { cn } from "~/lib/utils";
 import { isFeatureEnabled, config } from "../../../config";
@@ -137,8 +136,9 @@ export default function Chat() {
 
   return (
     <div className="flex flex-col w-full min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30 relative overflow-x-hidden">
-      <div className="flex flex-col w-full py-8 justify-center items-center pb-24">
-        <div className="w-full max-w-4xl space-y-6 lg:space-y-8 px-3 sm:px-4 lg:px-6">
+      <div className="flex flex-col w-full py-4 md:py-8">
+        <div className="w-full max-w-2xl md:max-w-3xl lg:max-w-4xl space-y-4 lg:space-y-6 px-4 sm:px-6 lg:px-8 mx-auto">
+
         {/* Episode Selection Dropdown */}
         <Card className="border-2 border-blue-100 bg-gradient-to-br from-blue-50/50 to-indigo-50/50">
           <CardHeader className="pb-3 lg:pb-4">
@@ -176,12 +176,12 @@ export default function Chat() {
                 <SelectContent className="max-h-72 border-2 border-gray-200 w-full max-w-[calc(100vw-2rem)] sm:max-w-none p-1">
                   {userSummaries.map((summary) => (
                     <SelectItem key={summary._id} value={summary._id} className="py-3 h-auto min-h-[3rem] hover:bg-blue-50 focus:bg-blue-50 whitespace-normal">
-                      <div className="flex flex-col items-start w-full min-w-0 space-y-1">
-                        <div className="font-semibold text-sm text-gray-900 w-full leading-relaxed group-hover:text-gray-900 break-words line-clamp-2 sm:truncate sm:line-clamp-1">
+                      <div className="flex flex-col items-start w-full space-y-1 pb-4">
+                        <div className="font-semibold text-sm text-gray-900 w-full leading-relaxed whitespace-normal">
                           {summary.episode_title || `Episode Summary`}
                         </div>
                         {summary.podcast_title && (
-                          <div className="text-xs text-blue-600 w-full leading-relaxed group-hover:text-blue-700 break-words line-clamp-2 sm:truncate sm:line-clamp-1">
+                          <div className="text-xs text-blue-600 w-full leading-relaxed whitespace-normal">
                             📻 {summary.podcast_title}
                           </div>
                         )}
@@ -217,55 +217,17 @@ export default function Chat() {
             )}
           </CardContent>
         </Card>
-        
-        {/* Episode Context Card */}
-        {summary && (
-          <Card className="border-l-4 border-l-blue-500 bg-gradient-to-r from-blue-50/50 to-indigo-50/30 shadow-sm">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg font-semibold text-gray-800 flex items-center gap-3">
-                <div className="flex items-center justify-center w-8 h-8 bg-blue-100 rounded-full">
-                  💬
-                </div>
-                Currently Chatting About
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="bg-white rounded-lg p-4 border border-blue-200">
-                <h4 className="font-semibold text-xs text-blue-700 mb-2 uppercase tracking-wide">
-                  📺 Episode
-                </h4>
-                <p className="font-semibold text-gray-900 text-base leading-relaxed">{summary.episode_title || "Episode Chat"}</p>
-              </div>
-              {summary.podcast_title && (
-                <div className="bg-white rounded-lg p-4 border border-blue-200">
-                  <h4 className="font-semibold text-xs text-blue-700 mb-2 uppercase tracking-wide">
-                    📻 Podcast
-                  </h4>
-                  <p className="text-gray-700 text-sm">{summary.podcast_title}</p>
-                </div>
-              )}
-              <div className="flex flex-wrap gap-2 pt-2">
-                <Badge variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200">
-                  ✨ {summary?.takeaways?.length || 0} key takeaways
-                </Badge>
-                <Badge variant="outline" className="border-blue-300 text-blue-700">
-                  🤖 AI context enabled
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Chat Messages */}
         {selectedSummaryId && (
-          <div className="w-full max-w-3xl mx-auto space-y-6 mb-32">
+          <div className="w-full max-w-2xl md:max-w-3xl mx-auto space-y-4 md:space-y-6">
             {messages.length === 0 && (
-              <div className="text-center py-12">
-                <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="text-center py-8 md:py-12">
+                <div className="w-16 h-16 md:w-20 md:h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4">
                   💬
                 </div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">Start Your Conversation</h3>
-                <p className="text-gray-600 max-w-md mx-auto">
+                <h3 className="text-base md:text-lg font-semibold text-gray-800 mb-2">Start Your Conversation</h3>
+                <p className="text-sm md:text-base text-gray-600 max-w-sm md:max-w-md mx-auto px-4">
                   Ask me anything about this episode! I have access to the full summary and key takeaways.
                 </p>
               </div>
@@ -334,39 +296,32 @@ export default function Chat() {
           </div>
         )}
 
-        {/* Chat Input - Only visible when episode is selected */}
+        {/* Chat Input */}
         {selectedSummaryId && (
-          <div className="w-full max-w-4xl mx-auto mt-6 lg:mt-8 px-3 sm:px-4 lg:px-6">
-            <div className="bg-white rounded-xl border-2 border-gray-200 shadow-sm p-3 lg:p-4">
-              <form onSubmit={handleSubmit} className="w-full">
-                <div className="flex flex-col md:flex-row gap-2 lg:gap-3 items-stretch md:items-end">
-                  <Input
-                    className="flex-1 border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-sm lg:text-base placeholder:text-gray-500 bg-white rounded-lg h-10 md:h-12 lg:h-14 px-3 lg:px-4 min-w-0 transition-all duration-200"
-                    value={input}
-                    placeholder={
-                      summary && summary.episode_title
-                        ? `💭 Ask about "${summary.episode_title.substring(0, isMobile ? 15 : 35)}${summary.episode_title.length > (isMobile ? 15 : 35) ? '...' : ''}"` 
-                        : "💭 Ask about this episode..."
-                    }
-                    onChange={handleInputChange}
-                    disabled={chatIsLoading}
-                  />
-                  <Button 
-                    type="submit" 
-                    loading={chatIsLoading} 
-                    disabled={!input.trim()}
-                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 md:px-6 lg:px-8 py-2 md:py-3 lg:py-4 h-10 md:h-12 lg:h-14 text-sm lg:text-base font-medium shadow-sm transition-all duration-200 hover:shadow-md whitespace-nowrap"
-                  >
-                    {chatIsLoading ? "Sending..." : "Send ✨"}
-                  </Button>
-                </div>
-                {summary && (
-                  <p className="text-xs text-gray-500 mt-2 lg:mt-3 text-center">
-                    AI has access to the full summary and takeaways for context
-                  </p>
-                )}
-              </form>
-            </div>
+          <div className="w-full max-w-2xl md:max-w-3xl mx-auto mt-4 md:mt-6">
+            <form onSubmit={handleSubmit} className="w-full">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-stretch sm:items-end">
+                <Input
+                  className="flex-1 border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-sm sm:text-base placeholder:text-gray-500 bg-white rounded-lg h-10 sm:h-12 px-3 sm:px-4 transition-all duration-200 min-w-0"
+                  value={input}
+                  placeholder={
+                    summary && summary.episode_title
+                      ? `Ask about "${summary.episode_title.substring(0, window.innerWidth < 640 ? 15 : window.innerWidth < 768 ? 20 : 30)}${summary.episode_title.length > (window.innerWidth < 640 ? 15 : window.innerWidth < 768 ? 20 : 30) ? '...' : ''}"` 
+                      : "Ask about this episode..."
+                  }
+                  onChange={handleInputChange}
+                  disabled={chatIsLoading}
+                />
+                <Button 
+                  type="submit" 
+                  loading={chatIsLoading} 
+                  disabled={!input.trim()}
+                  className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 sm:px-6 py-2 sm:py-3 h-10 sm:h-12 text-sm sm:text-base font-medium shadow-sm transition-all duration-200 hover:shadow-md whitespace-nowrap"
+                >
+                  {chatIsLoading ? "Sending..." : "Send"}
+                </Button>
+              </div>
+            </form>
           </div>
         )}
 
