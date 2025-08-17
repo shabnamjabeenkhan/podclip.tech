@@ -13,10 +13,10 @@ import { api } from "../../convex/_generated/api";
 import type { Route } from "./+types/home";
 
 export function meta({}: Route.MetaArgs) {
-  const title = "PodClip - AI-Powered Podcast Summaries & Transcriptions";
+  const title = "PodClip - AI-Powered Podcast Summaries";
   const description =
-    "Transform your podcast listening experience with AI-generated summaries, key takeaways, and full transcriptions. Save time and never miss important insights from your favorite shows.";
-  const keywords = "podcast summaries, AI transcription, podcast player, key takeaways, audio summaries, podcast insights";
+    "Transform your podcast listening experience with AI-generated summaries and key takeaways. Save time and never miss important insights from your favorite shows.";
+  const keywords = "podcast summaries, AI summaries, podcast player, key takeaways, audio summaries, podcast insights";
   const siteUrl = "https://podclip.tech";
   const imageUrl = "/podclip.png"; // Update with your podcast app logo
 

@@ -42,7 +42,7 @@ export function meta(): Route.MetaDescriptors {
   return [
     { title },
     { name: "description", content: description },
-    { name: "keywords", content: "podcast, summaries, AI, transcription, key takeaways, podcast player, audio summaries" },
+    { name: "keywords", content: "podcast, summaries, AI, key takeaways, podcast player, audio summaries" },
     
     // Open Graph / Facebook
     { property: "og:type", content: "website" },

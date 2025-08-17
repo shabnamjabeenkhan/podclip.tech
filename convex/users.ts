@@ -236,30 +236,52 @@ export const verifyActiveSubscription = query({
 
     const now = Date.now();
 
-    // Check for active monthly subscription
+    // Check for active monthly subscription (including cancelled with grace period)
     if (user.plan === "monthly" || user.plan === "basic" || user.plan === "pro" || user.plan === "premium") {
-      const subscription = await ctx.db
+      // First check for active subscriptions
+      const activeSubscription = await ctx.db
         .query("subscriptions")
         .withIndex("userId", (q) => q.eq("userId", tokenIdentifier))
         .filter((q) => q.eq(q.field("status"), "active"))
         .filter((q) => q.gt(q.field("currentPeriodEnd"), now)) // Must have valid current period
         .first();
 
-      if (subscription) {
+      if (activeSubscription) {
         return { 
           hasActiveSubscription: true, 
           plan: user.plan,
-          subscriptionId: subscription.polarId,
-          currentPeriodEnd: subscription.currentPeriodEnd,
+          subscriptionId: activeSubscription.polarId,
+          currentPeriodEnd: activeSubscription.currentPeriodEnd,
           reason: "Active monthly subscription"
         };
-      } else {
+      }
+
+      // Check for cancelled subscriptions still in grace period
+      const cancelledSubscription = await ctx.db
+        .query("subscriptions")
+        .withIndex("userId", (q) => q.eq("userId", tokenIdentifier))
+        .filter((q) => q.eq(q.field("status"), "cancelled"))
+        .filter((q) => q.eq(q.field("cancelAtPeriodEnd"), true))
+        .filter((q) => q.gt(q.field("currentPeriodEnd"), now)) // Grace period not expired
+        .first();
+
+      if (cancelledSubscription) {
         return { 
-          hasActiveSubscription: false, 
+          hasActiveSubscription: true, 
           plan: user.plan,
-          reason: "No active subscription found or subscription expired" 
+          subscriptionId: cancelledSubscription.polarId,
+          currentPeriodEnd: cancelledSubscription.currentPeriodEnd,
+          reason: "Cancelled subscription in grace period",
+          isCancelled: true,
+          accessEndsAt: cancelledSubscription.currentPeriodEnd
         };
       }
+
+      return { 
+        hasActiveSubscription: false, 
+        plan: user.plan,
+        reason: "No active subscription found or subscription expired" 
+      };
     }
 
     // Check for confirmed lifetime payment

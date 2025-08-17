@@ -630,7 +630,7 @@ export const handleWebhookEvent = mutation({
 
         if (canceledSub) {
           await ctx.db.patch(canceledSub._id, {
-            status: args.body.data.status,
+            status: "cancelled", // Mark as cancelled but keep access
             canceledAt: args.body.data.canceled_at
               ? new Date(args.body.data.canceled_at).getTime()
               : undefined,
@@ -638,14 +638,12 @@ export const handleWebhookEvent = mutation({
               args.body.data.customer_cancellation_reason || undefined,
             customerCancellationComment:
               args.body.data.customer_cancellation_comment || undefined,
+            cancelAtPeriodEnd: true, // Mark for end-of-period cancellation
           });
           
-          // Downgrade user to free plan when subscription is canceled
-          await ctx.runMutation(api.users.updateUserPlan, {
-            tokenIdentifier: args.body.data.metadata.userId,
-            plan: "free",
-          });
-          console.log("✅ User plan downgraded to free due to cancellation");
+          // DO NOT immediately downgrade user - they keep access until period ends
+          // The downgrade will happen when their currentPeriodEnd date passes
+          console.log("✅ Subscription marked for cancellation at period end - user retains access");
         }
         break;
 
@@ -1134,6 +1132,77 @@ export const debugUserPaymentStatus = query({
       subscriptions,
       payments,
     };
+  },
+});
+
+// Scheduled job to check for expired cancelled subscriptions and downgrade users
+// Query to find expired cancelled subscriptions
+export const getExpiredCancelledSubscriptions = query({
+  args: { currentTime: v.number() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("subscriptions")
+      .filter((q) => 
+        q.and(
+          q.eq(q.field("status"), "cancelled"),
+          q.eq(q.field("cancelAtPeriodEnd"), true),
+          q.lt(q.field("currentPeriodEnd"), args.currentTime) // Period has ended
+        )
+      )
+      .collect();
+  },
+});
+
+// Mutation to update subscription status
+export const updateSubscriptionStatus = mutation({
+  args: { 
+    subscriptionId: v.id("subscriptions"),
+    status: v.string(),
+    endedAt: v.optional(v.number())
+  },
+  handler: async (ctx, args) => {
+    const updateData: any = { status: args.status };
+    if (args.endedAt) {
+      updateData.endedAt = args.endedAt;
+    }
+    
+    await ctx.db.patch(args.subscriptionId, updateData);
+  },
+});
+
+// Scheduled job to check for expired cancelled subscriptions and downgrade users
+export const processExpiredSubscriptions = action({
+  args: {},
+  handler: async (ctx) => {
+    const now = Date.now();
+    
+    // Find all cancelled subscriptions that have passed their period end date
+    const expiredSubscriptions = await ctx.runQuery(api.subscriptions.getExpiredCancelledSubscriptions, { currentTime: now });
+    
+    console.log(`🔍 Found ${expiredSubscriptions.length} expired cancelled subscriptions to process`);
+    
+    for (const subscription of expiredSubscriptions) {
+      try {
+        // Downgrade user to free plan
+        await ctx.runMutation(api.users.updateUserPlan, {
+          tokenIdentifier: subscription.userId,
+          plan: "free",
+        });
+        
+        // Update subscription status to 'ended'
+        await ctx.runMutation(api.subscriptions.updateSubscriptionStatus, {
+          subscriptionId: subscription._id,
+          status: "ended",
+          endedAt: now,
+        });
+        
+        console.log(`✅ User ${subscription.userId} downgraded to free after subscription period ended`);
+      } catch (error) {
+        console.error(`❌ Failed to process expired subscription for user ${subscription.userId}:`, error);
+      }
+    }
+    
+    return { processedCount: expiredSubscriptions.length };
   },
 });
 

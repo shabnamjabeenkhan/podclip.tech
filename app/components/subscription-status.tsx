@@ -272,7 +272,8 @@ export default function SubscriptionStatus() {
       case "active":
         return "bg-green-100 text-green-800 border-green-200";
       case "canceled":
-        return "bg-red-100 text-red-800 border-red-200";
+      case "cancelled":
+        return "bg-amber-100 text-amber-800 border-amber-200"; // Changed to amber for grace period
       case "past_due":
         return "bg-yellow-100 text-yellow-800 border-yellow-200";
       default:
@@ -335,11 +336,31 @@ export default function SubscriptionStatus() {
           </div>
         </div>
         {subscription.cancelAtPeriodEnd && (
-          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-            <p className="text-sm text-yellow-800">
-              Your subscription will be canceled at the end of the current
-              billing period.
-            </p>
+          <div className="p-4 bg-amber-50 border border-amber-300 rounded-lg">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-6 h-6 bg-amber-200 rounded-full flex items-center justify-center">
+                <span className="text-amber-700 text-sm">⚠️</span>
+              </div>
+              <div className="flex-1">
+                <h4 className="font-semibold text-amber-800 mb-1">Subscription Cancelled</h4>
+                <p className="text-sm text-amber-700 mb-2">
+                  You still have full access to all premium features until your current billing period ends.
+                </p>
+                <p className="text-sm font-medium text-amber-800">
+                  Access ends: {subscription.currentPeriodEnd 
+                    ? new Date(subscription.currentPeriodEnd).toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        year: 'numeric', 
+                        month: 'long',
+                        day: 'numeric'
+                      })
+                    : "Date not available"}
+                </p>
+                <p className="text-xs text-amber-600 mt-2">
+                  After this date, you'll be automatically moved to the free plan with limited features.
+                </p>
+              </div>
+            </div>
           </div>
         )}
         <div className="flex gap-2">

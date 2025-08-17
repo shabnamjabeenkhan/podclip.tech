@@ -15,7 +15,7 @@ export default function DemoSection() {
         
         <CursorfulVideo
           title="PodClip Platform Demo"
-          description="Complete walkthrough of AI-powered podcast summaries and transcriptions"
+          description="Complete walkthrough of AI-powered podcast summaries and key takeaways"
           controls={true}
         />
       </div>

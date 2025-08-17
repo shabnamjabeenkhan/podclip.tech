@@ -174,7 +174,7 @@ export default function Chat() {
                   </div>
                 </SelectTrigger>
                 <SelectContent className="max-h-72 border-2 border-gray-200 w-full max-w-[calc(100vw-2rem)] sm:max-w-none p-1">
-                  {userSummaries.map((summary) => (
+                  {userSummaries.map((summary: any) => (
                     <SelectItem key={summary._id} value={summary._id} className="py-3 h-auto min-h-[3rem] hover:bg-blue-50 focus:bg-blue-50 whitespace-normal">
                       <div className="flex flex-col items-start w-full space-y-1 pb-4">
                         <div className="font-semibold text-sm text-gray-900 w-full leading-relaxed whitespace-normal">

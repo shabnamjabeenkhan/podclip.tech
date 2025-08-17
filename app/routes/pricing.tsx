@@ -10,7 +10,7 @@ import type { Route } from "./+types/pricing";
 export function meta({}: Route.MetaArgs) {
   return [
     { title: "Pricing Plans | PodClip" },
-    { name: "description", content: "Choose the perfect plan for your podcast listening needs. Get unlimited AI-generated summaries and transcriptions." },
+    { name: "description", content: "Choose the perfect plan for your podcast listening needs. Get unlimited AI-generated summaries and key takeaways." },
     { name: "keywords", content: "podcast pricing, subscription plans, unlimited summaries, premium features" },
   ];
 }
