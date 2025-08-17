@@ -346,6 +346,12 @@ export default function NewSummary() {
       return;
     }
 
+    // Ensure we have a valid user ID before proceeding
+    if (!userQuota?.userId) {
+      setSummaryErrors(prev => ({ ...prev, [episodeId]: 'User not loaded. Please wait and try again.' }));
+      return;
+    }
+
     // Clear any previous errors
     setSummaryErrors(prev => ({ ...prev, [episodeId]: '' }));
     setGeneratingSummary(prev => ({ ...prev, [episodeId]: true }));
@@ -354,7 +360,7 @@ export default function NewSummary() {
       // Check if summary already exists in database
       const existingSummary = await checkExistingSummary({
         episodeId: episodeId,
-        userId: userQuota?.userId || "temp-user-id",
+        userId: userQuota.userId,
       });
       
       if (existingSummary) {
@@ -378,13 +384,13 @@ export default function NewSummary() {
         episodeId: episodeId,
         episodeTitle: episode.title,
         episodeDescription: episode.description,
-        userId: userQuota?.userId || "temp-user-id", // Get actual user ID from quota query
+        userId: userQuota.userId,
       });
       
       // Save summary to database
       await createSummary({
         episodeId: episodeId,
-        userId: userQuota?.userId || "temp-user-id",
+        userId: userQuota.userId,
         summary: summary.summary,
         takeaways: summary.takeaways,
         episodeTitle: episode.title,
@@ -708,14 +714,17 @@ export default function NewSummary() {
                           <Button
                             onClick={() => handleGenerateSummary(episode)}
                             loading={generatingSummary[episode.id]}
-                            disabled={!userQuota?.summaries?.canGenerate}
+                            disabled={!userQuota?.summaries?.canGenerate || !userQuota?.userId}
                             variant={
                               summaryErrors[episode.id] && !summaries[episode.id] ? "destructive" : 
                               !userQuota?.summaries?.canGenerate ? "secondary" :
                               summaries[episode.id] ? "secondary" : "hero"
                             }
                             className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 text-sm sm:text-base"
-                            title={!userQuota?.summaries?.canGenerate ? "Quota exceeded. Upgrade or wait for reset." : ""}
+                            title={
+                              !userQuota?.userId ? "Loading user data..." :
+                              !userQuota?.summaries?.canGenerate ? "Quota exceeded. Upgrade or wait for reset." : ""
+                            }
                           >
                             {summaries[episode.id] ? (
                               <span className="flex items-center gap-2">

@@ -401,6 +401,24 @@ export default function IntegratedPricing() {
           </div>
         </div>
         
+        <div className="bg-gray-50 border rounded-lg p-6 mb-6 text-left">
+          <h3 className="font-semibold text-lg mb-4 text-center">Terms & Conditions</h3>
+          <div className="text-sm text-gray-600 space-y-3 max-w-3xl mx-auto">
+            <p>
+              <strong>Pricing Policy:</strong> Plan prices are subject to change at any time. We reserve the right to modify, increase, or decrease pricing for any subscription plan with 30 days' notice to existing subscribers.
+            </p>
+            <p>
+              <strong>Price Increases:</strong> Subscription prices may increase due to enhanced features, improved service quality, operational costs, or market conditions. Current subscribers will be notified via email before any price changes take effect.
+            </p>
+            <p>
+              <strong>Billing:</strong> All subscriptions are billed monthly in advance. Price changes will apply to your next billing cycle after the notice period. You may cancel your subscription at any time before the price increase takes effect.
+            </p>
+            <p>
+              <strong>Fair Use:</strong> All plans include specified quotas. Excessive usage beyond normal parameters may result in account limitations or additional charges.
+            </p>
+          </div>
+        </div>
+        
         <p className="text-muted-foreground">
           Need a custom plan?{" "}
           <span className="text-primary cursor-pointer hover:underline">

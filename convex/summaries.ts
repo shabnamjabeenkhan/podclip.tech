@@ -52,21 +52,34 @@ export const generateSummary = action({
         : transcript;
       
       prompt = `
-Please analyze this podcast episode transcript and provide:
-
-1. A detailed summary (200-300 words)
-2. 7 key takeaways as bullet points
+You are an expert podcast analyst creating premium content for discerning listeners. Your task is to write a comprehensive 400-word summary that captures the episode's most valuable insights.
 
 Episode Title: ${args.episodeTitle}
 
 Episode Transcript:
 ${truncatedTranscript}
 
-Focus on the main topics discussed, key insights shared, and actionable advice given.
+CRITICAL REQUIREMENT: Your summary must be EXACTLY 400 words. This is not negotiable - count carefully.
+
+Your 400-word summary should be structured as follows:
+
+PARAGRAPH 1 (100 words): Hook readers with the most surprising or counterintuitive insight from the episode. What made you go "wow" or challenged conventional thinking? Include specific quotes or examples.
+
+PARAGRAPH 2 (100 words): Dive into the rich context - why does this topic matter now? What's the background story that explains the significance? Include any controversial takes or industry implications.
+
+PARAGRAPH 3 (100 words): Focus on memorable moments - specific case studies, personal anecdotes, or examples shared. What stories will stick with listeners? Include any expert opinions that challenge the status quo.
+
+PARAGRAPH 4 (100 words): Practical implications and actionable takeaways. How can listeners apply these insights? What are the broader implications for the field/industry? End with why this episode is unmissable.
+
+Write conversationally, as if telling a knowledgeable friend the most fascinating parts they shouldn't miss. Be specific, use details, and make every word count.
+
+REMEMBER: Your summary must be exactly 400 words - no more, no less.
+
+Then provide 7 key takeaways as bullet points.
 
 Format your response as:
 SUMMARY:
-[Your 200-300 word summary here]
+[Your EXACTLY 400-word comprehensive summary here]
 
 KEY TAKEAWAYS:
 • [Takeaway 1]
@@ -80,19 +93,32 @@ KEY TAKEAWAYS:
     } else {
       // Fallback to description-based summary
       prompt = `
-Please analyze this podcast episode and provide:
-
-1. A detailed summary (200-300 words)
-2. 7 key takeaways as bullet points
+You are an expert podcast analyst creating premium content for discerning listeners. Based on the episode description, write a comprehensive 350-word summary that makes this episode irresistible.
 
 Episode Title: ${args.episodeTitle}
 Episode Description: ${args.episodeDescription}
 
-Note: This summary is based on the episode description as transcript is not available.
+CRITICAL REQUIREMENT: Your summary must be EXACTLY 350 words. Count carefully.
+
+Structure your 350-word summary as follows:
+
+PARAGRAPH 1 (90 words): Hook with the most intriguing aspect from the description. What makes this episode unique or controversial? Why should busy professionals care?
+
+PARAGRAPH 2 (90 words): Provide rich context - why does this topic matter right now? What trends, challenges, or opportunities does it address? Connect to broader industry implications.
+
+PARAGRAPH 3 (90 words): Anticipate the valuable insights listeners will gain. What expertise, perspectives, or frameworks will be shared? Highlight potential contrarian viewpoints or surprising angles.
+
+PARAGRAPH 4 (80 words): Practical value and takeaways. How will this episode change how listeners think or act? End with a compelling reason why this is a must-listen.
+
+Write conversationally, as if convincing a knowledgeable friend to prioritize this episode. Be specific and compelling.
+
+REMEMBER: Your summary must be exactly 350 words - no more, no less.
+
+Then provide 7 key takeaways as bullet points.
 
 Format your response as:
 SUMMARY:
-[Your 200-300 word summary here]
+[Your EXACTLY 350-word comprehensive summary here]
 
 KEY TAKEAWAYS:
 • [Takeaway 1]
@@ -131,7 +157,7 @@ KEY TAKEAWAYS:
               content: prompt,
             },
           ],
-          max_tokens: 500,
+          max_tokens: 1000,
           temperature: 0.7,
         }),
       });
