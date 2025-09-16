@@ -122,7 +122,7 @@ export default function AllSummaries() {
 
   return (
     <div className="min-h-[calc(100vh-var(--header-height))] bg-gray-50">
-      <div className="max-w-4xl mx-auto p-3 sm:p-4 md:p-6">
+      <div className="w-full max-w-none sm:max-w-4xl mx-auto p-3 sm:p-4 md:p-6">
         <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 md:p-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6 mb-4 sm:mb-6">
             <div className="flex-1 min-w-0">

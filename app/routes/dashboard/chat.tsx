@@ -135,7 +135,7 @@ export default function Chat() {
   return (
     <div className="flex flex-col w-full min-h-screen bg-gradient-to-br from-gray-50 to-blue-50/30 relative overflow-x-hidden">
       <div className="flex flex-col w-full py-4 md:py-8">
-        <div className="w-full max-w-2xl md:max-w-3xl lg:max-w-4xl space-y-4 lg:space-y-6 px-4 sm:px-6 lg:px-8 mx-auto">
+        <div className="w-full max-w-none sm:max-w-2xl md:max-w-3xl lg:max-w-4xl space-y-4 lg:space-y-6 px-4 sm:px-6 lg:px-8 mx-auto">
 
         {/* Episode Selection Dropdown */}
         <Card className="border-2 border-blue-100 bg-gradient-to-br from-blue-50/50 to-indigo-50/50">
@@ -218,7 +218,7 @@ export default function Chat() {
 
         {/* Chat Messages */}
         {selectedSummaryId && (
-          <div className="w-full max-w-2xl md:max-w-3xl mx-auto space-y-4 md:space-y-6">
+          <div className="w-full max-w-none sm:max-w-2xl md:max-w-3xl mx-auto space-y-4 md:space-y-6">
             {messages.length === 0 && (
               <div className="text-center py-8 md:py-12">
                 <div className="w-16 h-16 md:w-20 md:h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3 md:mb-4">
@@ -320,7 +320,7 @@ export default function Chat() {
 
         {/* Chat Input */}
         {selectedSummaryId && (
-          <div className="w-full max-w-2xl md:max-w-3xl mx-auto mt-4 md:mt-6">
+          <div className="w-full max-w-none sm:max-w-2xl md:max-w-3xl mx-auto mt-4 md:mt-6">
             <form onSubmit={handleSubmit} className="w-full">
               <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-stretch sm:items-end">
                 <Input

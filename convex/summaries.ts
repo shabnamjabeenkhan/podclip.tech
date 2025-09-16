@@ -230,7 +230,8 @@ export const generateSummaryWithTimestamps = action({
     }
 
     // Generate summary using OpenAI with enhanced prompt for timestamps
-    const hasTimestamps = !!(transcriptData && 'hasTimestamps' in transcriptData && transcriptData.hasTimestamps && 'wordTimestamps' in transcriptData && transcriptData.wordTimestamps);
+    // Enhanced timestamp detection - check for actual word timestamp data
+    const hasTimestamps = !!(transcriptData && 'wordTimestamps' in transcriptData && transcriptData.wordTimestamps && transcriptData.wordTimestamps.length > 0);
 
     console.log(`🕒 Timestamp status for episode ${args.episodeId}:`, {
       hasTranscriptData: !!transcriptData,
@@ -384,41 +385,68 @@ export const generateSummaryWithTimestamps = action({
           formatted_time?: string;
         }> = geminiResult.takeaways;
 
-        if (hasTimestamps && transcriptData && 'wordTimestamps' in transcriptData && transcriptData.wordTimestamps) {
-          console.log(`🎯 FINDING UNIQUE TIMESTAMPS for ${geminiResult.takeaways.length} takeaways`);
+        // Enhanced timestamp processing with improved fallback handling
+        console.log(`🎯 TIMESTAMP PROCESSING DEBUG:`);
+        console.log(`   - hasTimestamps: ${hasTimestamps}`);
+        console.log(`   - transcriptData available: ${!!transcriptData}`);
+        if (transcriptData) {
+          console.log(`   - transcriptData.hasTimestamps: ${('hasTimestamps' in transcriptData) ? transcriptData.hasTimestamps : 'field missing'}`);
+          console.log(`   - transcriptData has wordTimestamps field: ${('wordTimestamps' in transcriptData)}`);
+          if ('wordTimestamps' in transcriptData) {
+            console.log(`   - wordTimestamps length: ${transcriptData.wordTimestamps?.length || 0}`);
+            console.log(`   - wordTimestamps sample: ${JSON.stringify(transcriptData.wordTimestamps?.slice(0, 3) || [])}`);
+          }
+        }
 
-          // Use the new function that prevents duplicate timestamps
+        if (transcriptData && 'wordTimestamps' in transcriptData && transcriptData.wordTimestamps && transcriptData.wordTimestamps.length > 0) {
+          console.log(`🎯 FINDING TIMESTAMPS for ${geminiResult.takeaways.length} takeaways using ${transcriptData.wordTimestamps.length} word timestamps`);
+
+          // Use enhanced function with better matching
           const timestampResults = findTimestampsForTakeaways(geminiResult.takeaways, transcriptData.wordTimestamps);
 
           processedTakeaways = timestampResults.map((result, index) => {
             if (result.timestamp) {
-              console.log(`🔍 UNIQUE TIMESTAMP #${index + 1}:`);
-              console.log(`📝 Takeaway: "${result.text}"`);
+              console.log(`🔍 TIMESTAMP FOUND #${index + 1}:`);
+              console.log(`📝 Takeaway: "${result.text.substring(0, 100)}..."`);
               console.log(`⏰ Timestamp: ${result.timestamp}s (${formatTimestamp(result.timestamp)})`);
               console.log(`📊 Confidence: ${(result.confidence! * 100).toFixed(1)}%`);
               console.log(`🎯 Matched: ${result.matchCount}/${result.totalSearchTerms} terms`);
-              console.log(`📃 Context: "${result.fullContext?.substring(0, 150)}..."`);
 
-              // ENHANCED: Verify takeaway content alignment with timestamp
+              // Enhanced verification with lower threshold for production
               const verification = verifyTakeawayAlignment(
                 result.text,
                 result.timestamp,
                 transcriptData.wordTimestamps!,
-                35 // Slightly larger context window
+                40 // Larger context window for better matching
               );
 
-              console.log(`🔍 CONTENT VERIFICATION: ${verification.isValid ? '✅ VERIFIED' : '⚠️ QUESTIONABLE'}`);
-              console.log(`📊 Alignment confidence: ${(verification.confidence * 100).toFixed(1)}%`);
-              console.log(`💭 Reason: ${verification.reason}`);
+              console.log(`🔍 VERIFICATION: ${verification.isValid ? '✅' : '⚠️'} (${(verification.confidence * 100).toFixed(1)}%)`);
 
               if (!verification.isValid) {
-                console.log(`🚨 WARNING: Takeaway may not accurately represent content at timestamp ${formatTimestamp(result.timestamp)}`);
-                console.log(`🔍 Actual content: "${verification.contextSnippet}"`);
+                console.log(`⚠️ Low confidence alignment but keeping timestamp for user benefit`);
               }
 
               console.log(`---`);
             } else {
-              console.log(`❌ NO UNIQUE TIMESTAMP FOUND for takeaway #${index + 1}: "${result.text}"`);
+              console.log(`❌ NO TIMESTAMP FOUND for takeaway #${index + 1}: "${result.text.substring(0, 50)}..."`);
+
+              // Try to find any reasonable timestamp match with lower threshold
+              if (transcriptData.wordTimestamps && transcriptData.wordTimestamps.length > 0) {
+                const fallbackResult = findTimestampForText(
+                  result.text,
+                  transcriptData.wordTimestamps,
+                  30, // Larger search window
+                  [] // No used timestamps restriction for fallback
+                );
+
+                if (fallbackResult && fallbackResult.accuracyScore && fallbackResult.accuracyScore > 0.1) {
+                  console.log(`🔄 FALLBACK TIMESTAMP found: ${formatTimestamp(fallbackResult.timestamp)} (accuracy: ${(fallbackResult.accuracyScore * 100).toFixed(1)}%)`);
+                  result.timestamp = fallbackResult.timestamp;
+                  result.confidence = fallbackResult.confidence;
+                  result.matchedText = fallbackResult.matchedText;
+                  result.fullContext = fallbackResult.fullContext;
+                }
+              }
             }
 
             return {
@@ -430,6 +458,48 @@ export const generateSummaryWithTimestamps = action({
               fullContext: result.fullContext,
             };
           });
+        } else {
+          console.log(`⚠️ No word timestamps available - attempting alternative timestamp retrieval`);
+
+          // Try to get Deepgram transcription directly if not already available
+          if (!transcriptData || !('wordTimestamps' in transcriptData) || !transcriptData.wordTimestamps) {
+            console.log(`🔄 Attempting to retrieve Deepgram transcription for episode ${args.episodeId}`);
+            try {
+              const deepgramData = await ctx.runQuery(api.transcriptions.getCachedTranscriptionWithTimestamps, {
+                episodeId: args.episodeId,
+              });
+
+              if (deepgramData && deepgramData.wordTimestamps && deepgramData.wordTimestamps.length > 0) {
+                console.log(`✅ Found Deepgram transcription with ${deepgramData.wordTimestamps.length} word timestamps`);
+
+                // Use this data for timestamp generation
+                const timestampResults = findTimestampsForTakeaways(geminiResult.takeaways, deepgramData.wordTimestamps);
+
+                processedTakeaways = timestampResults.map((result, index) => {
+                  if (result.timestamp) {
+                    console.log(`🔍 RECOVERED TIMESTAMP #${index + 1}: ${formatTimestamp(result.timestamp)} for "${result.text.substring(0, 50)}..."`);
+                  }
+                  return {
+                    text: result.text,
+                    timestamp: result.timestamp,
+                    formatted_time: result.timestamp ? formatTimestamp(result.timestamp) : undefined,
+                    confidence: result.confidence,
+                    matchedText: result.matchedText,
+                    fullContext: result.fullContext,
+                  };
+                });
+
+                // Update hasTimestamps to reflect recovered data
+                console.log(`🎉 Successfully recovered timestamps for ${timestampResults.filter(r => r.timestamp).length}/${timestampResults.length} takeaways`);
+              } else {
+                console.log(`❌ No Deepgram transcription with timestamps found for episode ${args.episodeId}`);
+              }
+            } catch (error) {
+              console.error(`❌ Error retrieving Deepgram transcription:`, error);
+            }
+          }
+
+          console.log(`📊 Final status: timestamps available for ${processedTakeaways.filter((t: any) => t.timestamp).length}/${processedTakeaways.length} takeaways`);
         }
 
         // Save summary to database
@@ -444,7 +514,7 @@ export const generateSummaryWithTimestamps = action({
           growthStrategy: shouldGenerateInsights ? geminiResult.growthStrategy : undefined,
           keyInsight: shouldGenerateInsights ? geminiResult.keyInsight : undefined,
           realityCheck: shouldGenerateInsights ? geminiResult.realityCheck : undefined,
-          hasTimestamps: hasTimestamps,
+          hasTimestamps: processedTakeaways.some((t: any) => t.timestamp !== undefined),
           transcriptSource: transcriptData && 'source' in transcriptData ? transcriptData.source : undefined,
           insightsEnabled: shouldGenerateInsights,
           detectedGenre: detectedGenre,
@@ -592,20 +662,30 @@ KEY TAKEAWAYS:
 • Seventh memorable quote or final thought${hasTimestamps ? ' - "Supporting quote from transcript"' : ''}
 
 ACTIONABLE INSIGHTS:
-**Action 1: [Specific action or recommendation inspired by the content]**
-Context: [The reason or context for this suggestion - why this matters based on episode content]
-Application: [If relevant, an example or scenario of how this could be applied in real life, related to the episode's topic or audience]
-Resources: [Any specific tools, books, apps, websites, or resources mentioned in the episode]
+**Action 1: [Specific actionable recommendation from the episode]**
+Context: [Why this action is important based on episode discussion]
+Application: [Concrete steps to implement this action]
+Resources: [Tools, methods, or resources mentioned]
 
-**Action 2: [Specific action or recommendation inspired by the content]**
-Context: [The reason or context for this suggestion - why this matters based on episode content]
-Application: [If relevant, an example or scenario of how this could be applied in real life, related to the episode's topic or audience]
-Resources: [Any specific tools, books, apps, websites, or resources mentioned in the episode]
+**Action 2: [Specific actionable recommendation from the episode]**
+Context: [Why this action is important based on episode discussion]
+Application: [Concrete steps to implement this action]
+Resources: [Tools, methods, or resources mentioned]
 
-**Action 3: [Specific action or recommendation inspired by the content]**
-Context: [The reason or context for this suggestion - why this matters based on episode content]
-Application: [If relevant, an example or scenario of how this could be applied in real life, related to the episode's topic or audience]
-Resources: [Any specific tools, books, apps, websites, or resources mentioned in the episode]
+**Action 3: [Specific actionable recommendation from the episode]**
+Context: [Why this action is important based on episode discussion]
+Application: [Concrete steps to implement this action]
+Resources: [Tools, methods, or resources mentioned]
+
+**Action 4: [Specific actionable recommendation from the episode]**
+Context: [Why this action is important based on episode discussion]
+Application: [Concrete steps to implement this action]
+Resources: [Tools, methods, or resources mentioned]
+
+**Action 5: [Specific actionable recommendation from the episode]**
+Context: [Why this action is important based on episode discussion]
+Application: [Concrete steps to implement this action]
+Resources: [Tools, methods, or resources mentioned]
 
 GROWTH STRATEGY:
 [2-3 sentences outlining strategic approaches, frameworks, or methodologies discussed that can drive growth, improvement, or success in business, career, or personal development]
@@ -694,20 +774,30 @@ KEY TAKEAWAYS:
 • Seventh memorable quote or final thought
 
 ACTIONABLE INSIGHTS:
-**Action 1: [Specific action or recommendation inspired by the content]**
-Context: [The reason or context for this suggestion - why this matters based on episode content]
-Application: [If relevant, an example or scenario of how this could be applied in real life, related to the episode's topic or audience]
-Resources: [Any specific tools, books, apps, websites, or resources mentioned in the episode]
+**Action 1: [Specific actionable recommendation from the episode]**
+Context: [Why this action is important based on episode discussion]
+Application: [Concrete steps to implement this action]
+Resources: [Tools, methods, or resources mentioned]
 
-**Action 2: [Specific action or recommendation inspired by the content]**
-Context: [The reason or context for this suggestion - why this matters based on episode content]
-Application: [If relevant, an example or scenario of how this could be applied in real life, related to the episode's topic or audience]
-Resources: [Any specific tools, books, apps, websites, or resources mentioned in the episode]
+**Action 2: [Specific actionable recommendation from the episode]**
+Context: [Why this action is important based on episode discussion]
+Application: [Concrete steps to implement this action]
+Resources: [Tools, methods, or resources mentioned]
 
-**Action 3: [Specific action or recommendation inspired by the content]**
-Context: [The reason or context for this suggestion - why this matters based on episode content]
-Application: [If relevant, an example or scenario of how this could be applied in real life, related to the episode's topic or audience]
-Resources: [Any specific tools, books, apps, websites, or resources mentioned in the episode]
+**Action 3: [Specific actionable recommendation from the episode]**
+Context: [Why this action is important based on episode discussion]
+Application: [Concrete steps to implement this action]
+Resources: [Tools, methods, or resources mentioned]
+
+**Action 4: [Specific actionable recommendation from the episode]**
+Context: [Why this action is important based on episode discussion]
+Application: [Concrete steps to implement this action]
+Resources: [Tools, methods, or resources mentioned]
+
+**Action 5: [Specific actionable recommendation from the episode]**
+Context: [Why this action is important based on episode discussion]
+Application: [Concrete steps to implement this action]
+Resources: [Tools, methods, or resources mentioned]
 
 GROWTH STRATEGY:
 [2-3 sentences outlining strategic approaches, frameworks, or methodologies discussed that can drive growth, improvement, or success in business, career, or personal development]
@@ -1020,25 +1110,118 @@ KEY TAKEAWAYS:
       processedTakeaways = finalRawTakeaways;
     }
 
-    // Process actionable insights into structured format - only if insights are enabled
-    const processedActionableInsights = shouldGenerateInsights ? actionableInsightsText
-      .split(/\*\*Action \d+:/)
-      .slice(1) // Remove empty first element
-      .map((insight: string) => {
-        const lines = insight.trim().split('\n').filter((line: string) => line.trim());
-        const action = lines[0]?.replace(/\*\*$/, '') || '';
-        const context = lines.find((line: string) => line.startsWith('Context:'))?.replace('Context: ', '') || '';
-        const application = lines.find((line: string) => line.startsWith('Application:'))?.replace('Application: ', '') || '';
-        const resources = lines.find((line: string) => line.startsWith('Resources:'))?.replace('Resources: ', '') || '';
+    // Enhanced actionable insights processing with fallback parsing
+    let processedActionableInsights: Array<{
+      action: string;
+      context: string;
+      application: string;
+      resources: string;
+    }> = [];
 
-        return {
-          action: action.trim(),
-          context: context.trim(),
-          application: application.trim(),
-          resources: resources.trim()
-        };
-      })
-      .filter((insight: { action: string; context: string; application: string; resources: string }) => insight.action.length > 0) : [];
+    if (shouldGenerateInsights && actionableInsightsText) {
+      console.log("🔍 PROCESSING ACTIONABLE INSIGHTS");
+      console.log("📝 Raw actionable insights text:", actionableInsightsText.substring(0, 300) + "...");
+
+      // Primary parsing: Look for **Action N:** pattern
+      let insights = actionableInsightsText
+        .split(/\*\*Action \d+:/)
+        .slice(1) // Remove empty first element
+        .map((insight: string) => {
+          const lines = insight.trim().split('\n').filter((line: string) => line.trim());
+          const action = lines[0]?.replace(/\*\*$/, '') || '';
+          const context = lines.find((line: string) => line.startsWith('Context:'))?.replace('Context: ', '') || '';
+          const application = lines.find((line: string) => line.startsWith('Application:'))?.replace('Application: ', '') || '';
+          const resources = lines.find((line: string) => line.startsWith('Resources:'))?.replace('Resources: ', '') || '';
+
+          return {
+            action: action.trim(),
+            context: context.trim(),
+            application: application.trim(),
+            resources: resources.trim()
+          };
+        })
+        .filter((insight: { action: string; context: string; application: string; resources: string }) => insight.action.length > 0);
+
+      console.log(`🎯 Primary parsing found ${insights.length} insights`);
+
+      // Fallback parsing if primary method fails
+      if (insights.length === 0) {
+        console.log("🔄 Primary parsing failed, trying fallback methods...");
+
+        // Try parsing numbered actions (1. 2. 3. etc.)
+        const numberedActions = actionableInsightsText
+          .split(/\d+\.\s*/)
+          .slice(1)
+          .map((insight: string) => {
+            const lines = insight.trim().split('\n').filter((line: string) => line.trim());
+            const action = lines[0]?.split('Context:')[0]?.trim() || '';
+            const restText = insight.substring(action.length);
+
+            const contextMatch = restText.match(/Context:\s*(.*?)(?=Application:|Resources:|$)/s);
+            const applicationMatch = restText.match(/Application:\s*(.*?)(?=Resources:|$)/s);
+            const resourcesMatch = restText.match(/Resources:\s*(.*?)$/s);
+
+            return {
+              action: action.trim(),
+              context: contextMatch?.[1]?.trim() || '',
+              application: applicationMatch?.[1]?.trim() || '',
+              resources: resourcesMatch?.[1]?.trim() || ''
+            };
+          })
+          .filter((insight: { action: string; context: string; application: string; resources: string }) => insight.action.length > 0);
+
+        if (numberedActions.length > 0) {
+          insights = numberedActions;
+          console.log(`✅ Fallback parsing found ${insights.length} insights using numbered format`);
+        } else {
+          // Last resort: Parse line by line for any actionable content
+          const lines = actionableInsightsText.split('\n').filter((line: string) => line.trim());
+          let currentInsight: any = null;
+          const fallbackInsights: Array<{
+            action: string;
+            context: string;
+            application: string;
+            resources: string;
+          }> = [];
+
+          for (const line of lines) {
+            const trimmedLine = line.trim();
+            if (trimmedLine.includes(':') && !trimmedLine.startsWith('Context:') && !trimmedLine.startsWith('Application:') && !trimmedLine.startsWith('Resources:')) {
+              // New action line
+              if (currentInsight && currentInsight.action) {
+                fallbackInsights.push(currentInsight);
+              }
+              currentInsight = {
+                action: trimmedLine.replace(/[:\-\*]/g, '').trim(),
+                context: '',
+                application: '',
+                resources: ''
+              };
+            } else if (currentInsight) {
+              if (trimmedLine.startsWith('Context:')) {
+                currentInsight.context = trimmedLine.replace('Context:', '').trim();
+              } else if (trimmedLine.startsWith('Application:')) {
+                currentInsight.application = trimmedLine.replace('Application:', '').trim();
+              } else if (trimmedLine.startsWith('Resources:')) {
+                currentInsight.resources = trimmedLine.replace('Resources:', '').trim();
+              }
+            }
+          }
+
+          if (currentInsight && currentInsight.action) {
+            fallbackInsights.push(currentInsight);
+          }
+
+          if (fallbackInsights.length > 0) {
+            insights = fallbackInsights;
+            console.log(`✅ Last resort parsing found ${insights.length} insights`);
+          }
+        }
+      }
+
+      processedActionableInsights = insights;
+      console.log(`🎉 Final processed insights count: ${processedActionableInsights.length}`);
+    }
 
     // Increment user's summary count after successful generation
     console.log(`🚀 ABOUT TO INCREMENT: User ${args.userId} summary count`);
@@ -1213,20 +1396,30 @@ KEY TAKEAWAYS:
 • Seventh memorable quote or final thought
 
 ACTIONABLE INSIGHTS:
-**Action 1: [Specific action or recommendation inspired by the content]**
-Context: [The reason or context for this suggestion - why this matters based on episode content]
-Application: [If relevant, an example or scenario of how this could be applied in real life, related to the episode's topic or audience]
-Resources: [Any specific tools, books, apps, websites, or resources mentioned in the episode]
+**Action 1: [Specific actionable recommendation from the episode]**
+Context: [Why this action is important based on episode discussion]
+Application: [Concrete steps to implement this action]
+Resources: [Tools, methods, or resources mentioned]
 
-**Action 2: [Specific action or recommendation inspired by the content]**
-Context: [The reason or context for this suggestion - why this matters based on episode content]
-Application: [If relevant, an example or scenario of how this could be applied in real life, related to the episode's topic or audience]
-Resources: [Any specific tools, books, apps, websites, or resources mentioned in the episode]
+**Action 2: [Specific actionable recommendation from the episode]**
+Context: [Why this action is important based on episode discussion]
+Application: [Concrete steps to implement this action]
+Resources: [Tools, methods, or resources mentioned]
 
-**Action 3: [Specific action or recommendation inspired by the content]**
-Context: [The reason or context for this suggestion - why this matters based on episode content]
-Application: [If relevant, an example or scenario of how this could be applied in real life, related to the episode's topic or audience]
-Resources: [Any specific tools, books, apps, websites, or resources mentioned in the episode]
+**Action 3: [Specific actionable recommendation from the episode]**
+Context: [Why this action is important based on episode discussion]
+Application: [Concrete steps to implement this action]
+Resources: [Tools, methods, or resources mentioned]
+
+**Action 4: [Specific actionable recommendation from the episode]**
+Context: [Why this action is important based on episode discussion]
+Application: [Concrete steps to implement this action]
+Resources: [Tools, methods, or resources mentioned]
+
+**Action 5: [Specific actionable recommendation from the episode]**
+Context: [Why this action is important based on episode discussion]
+Application: [Concrete steps to implement this action]
+Resources: [Tools, methods, or resources mentioned]
 
 GROWTH STRATEGY:
 [2-3 sentences outlining strategic approaches, frameworks, or methodologies discussed that can drive growth, improvement, or success in business, career, or personal development]
@@ -1324,20 +1517,30 @@ KEY TAKEAWAYS:
 • Seventh memorable quote or final thought
 
 ACTIONABLE INSIGHTS:
-**Action 1: [Specific action or recommendation inspired by the content]**
-Context: [The reason or context for this suggestion - why this matters based on episode content]
-Application: [If relevant, an example or scenario of how this could be applied in real life, related to the episode's topic or audience]
-Resources: [Any specific tools, books, apps, websites, or resources mentioned in the episode]
+**Action 1: [Specific actionable recommendation from the episode]**
+Context: [Why this action is important based on episode discussion]
+Application: [Concrete steps to implement this action]
+Resources: [Tools, methods, or resources mentioned]
 
-**Action 2: [Specific action or recommendation inspired by the content]**
-Context: [The reason or context for this suggestion - why this matters based on episode content]
-Application: [If relevant, an example or scenario of how this could be applied in real life, related to the episode's topic or audience]
-Resources: [Any specific tools, books, apps, websites, or resources mentioned in the episode]
+**Action 2: [Specific actionable recommendation from the episode]**
+Context: [Why this action is important based on episode discussion]
+Application: [Concrete steps to implement this action]
+Resources: [Tools, methods, or resources mentioned]
 
-**Action 3: [Specific action or recommendation inspired by the content]**
-Context: [The reason or context for this suggestion - why this matters based on episode content]
-Application: [If relevant, an example or scenario of how this could be applied in real life, related to the episode's topic or audience]
-Resources: [Any specific tools, books, apps, websites, or resources mentioned in the episode]
+**Action 3: [Specific actionable recommendation from the episode]**
+Context: [Why this action is important based on episode discussion]
+Application: [Concrete steps to implement this action]
+Resources: [Tools, methods, or resources mentioned]
+
+**Action 4: [Specific actionable recommendation from the episode]**
+Context: [Why this action is important based on episode discussion]
+Application: [Concrete steps to implement this action]
+Resources: [Tools, methods, or resources mentioned]
+
+**Action 5: [Specific actionable recommendation from the episode]**
+Context: [Why this action is important based on episode discussion]
+Application: [Concrete steps to implement this action]
+Resources: [Tools, methods, or resources mentioned]
 
 GROWTH STRATEGY:
 [2-3 sentences outlining strategic approaches, frameworks, or methodologies discussed that can drive growth, improvement, or success in business, career, or personal development]

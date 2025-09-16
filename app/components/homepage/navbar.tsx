@@ -103,13 +103,13 @@ export const Navbar = ({
     <header>
       <nav
         data-state={menuState && "active"}
-        className="fixed z-50 w-full px-2"
+        className="fixed z-50 w-full px-1 sm:px-2"
       >
         <div
           className={cn(
-            "mx-auto mt-2 max-w-6xl px-4 sm:px-6 transition-all duration-300 lg:px-12",
+            "mx-auto mt-2 max-w-none sm:max-w-6xl px-2 sm:px-3 md:px-4 lg:px-6 transition-all duration-300",
             isScrolled &&
-              "bg-background/50 max-w-4xl rounded-2xl border backdrop-blur-lg px-4 sm:px-6 lg:px-5 shadow-lg"
+              "bg-background/50 max-w-none sm:max-w-4xl rounded-2xl border backdrop-blur-lg px-2 sm:px-3 md:px-4 lg:px-5 shadow-lg"
           )}
         >
           {/* Temporary debug indicator */}
@@ -121,7 +121,7 @@ export const Navbar = ({
               <Link
                 to="/"
                 aria-label="home"
-                className="flex items-center space-x-2 font-semibold text-xl sm:text-2xl text-muted-foreground"
+                className="flex items-center space-x-2 font-semibold text-lg sm:text-xl md:text-2xl text-muted-foreground"
                 prefetch="viewport"
               >
                 <div className="color:black font-bold">Podclip</div>
@@ -155,7 +155,7 @@ export const Navbar = ({
 
             <div
               className={cn(
-                "bg-background mb-6 hidden w-full flex-wrap items-center justify-end space-y-6 sm:space-y-8 rounded-3xl border p-4 sm:p-6 shadow-2xl shadow-zinc-300/20 md:flex-nowrap lg:m-0 lg:flex lg:w-fit lg:gap-6 lg:space-y-0 lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none dark:shadow-none dark:lg:bg-transparent",
+                "bg-background mb-6 hidden w-full max-w-full overflow-hidden flex-wrap items-center justify-end space-y-6 sm:space-y-8 rounded-3xl border p-4 sm:p-6 shadow-2xl shadow-zinc-300/20 md:flex-nowrap lg:m-0 lg:flex lg:w-fit lg:gap-6 lg:space-y-0 lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none dark:shadow-none dark:lg:bg-transparent",
                 menuState && "block lg:flex"
               )}
               data-state={menuState ? "active" : "inactive"}

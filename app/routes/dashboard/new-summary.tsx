@@ -527,7 +527,7 @@ export default function NewSummary() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto p-4 sm:p-6">
+      <div className="w-full max-w-none sm:max-w-4xl mx-auto p-4 sm:p-6">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-8">
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 mb-2">Create New Summary</h1>
           <p className="text-sm sm:text-base text-gray-600 mb-6">Search for a podcast and select an episode to generate an AI summary</p>

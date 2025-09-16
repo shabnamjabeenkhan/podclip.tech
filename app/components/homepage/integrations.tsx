@@ -28,7 +28,7 @@ export default function IntegrationsSection({
     setIsHeroLoading(true);
   }, []);
   return (
-    <section id="hero" className="relative">
+    <section id="hero" className="relative w-full overflow-x-hidden">
       <Navbar loaderData={loaderData} />
       
       <Spotlight
@@ -38,8 +38,8 @@ export default function IntegrationsSection({
       />
       
       {/* Animated Orb Background */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-        <div className="w-[400px] h-[400px] sm:w-[500px] sm:h-[500px] md:w-[700px] md:h-[700px] lg:w-[900px] lg:h-[900px] xl:w-[1000px] xl:h-[1000px] opacity-40 sm:opacity-50 md:opacity-60">
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
+        <div className="w-[300px] h-[300px] sm:w-[400px] sm:h-[400px] md:w-[600px] md:h-[600px] lg:w-[800px] lg:h-[800px] xl:w-[1000px] xl:h-[1000px] opacity-30 sm:opacity-40 md:opacity-50 lg:opacity-60">
           <Orb
             hue={270}
             hoverIntensity={0.3}
@@ -53,72 +53,72 @@ export default function IntegrationsSection({
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/20 to-background pointer-events-none" />
       
       {/* Main hero content */}
-      <main className="relative pb-20 pt-24 sm:pb-32 sm:pt-32 md:pb-40 md:pt-40 lg:pt-20 pointer-events-auto">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+      <main className="relative pb-16 pt-20 sm:pb-24 sm:pt-28 md:pb-32 md:pt-32 lg:pt-20 pointer-events-auto w-full overflow-x-hidden">
+        <div className="mx-auto max-w-none sm:max-w-6xl px-3 sm:px-4 md:px-6 w-full">
           {/* Hero Title */}
-          <div className="text-center mb-8 sm:mb-10 md:mb-8">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-white mb-4 sm:mb-6 leading-tight">
+          <div className="text-center mb-6 sm:mb-8 md:mb-8">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold tracking-tight text-white mb-3 sm:mb-4 md:mb-6 leading-tight px-2 sm:px-0">
               Transform Podcasts into <br className="hidden sm:block" />
               <span className="block sm:inline">Actionable Insights</span>
             </h1>
-            <p className="mx-auto mb-6 sm:mb-8 mt-4 sm:mt-6 max-w-xl text-base sm:text-lg text-muted-foreground px-4 sm:px-0">
+            <p className="mx-auto mb-4 sm:mb-6 md:mb-8 mt-3 sm:mt-4 md:mt-6 max-w-lg sm:max-w-xl text-sm sm:text-base md:text-lg text-muted-foreground px-4 sm:px-2 md:px-0">
               Turn podcasts into clear summaries with jump-to timestamps, key takeaways, and business actionable insights—delivered instantly.
             </p>
             
             {/* CTA Button with enhanced styling */}
-            <div className="mx-auto w-fit rounded-[calc(var(--radius)+4px)] border border-gray-950/5 p-1 dark:border-white/5 dark:bg-white/5 dark:shadow-lg dark:shadow-white/5 px-4 sm:px-0">
+            <div className="mx-auto w-fit rounded-[calc(var(--radius)+4px)] border border-gray-950/5 p-1 dark:border-white/5 dark:bg-white/5 dark:shadow-lg dark:shadow-white/5 px-2 sm:px-4 md:px-0">
               <Button
                 asChild
                 size="lg"
-                className="group px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg font-semibold bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 shadow-lg hover:shadow-xl transition-all duration-300 w-full sm:w-auto"
+                className="group px-4 sm:px-6 md:px-8 py-2 sm:py-3 md:py-4 text-sm sm:text-base md:text-lg font-semibold bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 shadow-lg hover:shadow-xl transition-all duration-300 w-full sm:w-auto"
                 loading={isHeroLoading}
                 onClick={handleHeroClick}
               >
                 <Link to="/sign-up" prefetch="viewport" className="flex items-center justify-center">
                   <ShinyText text="Get Started For Free" speed={3} />
-                  <ArrowRight className="ml-2 w-4 sm:w-5 h-4 sm:h-5 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="ml-1 sm:ml-2 w-3 sm:w-4 md:w-5 h-3 sm:h-4 md:h-5 group-hover:translate-x-1 transition-transform" />
                 </Link>
               </Button>
             </div>
           </div>
 
           {/* Social Proof */}
-          <div className="mx-auto mt-8 sm:mt-12 max-w-3xl md:mt-20">
-            <div className="text-center mb-6">
-              <p className="text-sm font-medium text-muted-foreground px-4 sm:px-0">
+          <div className="mx-auto mt-6 sm:mt-8 md:mt-12 max-w-3xl">
+            <div className="text-center mb-4 sm:mb-6">
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground px-4 sm:px-2 md:px-0">
                 ✨ Get your first 5 summaries absolutely free!
               </p>
             </div>
           </div>
 
           {/* Feature Cards */}
-          <div className="mx-auto mt-12 sm:mt-16 max-w-4xl">
-            <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
+          <div className="mx-auto mt-8 sm:mt-12 md:mt-16 max-w-none sm:max-w-4xl px-2 sm:px-0">
+            <div className="grid gap-3 sm:gap-4 md:gap-6 md:grid-cols-2">
               {/* AI Summaries Card */}
-              <div className="rounded-xl border border-white/20 bg-white/10 backdrop-blur-md p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all hover:bg-white/15">
-                <div className="flex items-start gap-3 sm:gap-4">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
-                    <Brain className="w-5 h-5 sm:w-6 sm:h-6" />
+              <div className="rounded-lg sm:rounded-xl border border-white/20 bg-white/10 backdrop-blur-md p-3 sm:p-4 md:p-6 shadow-lg hover:shadow-xl transition-all hover:bg-white/15">
+                <div className="flex items-start gap-2 sm:gap-3 md:gap-4">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-green-500 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
+                    <Brain className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-white text-base sm:text-lg mb-2">AI-Powered Summaries</h3>
-                    <p className="text-white/80 text-sm sm:text-base">Turn podcasts into clear summaries with jump-to timestamps, key takeaways, and business actionable insights—delivered instantly.</p>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-semibold text-white text-sm sm:text-base md:text-lg mb-1 sm:mb-2">AI-Powered Summaries</h3>
+                    <p className="text-white/80 text-xs sm:text-sm md:text-base leading-relaxed">Turn podcasts into clear summaries with jump-to timestamps, key takeaways, and business actionable insights—delivered instantly.</p>
                   </div>
                 </div>
               </div>
 
               {/* Notion Integration Card */}
-              <div className="rounded-xl border border-white/20 bg-white/10 backdrop-blur-md p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all hover:bg-white/15">
-                <div className="flex items-start gap-3 sm:gap-4">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
-                    <Database className="w-5 h-5 sm:w-6 sm:h-6" />
+              <div className="rounded-lg sm:rounded-xl border border-white/20 bg-white/10 backdrop-blur-md p-3 sm:p-4 md:p-6 shadow-lg hover:shadow-xl transition-all hover:bg-white/15">
+                <div className="flex items-start gap-2 sm:gap-3 md:gap-4">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
+                    <Database className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-white text-base sm:text-lg mb-2 flex flex-col sm:flex-row sm:items-center gap-2">
-                      Notion Integration
-                      <span className="px-2 py-1 text-xs font-medium text-blue-200 bg-blue-600/30 backdrop-blur-sm rounded-full w-fit">Coming Soon</span>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-semibold text-white text-sm sm:text-base md:text-lg mb-1 sm:mb-2 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                      <span>Notion Integration</span>
+                      <span className="px-2 py-0.5 text-xs font-medium text-blue-200 bg-blue-600/30 backdrop-blur-sm rounded-full w-fit">Coming Soon</span>
                     </h3>
-                    <p className="text-white/80 text-sm sm:text-base">Automatically sync summaries to your Notion workspace in organized tables.</p>
+                    <p className="text-white/80 text-xs sm:text-sm md:text-base leading-relaxed">Automatically sync summaries to your Notion workspace in organized tables.</p>
                   </div>
                 </div>
               </div>
