@@ -55,20 +55,19 @@ export const chat = httpAction(async (ctx, req) => {
           let currentCount = user.summary_count || 0;
           let quotaResetDate = user.quota_reset_date;
 
-          // Check if user needs quota reset (for monthly and lifetime subscribers)
-          if ((user.plan === "monthly" || user.plan === "lifetime") && quotaResetDate && now >= quotaResetDate) {
+          // Check if user needs quota reset (for monthly subscribers)
+          if (user.plan === "monthly" && quotaResetDate && now >= quotaResetDate) {
             currentCount = 0;
           }
 
           const quotaLimits = {
             free: 5,
             monthly: 50,
-            lifetime: 70,
           };
 
           const limit = quotaLimits[user.plan as keyof typeof quotaLimits] || quotaLimits.free;
           const hasRemainingQuota = currentCount < limit;
-          const isPaidUser = user.plan === "monthly" || user.plan === "lifetime";
+          const isPaidUser = user.plan === "monthly";
           const canAccess = isPaidUser || (user.plan === "free" && hasRemainingQuota);
 
           if (!canAccess) {
@@ -117,7 +116,7 @@ Podcast: ${summaryResult.podcast_title || 'Unknown Podcast'}
 Summary: ${summaryResult.content}
 
 Key Takeaways:
-${summaryResult.takeaways.map((takeaway: string, i: number) => `${i + 1}. ${takeaway}`).join('\n')}
+${summaryResult.takeaways.map((takeaway: any, i: number) => `${i + 1}. ${typeof takeaway === 'string' ? takeaway : takeaway.text}`).join('\n')}
 
 Please help the user discuss this episode, answer questions about the content, explore the topics in more depth, provide additional insights, or relate the content to other topics. Be conversational, insightful, and helpful. You can reference specific points from the summary and takeaways in your responses.`;
       }

@@ -70,15 +70,19 @@ const initialState: AudioState = {
 function audioReducer(state: AudioState, action: AudioAction): AudioState {
   switch (action.type) {
     case 'LOAD_EPISODE':
-      return {
+      console.log('LOAD_EPISODE reducer case triggered with payload:', action.payload);
+      const newState = {
         ...state,
         currentEpisode: action.payload,
+        duration: action.payload.duration || 0, // Set duration immediately from episode data
         isLoading: true,
         error: null,
         retryCount: 0,
         currentTime: 0,
         showMiniPlayer: true,
       };
+      console.log('LOAD_EPISODE new state:', newState);
+      return newState;
     case 'PLAY':
       return { ...state, isPlaying: true, isLoading: false };
     case 'PAUSE':
@@ -143,25 +147,130 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(audioReducer, initialState);
   const audioRef = useRef<HTMLAudioElement>(null);
   const loadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Operation queue to prevent race conditions
+  const operationQueueRef = useRef<Array<() => Promise<void>>>([]);
+  const isProcessingRef = useRef(false);
+  const pendingSeekRef = useRef<number | null>(null);
+
+  // Process operation queue to prevent race conditions
+  const processOperationQueue = async () => {
+    if (isProcessingRef.current || operationQueueRef.current.length === 0) {
+      return;
+    }
+    
+    isProcessingRef.current = true;
+    
+    try {
+      while (operationQueueRef.current.length > 0) {
+        const operation = operationQueueRef.current.shift();
+        if (operation) {
+          await operation();
+          // Small delay to prevent rapid-fire operations
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+      }
+    } finally {
+      isProcessingRef.current = false;
+    }
+  };
+
+  // Queue an operation to prevent race conditions
+  const queueOperation = (operation: () => Promise<void>) => {
+    operationQueueRef.current.push(operation);
+    processOperationQueue();
+  };
 
   // Convenience methods
   const playEpisode = (episode: Episode) => {
+    console.log('playEpisode called with episode:', episode);
+    console.log('Current state before dispatch:', state);
+    
+    // Always load the episode - the reducer and useEffect will handle if it's the same
+    pendingSeekRef.current = null;
     dispatch({ type: 'LOAD_EPISODE', payload: episode });
+    console.log('LOAD_EPISODE action dispatched');
   };
 
   const togglePlayPause = () => {
-    if (state.isPlaying) {
-      dispatch({ type: 'PAUSE' });
-    } else {
-      dispatch({ type: 'PLAY' });
-    }
+    queueOperation(async () => {
+      const audio = audioRef.current;
+      if (!audio) return;
+
+      try {
+        if (state.isPlaying) {
+          audio.pause();
+          dispatch({ type: 'PAUSE' });
+        } else {
+          // Wait for any pending seeks before playing
+          if (pendingSeekRef.current !== null) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+          await audio.play();
+          dispatch({ type: 'PLAY' });
+        }
+      } catch (error) {
+        console.warn('Audio play/pause operation failed:', error);
+        // Reset state on error
+        dispatch({ type: 'SET_ERROR', payload: 'Audio playback failed. Please try again.' });
+      }
+    });
   };
 
   const seekTo = (time: number) => {
-    if (audioRef.current) {
-      audioRef.current.currentTime = time;
-      dispatch({ type: 'SEEK', payload: time });
-    }
+    console.log('seekTo called with time:', time);
+    queueOperation(async () => {
+      const audio = audioRef.current;
+      console.log('seekTo operation executing, audio element:', audio);
+      if (!audio) {
+        console.log('No audio element available for seeking');
+        return;
+      }
+
+      try {
+        // Store pending seek to prevent play conflicts
+        pendingSeekRef.current = time;
+        
+        // Pause audio briefly to prevent conflicts
+        const wasPlaying = !audio.paused;
+        if (wasPlaying) {
+          audio.pause();
+        }
+        
+        // Perform the seek
+        audio.currentTime = time;
+        dispatch({ type: 'SEEK', payload: time });
+        
+        // Wait for seek to complete
+        await new Promise(resolve => {
+          const handleSeeked = () => {
+            audio.removeEventListener('seeked', handleSeeked);
+            resolve(void 0);
+          };
+          audio.addEventListener('seeked', handleSeeked);
+          
+          // Fallback timeout in case seeked event doesn't fire
+          setTimeout(() => {
+            audio.removeEventListener('seeked', handleSeeked);
+            resolve(void 0);
+          }, 500);
+        });
+        
+        // Resume playing if it was playing before
+        if (wasPlaying) {
+          await audio.play();
+          dispatch({ type: 'PLAY' });
+        }
+        
+        // Clear pending seek
+        pendingSeekRef.current = null;
+        
+      } catch (error) {
+        console.warn('Audio seek operation failed:', error);
+        pendingSeekRef.current = null;
+        dispatch({ type: 'SET_ERROR', payload: 'Audio seek failed. Please try again.' });
+      }
+    });
   };
 
   const skipForward = (seconds: number = 30) => {
@@ -203,7 +312,11 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
     const handleLoadedMetadata = () => {
       console.log('Audio metadata loaded, duration:', audio.duration);
-      dispatch({ type: 'SET_DURATION', payload: audio.duration });
+      // Only update duration if browser provides a valid duration and it differs significantly
+      // from our pre-loaded duration, or if we didn't have a duration before
+      if (audio.duration && (state.duration === 0 || Math.abs(audio.duration - state.duration) > 1)) {
+        dispatch({ type: 'SET_DURATION', payload: audio.duration });
+      }
       // Apply stored settings
       audio.volume = state.volume;
       audio.playbackRate = state.playbackRate;
@@ -347,8 +460,13 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
   // Control audio element based on state changes
   useEffect(() => {
+    console.log('useEffect triggered for currentEpisode:', state.currentEpisode);
     const audio = audioRef.current;
-    if (!audio || !state.currentEpisode) return;
+    console.log('Audio element:', audio);
+    if (!audio || !state.currentEpisode) {
+      console.log('Exiting useEffect - no audio element or current episode');
+      return;
+    }
 
     // Load new episode
     const proxyUrl = `/api/audio/proxy?url=${encodeURIComponent(state.currentEpisode.audio)}`;
@@ -356,11 +474,18 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     if (audio.src !== absoluteProxyUrl) {
       console.log('Loading audio:', state.currentEpisode.audio);
       console.log('Using proxy URL:', proxyUrl);
+      console.log('Setting audio src to:', absoluteProxyUrl);
       dispatch({ type: 'SET_LOADING', payload: true });
+      
+      // Clear any previous errors
+      dispatch({ type: 'SET_ERROR', payload: null });
       
       // Use proxy for CORS-restricted audio URLs
       audio.src = absoluteProxyUrl;
       audio.load();
+      console.log('Audio load() called');
+    } else {
+      console.log('Audio src already matches, skipping load');
     }
   }, [state.currentEpisode]);
 

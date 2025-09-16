@@ -106,14 +106,22 @@ export default defineSchema({
     .index("by_episode_id", ["episode_id"])
     .index("by_podcast_id", ["podcast_id"]),
 
-  // Episode transcriptions: Cached transcripts from Listen Notes API
+  // Episode transcriptions: Cached transcripts from Listen Notes API and Deepgram
   transcriptions: defineTable({
     episode_id: v.string(), // Listen Notes episode ID
     transcript: v.optional(v.string()), // Full transcript text (null if not available)
     has_transcript: v.boolean(), // Whether transcript is available
+    word_timestamps: v.optional(v.array(v.object({
+      word: v.string(),
+      start: v.number(),
+      end: v.number(),
+      confidence: v.number(),
+    }))), // Word-level timestamps from Deepgram
+    confidence: v.optional(v.number()), // Overall transcript confidence
+    duration: v.optional(v.number()), // Audio duration in seconds
     created_at: v.number(), // When transcript was fetched
     updated_at: v.number(), // Last time transcript was checked
-    source: v.optional(v.string()), // Source of transcript (e.g., "listen_notes")
+    source: v.optional(v.string()), // Source of transcript (e.g., "listen_notes", "deepgram")
   })
     .index("by_episode_id", ["episode_id"]),
 
@@ -122,7 +130,29 @@ export default defineSchema({
     episode_id: v.string(), // Reference to episodes.episode_id
     user_id: v.string(), // Reference to users.tokenIdentifier
     content: v.string(), // Summary text
-    takeaways: v.array(v.string()), // Array of key takeaways
+    takeaways: v.array(v.union(
+      v.string(), // Legacy format (backward compatible)
+      v.object({  // New format with timestamps
+        text: v.string(),
+        timestamp: v.optional(v.number()), // seconds
+        confidence: v.optional(v.number()), // 0-1 confidence score
+        formatted_time: v.optional(v.string()), // pre-formatted "12:34"
+      })
+    )), // Array of key takeaways with optional timestamps
+    actionable_insights: v.optional(v.array(v.object({
+      action: v.string(), // Specific recommendation
+      context: v.string(), // Why this matters based on episode content
+      application: v.string(), // How to implement in real life with example
+      resources: v.string(), // Any tools, books, or resources mentioned
+    }))), // Array of structured actionable insights
+    growth_strategy: v.optional(v.string()), // Strategic approaches, frameworks, or methodologies discussed
+    key_insight: v.optional(v.string()), // Most important revelation, principle, or "aha moment" from the episode
+    reality_check: v.optional(v.string()), // Challenges, misconceptions, or important considerations
+    has_timestamps: v.optional(v.boolean()), // Whether this summary includes timestamps
+    transcript_source: v.optional(v.string()), // "deepgram", "listen_notes", etc.
+    insights_enabled: v.optional(v.boolean()), // Whether user requested actionable insights for this summary
+    detected_genre: v.optional(v.string()), // Auto-detected genre: "actionable" | "entertainment"
+    insights_suggestion: v.optional(v.string()), // Auto-suggestion for insights: "suggested" | "disabled" | "user_choice"
     created_at: v.number(), // Timestamp
     episode_title: v.optional(v.string()), // Cache episode title for display
     podcast_title: v.optional(v.string()), // Cache podcast title for display

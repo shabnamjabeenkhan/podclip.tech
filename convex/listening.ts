@@ -178,7 +178,15 @@ export const getListeningStats = query({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Not authenticated");
+      // Return default stats for unauthenticated users
+      return {
+        totalListeningTime: 0,
+        averageListeningTime: 0,
+        totalSessions: 0,
+        currentWeekTime: 0,
+        lastWeekTime: 0,
+        weekOverWeekGrowth: 0,
+      };
     }
 
     const allHistory = await ctx.db

@@ -1,9 +1,19 @@
 import { Button } from "~/components/ui/button";
 import { Menu, X } from "lucide-react";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isSignInLoading, setIsSignInLoading] = useState(false);
+  const [isGetStartedLoading, setIsGetStartedLoading] = useState(false);
+
+  const handleSignInClick = useCallback(() => {
+    setIsSignInLoading(true);
+  }, []);
+
+  const handleGetStartedClick = useCallback(() => {
+    setIsGetStartedLoading(true);
+  }, []);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
@@ -32,10 +42,10 @@ const Header = () => {
 
           {/* Desktop CTA */}
           <div className="hidden md:flex items-center space-x-4">
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" loading={isSignInLoading} onClick={handleSignInClick}>
               Sign In
             </Button>
-            <Button variant="outline" size="sm" className="border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white transition-colors">
+            <Button variant="outline" size="sm" className="border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white transition-colors" loading={isGetStartedLoading} onClick={handleGetStartedClick}>
               Get Started
             </Button>
           </div>
@@ -67,10 +77,10 @@ const Header = () => {
                 Pricing
               </a>
               <div className="flex flex-col space-y-2 pt-4">
-                <Button variant="ghost" size="sm">
+                <Button variant="ghost" size="sm" loading={isSignInLoading} onClick={handleSignInClick}>
                   Sign In
                 </Button>
-                <Button variant="outline" size="sm" className="border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white transition-colors">
+                <Button variant="outline" size="sm" className="border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white transition-colors" loading={isGetStartedLoading} onClick={handleGetStartedClick}>
                   Get Started
                 </Button>
               </div>

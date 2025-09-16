@@ -2,7 +2,7 @@ import { Polar } from "@polar-sh/sdk";
 import { v } from "convex/values";
 import { Webhook, WebhookVerificationError } from "standardwebhooks";
 import { api } from "./_generated/api";
-import { action, httpAction, mutation, query } from "./_generated/server";
+import { action, httpAction, mutation, query, internalAction } from "./_generated/server";
 
 // Simple structured logger for consistent webhook/DB audit logs
 function logStructured(event: string, payload: Record<string, unknown> = {}): void {
@@ -18,8 +18,8 @@ function logStructured(event: string, payload: Record<string, unknown> = {}): vo
 type TierPlan = "basic" | "pro" | "premium";
 
 function mapMonthlyPlan(amountCents: number): TierPlan {
-  if (amountCents <= 999) return "basic"; // $9.99
-  if (amountCents <= 1499) return "pro"; // $14.99
+  if (amountCents <= 1299) return "basic"; // $12.99
+  if (amountCents <= 2299) return "pro"; // $22.99
   return "premium"; // $49.99 (or higher monthly tiers)
 }
 
@@ -159,6 +159,16 @@ export const createCheckoutSession = action({
     priceId: v.string(),
   },
   handler: async (ctx, args) => {
+    console.log("🔍 createCheckoutSession called with priceId:", args.priceId);
+
+    // Debug environment variables
+    console.log("🔍 Environment check:", {
+      hasAccessToken: !!process.env.POLAR_ACCESS_TOKEN,
+      hasOrgId: !!process.env.POLAR_ORGANIZATION_ID,
+      hasWebhookSecret: !!process.env.POLAR_WEBHOOK_SECRET,
+      server: process.env.POLAR_SERVER
+    });
+
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
@@ -169,6 +179,12 @@ export const createCheckoutSession = action({
       tokenIdentifier: identity.subject,
     });
 
+    console.log("🔍 User lookup result:", {
+      userExists: !!user,
+      userEmail: user?.email,
+      tokenIdentifier: identity.subject
+    });
+
     // If user doesn't exist, create them
     if (!user) {
       user = await ctx.runMutation(api.users.upsertUser);
@@ -176,18 +192,35 @@ export const createCheckoutSession = action({
       if (!user) {
         throw new Error("Failed to create user");
       }
+      console.log("✅ User created:", { email: user.email });
     }
 
-    const checkout = await createCheckout({
-      customerEmail: user.email!,
-      productPriceId: args.priceId,
-      successUrl: `${process.env.FRONTEND_URL}/success`,
-      metadata: {
-        userId: user.tokenIdentifier,
-      },
+    if (!user.email) {
+      throw new Error("User email is required for checkout");
+    }
+
+    console.log("🔍 Creating checkout with:", {
+      email: user.email,
+      priceId: args.priceId,
+      frontendUrl: process.env.FRONTEND_URL
     });
 
-    return checkout.url;
+    try {
+      const checkout = await createCheckout({
+        customerEmail: user.email,
+        productPriceId: args.priceId,
+        successUrl: `${process.env.FRONTEND_URL}/success`,
+        metadata: {
+          userId: user.tokenIdentifier,
+        },
+      });
+
+      console.log("✅ Checkout created successfully:", checkout.url);
+      return checkout.url;
+    } catch (error) {
+      console.error("❌ Checkout creation failed:", error);
+      throw error;
+    }
   },
 });
 
@@ -421,44 +454,7 @@ export const handleWebhookEvent = mutation({
             console.log("✅ Monthly subscription record created");
           }
         } else {
-          // Check if lifetime payment record already exists (idempotent)
-          const existingLifetimePayment = await ctx.db
-            .query("payments")
-            .withIndex("polarOrderId", (q) => q.eq("polarOrderId", subscriptionData.id))
-            .first();
-
-          if (existingLifetimePayment) {
-            console.log("⏭️ Lifetime payment record already exists for:", subscriptionData.id);
-          } else {
-            // Handle as one-time lifetime purchase (stored in payments table)
-            const insertPayment = {
-              userId: subscriptionData.metadata.userId,
-              polarOrderId: subscriptionData.id, // Use subscription ID as order ID
-              polarProductId: subscriptionData.product_id || "unknown",
-              polarPriceId: subscriptionData.price_id,
-              status: subscriptionData.status === "active" ? "confirmed" : "pending",
-              plan: plan,
-              amount: subscriptionData.amount,
-              currency: subscriptionData.currency,
-              customerId: subscriptionData.customer_id,
-              metadata: subscriptionData.metadata || {},
-              customFieldData: subscriptionData.custom_field_data || {},
-              confirmedAt: subscriptionData.status === "active" ? Date.now() : undefined,
-              created_at: Date.now(),
-              updated_at: Date.now(),
-            } as const;
-            logStructured("payments.insert", {
-              table: "payments",
-              action: "insert",
-              reason: "webhook:subscription.created(lifetime)",
-              userId: insertPayment.userId,
-              polarOrderId: insertPayment.polarOrderId,
-              status: insertPayment.status,
-            });
-            const payId = await ctx.db.insert("payments", insertPayment);
-            logStructured("payments.inserted", { _id: payId, polarOrderId: insertPayment.polarOrderId, userId: insertPayment.userId });
-            console.log("✅ Lifetime payment record created");
-          }
+          console.log("⚠️ Non-monthly subscription type not supported");
         }
         
         // Update user plan for both types and reset quotas on successful payment
@@ -585,21 +581,7 @@ export const handleWebhookEvent = mutation({
             console.log("✅ Monthly subscription activated");
           }
         } else {
-          // Update lifetime payment status
-          const activePayment = await ctx.db
-            .query("payments")
-            .withIndex("polarOrderId", (q) => q.eq("polarOrderId", activeData.id))
-            .first();
-
-          if (activePayment) {
-            await ctx.db.patch(activePayment._id, {
-              status: "confirmed",
-              confirmedAt: Date.now(),
-              updated_at: Date.now(),
-              plan: activePlan,
-            });
-            console.log("✅ Payment confirmed");
-          }
+          console.log("⚠️ Non-monthly subscription activation not supported");
         }
         
         // Update user plan for both types
@@ -749,129 +731,11 @@ export const handleWebhookEvent = mutation({
         break;
 
       case "order.paid":
-        console.log("💰 Processing order.paid - activating lifetime plan");
-        // Order paid - activate lifetime plan (this is the key event for lifetime purchases)
-        const paidOrder = args.body.data;
-        
-        console.log("🔍 Paid order data analysis:");
-        console.log("- order_id:", paidOrder.id);
-        console.log("- status:", paidOrder.status);
-        console.log("- amount:", paidOrder.amount);
-        console.log("- currency:", paidOrder.currency);
-        console.log("- metadata:", JSON.stringify(paidOrder.metadata, null, 2));
-        
-        // Update payment record
-        const paymentToPay = await ctx.db
-          .query("payments")
-          .withIndex("polarOrderId", (q) => q.eq("polarOrderId", paidOrder.id))
-          .first();
-
-        if (paymentToPay) {
-          await ctx.db.patch(paymentToPay._id, {
-            status: "confirmed",
-            confirmedAt: Date.now(),
-            updated_at: Date.now(),
-          });
-          console.log("✅ Payment record updated to confirmed");
-        } else {
-          console.log("⚠️ Payment record not found, creating new one");
-          // Create payment record if it doesn't exist
-          const insertPayment = {
-            userId: paidOrder.metadata.userId,
-            polarOrderId: paidOrder.id,
-            polarProductId: paidOrder.product_id,
-            polarPriceId: paidOrder.product_price_id,
-            status: "confirmed",
-            plan: mapMonthlyPlan(paidOrder.amount || 0),
-            amount: paidOrder.amount,
-            currency: paidOrder.currency,
-            customerId: paidOrder.customer_id,
-            metadata: paidOrder.metadata || {},
-            customFieldData: paidOrder.custom_field_data || {},
-            confirmedAt: Date.now(),
-            created_at: Date.now(),
-            updated_at: Date.now(),
-          } as const;
-          logStructured("payments.insert", {
-            table: "payments",
-            action: "insert",
-            reason: "webhook:order.paid",
-            userId: insertPayment.userId,
-            polarOrderId: insertPayment.polarOrderId,
-            status: insertPayment.status,
-          });
-          await ctx.db.insert("payments", insertPayment);
-        }
-
-        // Update user plan based on payment record
-        if (paidOrder.metadata?.userId) {
-          try {
-            // Get the plan type from the payment record
-            const finalPayment = await ctx.db
-              .query("payments")
-              .withIndex("polarOrderId", (q) => q.eq("polarOrderId", paidOrder.id))
-              .first();
-            
-            const planToActivate = finalPayment?.plan || "basic"; // Default to basic if no plan found
-            console.log(`🔄 Activating ${planToActivate} plan for userId: ${paidOrder.metadata.userId}`);
-            
-            await ctx.runMutation(api.users.updateUserPlanAndResetQuota, {
-              tokenIdentifier: paidOrder.metadata.userId,
-              plan: planToActivate,
-              resetQuota: false, // IMPORTANT: preserve usage on payment activation
-            });
-            console.log(`✅ User plan updated to ${planToActivate} for order:`, paidOrder.id);
-          } catch (error) {
-            console.error("❌ Failed to update user plan:", error);
-            console.error("❌ Error details:", JSON.stringify(error, null, 2));
-          }
-        } else {
-          console.error("❌ No userId found in order metadata");
-        }
+        console.log("⚠️ One-time payments no longer supported - order.paid ignored");
         break;
 
       case "order.confirmed":
-        console.log("✅ Processing order.confirmed - activating lifetime plan");
-        // Order confirmed - activate lifetime plan
-        const confirmedOrder = args.body.data;
-        
-        // Update payment record
-        const paymentToConfirm = await ctx.db
-          .query("payments")
-          .withIndex("polarOrderId", (q) => q.eq("polarOrderId", confirmedOrder.id))
-          .first();
-
-        if (paymentToConfirm) {
-          await ctx.db.patch(paymentToConfirm._id, {
-            status: "confirmed",
-            confirmedAt: Date.now(),
-            updated_at: Date.now(),
-          });
-        }
-
-        // Update user plan based on payment record
-        if (confirmedOrder.metadata?.userId) {
-          try {
-            // Get the plan type from the payment record
-            const confirmedPayment = await ctx.db
-              .query("payments")
-              .withIndex("polarOrderId", (q) => q.eq("polarOrderId", confirmedOrder.id))
-              .first();
-            
-            const planToActivate = confirmedPayment?.plan || "basic"; // Default to basic if no plan found
-            console.log(`🔄 Activating ${planToActivate} plan for userId: ${confirmedOrder.metadata.userId}`);
-            
-            await ctx.runMutation(api.users.updateUserPlanAndResetQuota, {
-              tokenIdentifier: confirmedOrder.metadata.userId,
-              plan: planToActivate,
-              resetQuota: false, // IMPORTANT: preserve usage on order confirmation
-            });
-            console.log(`✅ User plan updated to ${planToActivate} for order:`, confirmedOrder.id);
-          } catch (error) {
-            console.error("❌ Failed to update user plan:", error);
-            // Don't throw error - let the payment record exist for manual fixing
-          }
-        }
+        console.log("⚠️ One-time payments no longer supported - order.confirmed ignored");
         break;
 
       case "order.refunded":
@@ -1171,9 +1035,9 @@ export const updateSubscriptionStatus = mutation({
 });
 
 // Scheduled job to check for expired cancelled subscriptions and downgrade users
-export const processExpiredSubscriptions = action({
+export const processExpiredSubscriptions = internalAction({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx): Promise<{ processedCount: number }> => {
     const now = Date.now();
     
     // Find all cancelled subscriptions that have passed their period end date

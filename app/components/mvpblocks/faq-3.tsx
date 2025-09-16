@@ -1,4 +1,5 @@
 'use client';
+
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Mail } from 'lucide-react';
@@ -24,21 +25,21 @@ function FAQItem({ question, answer, index }: FAQItemProps) {
         ease: 'easeOut',
       }}
       className={cn(
-        'group border-white/20 rounded-lg border',
+        'group border-border/60 rounded-lg border',
         'transition-all duration-200 ease-in-out',
-        isOpen ? 'bg-transparent' : 'hover:bg-transparent',
+        isOpen ? 'bg-card/30 shadow-sm' : 'hover:bg-card/50',
       )}
     >
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex w-full items-center justify-between gap-3 sm:gap-4 px-4 sm:px-6 py-3 sm:py-4"
+        className="flex w-full items-center justify-between gap-4 px-6 py-4"
       >
         <h3
           className={cn(
-            'text-left text-sm sm:text-base font-medium transition-colors duration-200',
-            'text-white/90',
-            isOpen && 'text-white',
+            'text-left text-base font-medium transition-colors duration-200',
+            'text-foreground/80',
+            isOpen && 'text-foreground',
           )}
         >
           {question}
@@ -55,7 +56,7 @@ function FAQItem({ question, answer, index }: FAQItemProps) {
           className={cn(
             'shrink-0 rounded-full p-0.5',
             'transition-colors duration-200',
-            isOpen ? 'text-green-400' : 'text-white/60',
+            isOpen ? 'text-primary' : 'text-muted-foreground',
           )}
         >
           <ChevronDown className="h-4 w-4" />
@@ -93,7 +94,7 @@ function FAQItem({ question, answer, index }: FAQItemProps) {
               },
             }}
           >
-            <div className="border-white/20 border-t px-4 sm:px-6 pt-2 pb-3 sm:pb-4">
+            <div className="border-border/40 border-t px-6 pt-2 pb-4">
               <motion.p
                 initial={{ y: -8, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
@@ -102,7 +103,7 @@ function FAQItem({ question, answer, index }: FAQItemProps) {
                   duration: 0.3,
                   ease: 'easeOut',
                 }}
-                className="text-white/80 text-xs sm:text-sm leading-relaxed"
+                className="text-muted-foreground text-sm leading-relaxed"
               >
                 {answer}
               </motion.p>
@@ -114,66 +115,69 @@ function FAQItem({ question, answer, index }: FAQItemProps) {
   );
 }
 
-const FAQ_ITEMS: Omit<FAQItemProps, 'index'>[] = [
-  {
-    question: "Can I chat with AI about any podcast episode?",
-    answer:
-      "Yes! Our AI chat feature lets you ask questions about any episode you've summarized. Get deeper insights, clarifications, and explore topics further.",
-  },
-  {
-    question: "Can I delete my account and data?",
-    answer:
-      "Yes, you can contact us at admin@podclip.tech to request account deletion. We'll permanently remove your data in accordance with our privacy policy.",
-  },
-  {
-    question: "How accurate are the AI-generated summaries?",
-    answer:
-      "Our AI achieves 95%+ accuracy by using advanced language models specifically trained for podcast content. Each summary is structured to capture the most important insights, key takeaways, and actionable information.",
-  },
-  {
-    question: "When will Notion integration be available?",
-    answer:
-      "Notion integration is currently in development. Once launched, you'll be able to export summaries directly to your Notion workspace as pages or database entries.",
-  },
-];
+export default function Faq3() {
+  const faqs: Omit<FAQItemProps, 'index'>[] = [
+    {
+      question: 'What makes MVPBlocks unique?',
+      answer:
+        "MVPBlocks stands out through its intuitive design, powerful component library, and seamless integration options. We've focused on creating a user experience that combines simplicity with advanced features, all while maintaining excellent performance and accessibility.",
+    },
+    {
+      question: 'How can I customize the components?',
+      answer:
+        'All components are built with Tailwind CSS, making them highly customizable. You can modify colors, spacing, typography, and more by simply adjusting the class names or using our theme variables to match your brand identity.',
+    },
+    {
+      question: 'Do the components work with dark mode?',
+      answer:
+        "Yes, all MVPBlocks components are designed to work seamlessly with both light and dark modes. They automatically adapt to your site's theme settings, providing a consistent user experience regardless of the user's preference.",
+    },
+    {
+      question: 'How can I get started with MVPBlocks?',
+      answer:
+        'You can get started by browsing our component library and copying the code for the components you need. Our documentation provides clear instructions for installation and usage, and you can always reach out to our support team if you need assistance.',
+    },
+    {
+      question: 'Can I use MVPBlocks for commercial projects?',
+      answer:
+        'Absolutely! MVPBlocks is free to use for both personal and commercial projects. There are no licensing fees or attribution requirements—just build and launch your MVP faster than ever before.',
+    },
+  ];
 
-export default function FAQ() {
   return (
-    <section className="relative w-full overflow-hidden py-12 sm:py-16 md:py-20">
-      {/* Background Effects - matching pricing section */}
-      <div className="absolute inset-0 -z-10 overflow-hidden">
-        <div className="bg-primary/10 absolute -top-[10%] left-[50%] h-[40%] w-[60%] -translate-x-1/2 rounded-full blur-3xl" />
-        <div className="bg-primary/5 absolute -right-[10%] -bottom-[10%] h-[40%] w-[40%] rounded-full blur-3xl" />
-        <div className="bg-primary/5 absolute -bottom-[10%] -left-[10%] h-[40%] w-[40%] rounded-full blur-3xl" />
-      </div>
+    <section className="bg-background relative w-full overflow-hidden py-16">
+      {/* Decorative elements */}
+      <div className="bg-primary/5 absolute top-20 -left-20 h-64 w-64 rounded-full blur-3xl" />
+      <div className="bg-primary/5 absolute -right-20 bottom-20 h-64 w-64 rounded-full blur-3xl" />
 
-      <div className="relative container mx-auto max-w-6xl px-4 sm:px-6">
+      <div className="relative container mx-auto max-w-6xl px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="mx-auto mb-8 sm:mb-10 md:mb-12 max-w-2xl text-center"
+          className="mx-auto mb-12 max-w-2xl text-center"
         >
           <Badge
             variant="outline"
-            className="border-primary mb-3 sm:mb-4 px-2 sm:px-3 py-1 text-xs font-medium tracking-wider uppercase"
+            className="border-primary mb-4 px-3 py-1 text-xs font-medium tracking-wider uppercase"
           >
             FAQs
           </Badge>
-          <h2 className="from-primary mb-2 sm:mb-3 bg-gradient-to-r to-secondary bg-clip-text text-2xl sm:text-3xl md:text-4xl font-bold text-transparent">
+
+          <h2 className="from-primary mb-3 bg-gradient-to-r to-rose-400 bg-clip-text text-3xl font-bold text-transparent">
             Frequently Asked Questions
           </h2>
-          <p className="text-muted-foreground text-xs sm:text-sm md:text-base px-4 sm:px-0">
-            Everything you need to know about Podclip
+          <p className="text-muted-foreground text-sm">
+            Everything you need to know about MVPBlocks
           </p>
         </motion.div>
 
-        <div className="mx-auto max-w-2xl space-y-1.5 sm:space-y-2">
-          {FAQ_ITEMS.map((faq, index) => (
+        <div className="mx-auto max-w-2xl space-y-2">
+          {faqs.map((faq, index) => (
             <FAQItem key={index} {...faq} index={index} />
           ))}
         </div>
-        
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -198,7 +202,6 @@ export default function FAQ() {
               'transition-colors duration-200',
               'font-medium',
             )}
-            onClick={() => window.location.href = 'mailto:admin@podclip.tech'}
           >
             Contact Support
           </button>
@@ -206,4 +209,4 @@ export default function FAQ() {
       </div>
     </section>
   );
-} 
+}

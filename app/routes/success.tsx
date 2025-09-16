@@ -190,25 +190,25 @@ export default function Success() {
         
         <CardContent className="space-y-6">
           <div className="bg-muted rounded-lg p-6 text-left">
-            <h3 className="font-semibold text-lg mb-4">Subscription Details</h3>
+            <h3 className="font-semibold text-lg mb-4 text-white">Subscription Details</h3>
             <div className="space-y-2">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Status:</span>
-                <span className="font-medium capitalize">{subscription.status}</span>
+                <span className="text-white">Status:</span>
+                <span className="font-medium capitalize text-white">{subscription.status}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Amount:</span>
-                <span className="font-medium">
+                <span className="text-white">Amount:</span>
+                <span className="font-medium text-white">
                   ${subscription.amount ? (subscription.amount / 100).toFixed(2) : '0.00'} {subscription.currency ? subscription.currency.toUpperCase() : 'USD'}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Billing Cycle:</span>
-                <span className="font-medium capitalize">{subscription.interval}</span>
+                <span className="text-white">Billing Cycle:</span>
+                <span className="font-medium capitalize text-white">{subscription.interval}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Next Billing:</span>
-                <span className="font-medium">
+                <span className="text-white">Next Billing:</span>
+                <span className="font-medium text-white">
                   {subscription.currentPeriodEnd ? new Date(subscription.currentPeriodEnd).toLocaleDateString() : 'N/A'}
                 </span>
               </div>
@@ -230,7 +230,7 @@ export default function Success() {
                   )}
                 </Link>
               </Button>
-              <Button asChild variant="outline" className="w-full">
+              <Button asChild className="w-full bg-slate-600 border-slate-600 text-white hover:bg-slate-700 border">
                 <Link to="/">
                   Back to Home
                 </Link>

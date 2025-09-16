@@ -2,6 +2,7 @@ import { Button } from "~/components/ui/button";
 import { GraduationCap, Heart, Laptop, Search, ArrowRight } from "lucide-react";
 import { Link } from "react-router";
 import { useState, useCallback } from "react";
+import ShinyText from "~/components/ShinyText";
 
 export default function ContentSection() {
   const [isSignUpLoading, setIsSignUpLoading] = useState(false);
@@ -15,11 +16,10 @@ export default function ContentSection() {
         {/* Section Header */}
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-6">
-            Everything You Need for <span className="text-primary">Professional Insights</span>
+            Transform Podcast Content into <span className="text-primary">Actionable Business Intelligence</span>
           </h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            From planning your research to staying organized with your team - all your podcast 
-            insight needs in one seamless platform.
+            Extract strategic insights, market intelligence, and competitive advantages from thousands of business podcasts. Make data-driven decisions with AI-powered content analysis.
           </p>
         </div>
 
@@ -162,9 +162,9 @@ export default function ContentSection() {
             <p className="text-lg text-muted-foreground mb-8">
               All features working together for your podcast insight journey
             </p>
-            <Button asChild variant="hero" size="lg" className="group" loading={isSignUpLoading} onClick={handleSignUpClick}>
-              <Link to="/sign-up" prefetch="viewport">
-                🚀 Start Summarising!
+            <Button asChild variant="default" size="lg" className="group" loading={isSignUpLoading} onClick={handleSignUpClick}>
+              <Link to="/sign-up" prefetch="viewport" className="flex items-center">
+                🚀 <ShinyText text="Start Summarising!" speed={3} />
                 <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Link>
             </Button>

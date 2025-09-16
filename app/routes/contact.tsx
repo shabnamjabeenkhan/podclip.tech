@@ -79,21 +79,24 @@ export default function Contact() {
   }, [navigate]);
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
+    <div className="min-h-screen bg-gray-50 py-6">
       <div className="container mx-auto px-4 max-w-2xl">
         <div className="mb-6">
           <Button
             variant="ghost"
             loading={isGoingBack}
             onClick={handleGoBack}
-            className="mb-4"
+            className="mb-4 text-gray-700 hover:text-gray-900"
           >
-            ← Go Back
+            <svg className="w-4 h-4 mr-2 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Go Back
           </Button>
         </div>
         
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Contact Us</h1>
+        <div className="text-center mb-6">
+          <h1 className="text-3xl font-bold text-gray-900 mb-3">Contact Us</h1>
           <p className="text-lg text-gray-600">
             Have a question or feedback? We'd love to hear from you.
           </p>
@@ -122,6 +125,7 @@ export default function Contact() {
                     value={formData.name}
                     onChange={handleChange}
                     placeholder="Your name"
+                    className="!bg-white"
                     required
                   />
                 </div>
@@ -136,6 +140,7 @@ export default function Contact() {
                     value={formData.email}
                     onChange={handleChange}
                     placeholder="your.email@example.com"
+                    className="!bg-white"
                     required
                   />
                 </div>
@@ -152,6 +157,7 @@ export default function Contact() {
                   value={formData.subject}
                   onChange={handleChange}
                   placeholder="What's this about?"
+                  className="!bg-white"
                   autoComplete="off"
                   required
                 />
@@ -167,6 +173,7 @@ export default function Contact() {
                   value={formData.message}
                   onChange={handleChange}
                   placeholder="Tell us more about your question or feedback..."
+                  className="!bg-white"
                   rows={6}
                   required
                 />
@@ -199,8 +206,8 @@ export default function Contact() {
         </Card>
 
         {/* Alternative contact methods */}
-        <div className="mt-8 text-center">
-          <p className="text-gray-600 mb-4">Or reach us directly:</p>
+        <div className="mt-6 text-center">
+          <p className="text-gray-600 mb-3">Or reach us directly:</p>
           <div className="flex justify-center items-center gap-6">
             <a 
               href="mailto:admin@podclip.tech"

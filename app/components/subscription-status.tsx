@@ -166,7 +166,7 @@ export default function SubscriptionStatus() {
                 <div>
                   <p className="text-sm font-medium">Usage</p>
                   <p className="text-sm text-muted-foreground">
-                    {userQuota.summaries.used}/{userQuota.summaries.limit} summaries used
+                    {userQuota.summaries?.used || 0}/{userQuota.summaries?.limit || 0} summaries used
                   </p>
                 </div>
               </div>
@@ -230,7 +230,7 @@ export default function SubscriptionStatus() {
                 <div>
                   <p className="text-sm font-medium">Usage</p>
                   <p className="text-sm text-muted-foreground">
-                    {userQuota.summaries.used}/{userQuota.summaries.limit === -1 ? '∞' : userQuota.summaries.limit} summaries used
+                    {userQuota.summaries?.used || 0}/{userQuota.summaries?.limit === -1 ? '∞' : userQuota.summaries?.limit || 0} summaries used
                   </p>
                 </div>
               </div>

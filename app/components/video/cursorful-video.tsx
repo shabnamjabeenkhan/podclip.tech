@@ -57,12 +57,12 @@ export function CursorfulVideo({
   };
 
   return (
-    <Card className={`w-full max-w-4xl mx-auto ${className}`}>
+    <Card className={`w-full max-w-4xl mx-auto bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800 border-slate-600/50 ${className}`}>
       {(title || description) && (
         <CardHeader>
-          <CardTitle>{title}</CardTitle>
+          <CardTitle className="text-white">{title}</CardTitle>
           {description && (
-            <p className="text-sm text-muted-foreground">{description}</p>
+            <p className="text-sm text-slate-300">{description}</p>
           )}
         </CardHeader>
       )}

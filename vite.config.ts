@@ -5,11 +5,21 @@ import tsconfigPaths from "vite-tsconfig-paths";
 
 export default defineConfig({
   plugins: [
-    tailwindcss(), 
-    reactRouter(), 
+    tailwindcss(),
+    reactRouter(),
     tsconfigPaths(),
   ],
   server: {
-    allowedHosts: ["5dfb0c56a5e4.ngrok-free.app"],
+    allowedHosts: ["5338735e4c8d.ngrok-free.app"],
+  },
+  build: {
+    sourcemap: false, // Disable sourcemaps to avoid warnings
+    rollupOptions: {
+      onwarn(warning, warn) {
+        // Suppress sourcemap warnings
+        if (warning.code === 'SOURCEMAP_ERROR') return;
+        warn(warning);
+      },
+    },
   },
 });

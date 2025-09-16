@@ -104,11 +104,19 @@ export function RecentSummaries() {
               <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
                 <span className="text-xs text-gray-500 flex-shrink-0">Key takeaways:</span>
                 <div className="flex flex-wrap gap-1">
-                  {summary.takeaways.slice(0, 2).map((takeaway: string, i: number) => (
-                    <span key={i} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                      {takeaway.length > 15 ? `${takeaway.substring(0, 15)}...` : takeaway}
-                    </span>
-                  ))}
+                  {summary.takeaways.slice(0, 2).map((takeaway: any, i: number) => {
+                    // Handle both old string format and new timestamp format
+                    const rawText = typeof takeaway === 'object' ? takeaway.text : takeaway;
+                    // Ensure text is always a string to prevent React rendering errors
+                    const text = typeof rawText === 'string' ? rawText : 
+                               typeof rawText === 'object' ? JSON.stringify(rawText) : 
+                               String(rawText || '');
+                    return (
+                      <span key={i} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                        {text.length > 15 ? `${text.substring(0, 15)}...` : text}
+                      </span>
+                    );
+                  })}
                   {summary.takeaways.length > 2 && (
                     <span className="text-xs text-gray-500 self-center">+{summary.takeaways.length - 2} more</span>
                   )}

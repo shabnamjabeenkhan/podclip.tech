@@ -5,7 +5,6 @@ import { useSearchParams, useNavigate } from "react-router";
 import { useQuery } from "convex/react";
 import { useUser, useAuth } from "@clerk/react-router";
 import { useState, useEffect } from "react";
-import { useIsMobile } from "~/hooks/use-mobile";
 import Markdown from "react-markdown";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -13,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "~/components/ui/select";
 import { cn } from "~/lib/utils";
 import { isFeatureEnabled, config } from "../../../config";
-import { api } from "../../../convex/_generated/api";
+import { api } from "convex/_generated/api";
 
 export default function Chat() {
   // Get URL parameters for episode context
@@ -23,7 +22,6 @@ export default function Chat() {
   const initialSummaryId = searchParams.get('summaryId');
   const { user } = useUser();
   const { isSignedIn } = useAuth();
-  const isMobile = useIsMobile();
   
   // Local state for selected episode
   const [selectedSummaryId, setSelectedSummaryId] = useState<string | null>(initialSummaryId);
@@ -116,7 +114,7 @@ export default function Chat() {
     navigate(`/dashboard/chat?summaryId=${summaryId}`, { replace: true });
   };
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading: chatIsLoading, setMessages } =
+  const { messages, input, handleInputChange, handleSubmit, status, setMessages } =
     useChat({
       maxSteps: 10,
       api: `${CONVEX_SITE_URL}/api/chat`,
@@ -159,7 +157,7 @@ export default function Chat() {
                   value={selectedSummaryId || ""}
                   onValueChange={handleEpisodeSelect}
                 >
-                <SelectTrigger className="w-full min-w-0 h-16 lg:h-20 border-2 border-gray-200 hover:border-blue-300 focus:border-blue-500 bg-white shadow-sm py-3 lg:py-4 px-3 lg:px-4 text-left overflow-hidden">
+                <SelectTrigger className="w-full min-w-0 h-16 lg:h-20 border-2 border-gray-200 hover:border-blue-300 focus:border-blue-500 !bg-white shadow-sm py-3 lg:py-4 px-3 lg:px-4 text-left overflow-hidden">
                   <div className="flex-1 min-w-0 flex flex-col justify-center px-2 lg:px-4 py-1 overflow-hidden">
                     {selectedSummaryId && summary ? (
                       <div className="font-semibold text-sm lg:text-base text-gray-900 leading-tight truncate w-full">
@@ -233,53 +231,77 @@ export default function Chat() {
               </div>
             )}
             
-            {messages.map((message, i) => (
-              <div
-                key={message.id}
-                className={cn(
-                  "flex gap-3",
-                  message.role === "user" ? "justify-end" : "justify-start"
-                )}
-              >
+            {messages.map((message) => {
+              // Safely handle the message content
+              const messageContent = message.content || '';
+              const messageParts = message.parts || [];
+              
+              return (
                 <div
+                  key={message.id}
                   className={cn(
-                    "max-w-[75%] px-4 py-3 text-base shadow-sm rounded-2xl",
-                    message.role === "user"
-                      ? "bg-blue-600 text-white rounded-br-md"
-                      : "bg-white border border-gray-200 text-gray-900 rounded-bl-sm"
+                    "flex gap-3",
+                    message.role === "user" ? "justify-end" : "justify-start"
                   )}
                 >
-                  {message.parts.map((part) => {
-                    switch (part.type) {
-                      case "text":
-                        return (
-                          <div
-                            key={`${message.id}-${i}`}
-                            className={cn(
-                              "prose max-w-none prose-p:my-2 prose-li:my-1",
-                              message.role === "user" 
-                                ? "prose-invert prose-p:text-white prose-strong:text-white prose-li:text-white" 
-                                : "prose-gray prose-p:text-gray-800 prose-strong:text-gray-900"
-                            )}
-                          >
-                            <Markdown>{part.text}</Markdown>
-                          </div>
-                        );
-                      default:
-                        return null;
-                    }
-                  })}
-                </div>
-                {message.role === "user" && (
-                  <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-green-500 to-teal-600 rounded-full flex items-center justify-center">
-                    <span className="text-white text-sm">👤</span>
+                  <div
+                    className={cn(
+                      "max-w-[75%] px-4 py-3 text-base shadow-sm rounded-2xl",
+                      message.role === "user"
+                        ? "bg-blue-600 text-white rounded-br-md"
+                        : "bg-white border border-gray-200 text-gray-900 rounded-bl-sm"
+                    )}
+                  >
+                    {/* Fallback to message.content if parts are empty or malformed */}
+                    {messageParts.length > 0 ? (
+                      messageParts.map((part, partIndex) => {
+                        switch (part.type) {
+                          case "text":
+                            const textContent = typeof part.text === 'string' ? part.text : 
+                                              typeof part.text === 'object' ? JSON.stringify(part.text) : 
+                                              String(part.text || '');
+                            return (
+                              <div
+                                key={`${message.id}-${partIndex}`}
+                                className={cn(
+                                  "prose max-w-none prose-p:my-2 prose-li:my-1",
+                                  message.role === "user" 
+                                    ? "prose-invert prose-p:text-white prose-strong:text-white prose-li:text-white" 
+                                    : "prose-gray prose-p:text-gray-800 prose-strong:text-gray-900"
+                                )}
+                              >
+                                <Markdown>{textContent}</Markdown>
+                              </div>
+                            );
+                          default:
+                            return null;
+                        }
+                      })
+                    ) : (
+                      // Fallback to rendering message.content directly
+                      <div
+                        className={cn(
+                          "prose max-w-none prose-p:my-2 prose-li:my-1",
+                          message.role === "user" 
+                            ? "prose-invert prose-p:text-white prose-strong:text-white prose-li:text-white" 
+                            : "prose-gray prose-p:text-gray-800 prose-strong:text-gray-900"
+                        )}
+                      >
+                        <Markdown>{typeof messageContent === 'string' ? messageContent : String(messageContent)}</Markdown>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            ))}
+                  {message.role === "user" && (
+                    <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-green-500 to-teal-600 rounded-full flex items-center justify-center">
+                      <span className="text-white text-sm">👤</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
 
             {/* Loading indicator */}
-            {chatIsLoading && (
+            {status === 'streaming' && (
               <div className="flex justify-start">
                 <div className="max-w-[75%] px-4 py-3 bg-white border border-gray-200 rounded-2xl rounded-bl-sm">
                   <div className="flex items-center space-x-3">
@@ -302,7 +324,7 @@ export default function Chat() {
             <form onSubmit={handleSubmit} className="w-full">
               <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-stretch sm:items-end">
                 <Input
-                  className="flex-1 border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-sm sm:text-base placeholder:text-gray-500 bg-white rounded-lg h-10 sm:h-12 px-3 sm:px-4 transition-all duration-200 min-w-0"
+                  className="flex-1 border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-sm sm:text-base text-gray-900 placeholder:text-gray-500 !bg-white rounded-lg h-10 sm:h-12 px-3 sm:px-4 transition-all duration-200 min-w-0"
                   value={input}
                   placeholder={
                     summary && summary.episode_title
@@ -310,15 +332,15 @@ export default function Chat() {
                       : "Ask about this episode..."
                   }
                   onChange={handleInputChange}
-                  disabled={chatIsLoading}
+                  disabled={status !== 'ready'}
                 />
                 <Button 
                   type="submit" 
-                  loading={chatIsLoading} 
-                  disabled={!input.trim()}
+                  loading={status === 'streaming'} 
+                  disabled={!input.trim() || status !== 'ready'}
                   className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 sm:px-6 py-2 sm:py-3 h-10 sm:h-12 text-sm sm:text-base font-medium shadow-sm transition-all duration-200 hover:shadow-md whitespace-nowrap"
                 >
-                  {chatIsLoading ? "Sending..." : "Send"}
+                  {status === 'streaming' ? "Sending..." : "Send"}
                 </Button>
               </div>
             </form>

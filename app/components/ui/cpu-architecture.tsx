@@ -132,7 +132,7 @@ export const CpuArchitecture = ({
           cx="0"
           cy="0"
           r="8"
-          fill="url(#cpu-green-grad)"
+          fill="url(#cpu-pinkish-grad)"
         />
       </g>
       {/* 6. Orange Light */}

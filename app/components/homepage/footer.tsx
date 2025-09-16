@@ -8,7 +8,7 @@ export default function FooterSection() {
         <div className="grid md:grid-cols-4 gap-8 mb-12">
           {/* Brand Section */}
           <div className="md:col-span-1">
-            <h3 className="text-lg font-bold text-foreground mb-4">PodClip</h3>
+            <h3 className="text-lg font-bold text-foreground mb-4">Podclip</h3>
             <p className="text-muted-foreground text-sm leading-relaxed">
               Transform your podcast listening experience with AI-powered summaries and insights.
             </p>
@@ -85,7 +85,7 @@ export default function FooterSection() {
         {/* Bottom Section */}
         <div className="border-t pt-8 flex flex-col md:flex-row justify-center items-center gap-4">
           <span className="text-muted-foreground text-sm">
-            © {new Date().getFullYear()} PodClip. All rights reserved.
+            © {new Date().getFullYear()} Podclip. All rights reserved.
           </span>
         </div>
 

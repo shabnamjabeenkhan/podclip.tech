@@ -265,9 +265,9 @@ export default function IntegratedPricing() {
                     <Check className="h-5 w-5 text-green-500" />
                     <span>{(() => {
                       if (!plan.isRecurring) return "70 summaries per month";
-                      if (price.amount <= 999) return "35 summaries per month"; // Basic plan $9.99
-                      if (price.amount <= 1499) return "60 summaries per month"; // Pro plan $14.99
-                      if (price.amount <= 4999) return "300 summaries per month"; // Premium plan $49.99
+                      if (price.amount <= 1299) return "20 summaries per month"; // Basic plan $12.99
+                      if (price.amount <= 2299) return "40 summaries per month"; // Pro plan $22.99
+                      if (price.amount <= 5000) return "60 summaries per month"; // Premium plan $50.00
                       return "Unlimited summaries"; // Higher tier plans
                     })()}</span>
                   </div>
@@ -275,9 +275,9 @@ export default function IntegratedPricing() {
                     <Check className="h-5 w-5 text-green-500" />
                     <span>{(() => {
                       if (!plan.isRecurring) return "150 searches per month";
-                      if (price.amount <= 999) return "150 searches per month"; // Basic plan $9.99
-                      if (price.amount <= 1499) return "200 searches per month"; // Pro plan $14.99
-                      if (price.amount <= 4999) return "350 searches per month"; // Premium plan $49.99
+                      if (price.amount <= 1299) return "25 searches per month"; // Basic plan $12.99
+                      if (price.amount <= 2299) return "50 searches per month"; // Pro plan $22.99
+                      if (price.amount <= 5000) return "70 searches per month"; // Premium plan $50.00
                       return "Unlimited searches"; // Higher tier plans
                     })()}</span>
                   </div>
@@ -347,9 +347,9 @@ export default function IntegratedPricing() {
                 <span className="text-2xl">📊</span>
               </div>
               <h3 className="font-semibold text-lg mb-2">Basic Plan</h3>
-              <p className="text-sm text-gray-600">$9.99/month</p>
-              <p className="font-medium text-blue-600">35 summaries/month</p>
-              <p className="font-medium text-blue-600">150 searches/month</p>
+              <p className="text-sm text-gray-600">$12.99/month</p>
+              <p className="font-medium text-blue-600">20 summaries/month</p>
+              <p className="font-medium text-blue-600">25 searches/month</p>
             </div>
             
             <div className="text-center">
@@ -357,9 +357,9 @@ export default function IntegratedPricing() {
                 <span className="text-2xl">🚀</span>
               </div>
               <h3 className="font-semibold text-lg mb-2">Pro Plan</h3>
-              <p className="text-sm text-gray-600">$14.99/month</p>
-              <p className="font-medium text-purple-600">60 summaries/month</p>
-              <p className="font-medium text-purple-600">200 searches/month</p>
+              <p className="text-sm text-gray-600">$22.99/month</p>
+              <p className="font-medium text-purple-600">40 summaries/month</p>
+              <p className="font-medium text-purple-600">50 searches/month</p>
             </div>
             
             <div className="text-center">
@@ -368,8 +368,8 @@ export default function IntegratedPricing() {
               </div>
               <h3 className="font-semibold text-lg mb-2">Premium Plan</h3>
               <p className="text-sm text-gray-600">$49.99/month</p>
-              <p className="font-medium text-amber-600">300 summaries/month</p>
-              <p className="font-medium text-amber-600">350 searches/month</p>
+              <p className="font-medium text-amber-600">60 summaries/month</p>
+              <p className="font-medium text-amber-600">70 searches/month</p>
             </div>
           </div>
 

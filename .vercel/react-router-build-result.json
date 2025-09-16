@@ -11,6 +11,7 @@
     },
     "routeIdToServerBundleId": {
       "routes/home": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
+      "routes/demo": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/changelog": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/terms-of-service": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
       "routes/privacy-policy": "nodejs_eyJydW50aW1lIjoibm9kZWpzIn0",
@@ -33,9 +34,9 @@
     },
     "routes": {
       "root": {
-        "path": "",
         "id": "root",
         "file": "app/root.tsx",
+        "path": "",
         "config": {}
       },
       "routes/home": {
@@ -43,6 +44,15 @@
         "parentId": "root",
         "file": "app/routes/home.tsx",
         "index": true,
+        "config": {
+          "runtime": "nodejs"
+        }
+      },
+      "routes/demo": {
+        "id": "routes/demo",
+        "parentId": "root",
+        "file": "app/routes/demo.tsx",
+        "path": "demo",
         "config": {
           "runtime": "nodejs"
         }
@@ -239,15 +249,21 @@
     },
     "routes": {
       "root": {
-        "path": "",
         "id": "root",
-        "file": "root.tsx"
+        "file": "root.tsx",
+        "path": ""
       },
       "routes/home": {
         "id": "routes/home",
         "parentId": "root",
         "file": "routes/home.tsx",
         "index": true
+      },
+      "routes/demo": {
+        "id": "routes/demo",
+        "parentId": "root",
+        "file": "routes/demo.tsx",
+        "path": "demo"
       },
       "routes/changelog": {
         "id": "routes/changelog",
@@ -375,7 +391,105 @@
     },
     "serverBuildFile": "index.js",
     "serverModuleFormat": "esm",
-    "ssr": true
+    "ssr": true,
+    "unstable_routeConfig": [
+      {
+        "id": "root",
+        "path": "",
+        "file": "root.tsx",
+        "children": [
+          {
+            "file": "routes/home.tsx",
+            "index": true
+          },
+          {
+            "file": "routes/demo.tsx",
+            "path": "demo"
+          },
+          {
+            "file": "routes/changelog.tsx",
+            "path": "changelog"
+          },
+          {
+            "file": "routes/terms-of-service.tsx",
+            "path": "terms-of-service"
+          },
+          {
+            "file": "routes/privacy-policy.tsx",
+            "path": "privacy-policy"
+          },
+          {
+            "file": "routes/refund-policy.tsx",
+            "path": "refund-policy"
+          },
+          {
+            "file": "routes/contact.tsx",
+            "path": "contact"
+          },
+          {
+            "file": "routes/api.health.ts",
+            "path": "api/health"
+          },
+          {
+            "file": "routes/api.audio.proxy.ts",
+            "path": "api/audio/proxy"
+          },
+          {
+            "file": "routes/api.webhooks.sentry.ts",
+            "path": "api/webhooks/sentry"
+          },
+          {
+            "file": "routes/api.notion.oauth.ts",
+            "path": "api/notion/oauth"
+          },
+          {
+            "file": "routes/sign-in.tsx",
+            "path": "sign-in/*"
+          },
+          {
+            "file": "routes/sign-up.tsx",
+            "path": "sign-up/*"
+          },
+          {
+            "file": "routes/pricing.tsx",
+            "path": "pricing"
+          },
+          {
+            "file": "routes/success.tsx",
+            "path": "success"
+          },
+          {
+            "file": "routes/subscription-required.tsx",
+            "path": "subscription-required"
+          },
+          {
+            "file": "routes/dashboard/layout.tsx",
+            "children": [
+              {
+                "file": "routes/dashboard/index.tsx",
+                "path": "dashboard"
+              },
+              {
+                "file": "routes/dashboard/new-summary.tsx",
+                "path": "dashboard/new-summary"
+              },
+              {
+                "file": "routes/dashboard/all-summaries.tsx",
+                "path": "dashboard/all-summaries"
+              },
+              {
+                "file": "routes/dashboard/settings.tsx",
+                "path": "dashboard/settings"
+              },
+              {
+                "file": "routes/dashboard/chat.tsx",
+                "path": "dashboard/chat"
+              }
+            ]
+          }
+        ]
+      }
+    ]
   },
   "viteConfig": {
     "build": {

@@ -11,9 +11,10 @@ const REDIRECT_URI = `${process.env.FRONTEND_URL}/api/notion/oauth`;
 const convexUrl = process.env.VITE_CONVEX_URL!;
 const convex = new ConvexHttpClient(convexUrl);
 
-export async function loader({ request }: LoaderFunctionArgs) {
+export async function loader({ request, params, context }: LoaderFunctionArgs) {
   try {
-    const { userId } = await getAuth({ request });
+    const auth = await getAuth({ request, params, context });
+    const userId = auth.userId;
     
     if (!userId) {
       return new Response("Unauthorized", { status: 401 });

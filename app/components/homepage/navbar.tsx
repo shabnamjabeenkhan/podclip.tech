@@ -107,34 +107,34 @@ export const Navbar = ({
       >
         <div
           className={cn(
-            "mx-auto mt-2 max-w-6xl px-6 transition-all duration-300 lg:px-12",
+            "mx-auto mt-2 max-w-6xl px-4 sm:px-6 transition-all duration-300 lg:px-12",
             isScrolled &&
-              "bg-background/50 max-w-4xl rounded-2xl border backdrop-blur-lg lg:px-5 shadow-lg"
+              "bg-background/50 max-w-4xl rounded-2xl border backdrop-blur-lg px-4 sm:px-6 lg:px-5 shadow-lg"
           )}
         >
           {/* Temporary debug indicator */}
           {/* <div className="absolute top-0 left-0 bg-red-500 text-white px-2 py-1 text-xs z-10">
             Debug: {isScrolled ? 'SCROLLED' : 'NOT SCROLLED'}
           </div> */}
-          <div className="relative flex flex-wrap items-center justify-between gap-6 py-3 lg:gap-0 lg:py-4">
+          <div className="relative flex flex-wrap items-center justify-between gap-4 sm:gap-6 py-3 lg:gap-0 lg:py-4">
             <div className="flex w-full justify-between lg:w-auto">
               <Link
                 to="/"
                 aria-label="home"
-                className="flex items-center space-x-2 font-semibold text-2xl text-muted-foreground"
+                className="flex items-center space-x-2 font-semibold text-xl sm:text-2xl text-muted-foreground"
                 prefetch="viewport"
               >
                 <div className="color:black font-bold">Podclip</div>
-                {/* <img src="/kaizen-no-bg.png" alt="Kaizen Logo" className="w-18 h-18" /> */}
               </Link>
 
               <button
                 onClick={() => setMenuState(!menuState)}
                 aria-label={menuState == true ? "Close Menu" : "Open Menu"}
-                className="relative z-20 -m-2.5 -mr-4 block cursor-pointer p-2.5 lg:hidden"
+                className="relative z-20 -m-2 block cursor-pointer p-2 lg:hidden"
+                data-state={menuState ? "active" : "inactive"}
               >
-                <Menu className="in-data-[state=active]:rotate-180 in-data-[state=active]:scale-0 in-data-[state=active]:opacity-0 m-auto size-6 duration-200" />
-                <X className="in-data-[state=active]:rotate-0 in-data-[state=active]:scale-100 in-data-[state=active]:opacity-100 absolute inset-0 m-auto size-6 -rotate-180 scale-0 opacity-0 duration-200" />
+                <Menu className="data-[state=active]:rotate-180 data-[state=active]:scale-0 data-[state=active]:opacity-0 m-auto size-6 duration-200" />
+                <X className="data-[state=active]:rotate-0 data-[state=active]:scale-100 data-[state=active]:opacity-100 absolute inset-0 m-auto size-6 -rotate-180 scale-0 opacity-0 duration-200" />
               </button>
             </div>
 
@@ -153,14 +153,20 @@ export const Navbar = ({
               </ul>
             </div>
 
-            <div className="bg-background in-data-[state=active]:block lg:in-data-[state=active]:flex mb-6 hidden w-full flex-wrap items-center justify-end space-y-8 rounded-3xl border p-6 shadow-2xl shadow-zinc-300/20 md:flex-nowrap lg:m-0 lg:flex lg:w-fit lg:gap-6 lg:space-y-0 lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none dark:shadow-none dark:lg:bg-transparent">
+            <div
+              className={cn(
+                "bg-background mb-6 hidden w-full flex-wrap items-center justify-end space-y-6 sm:space-y-8 rounded-3xl border p-4 sm:p-6 shadow-2xl shadow-zinc-300/20 md:flex-nowrap lg:m-0 lg:flex lg:w-fit lg:gap-6 lg:space-y-0 lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none dark:shadow-none dark:lg:bg-transparent",
+                menuState && "block lg:flex"
+              )}
+              data-state={menuState ? "active" : "inactive"}
+            >
               <div className="lg:hidden">
-                <ul className="space-y-6 text-lg">
+                <ul className="space-y-4 sm:space-y-6 text-base sm:text-lg">
                   {menuItems.map((item, index) => (
                     <li key={index}>
                       <button
                         onClick={() => handleNavClick(item.href)}
-                        className="text-muted-foreground hover:cursor-pointer  block duration-150 transition-colors w-full text-left"
+                        className="text-muted-foreground hover:cursor-pointer block duration-150 transition-colors w-full text-left hover:text-foreground"
                       >
                         <span>{item.name}</span>
                       </button>
@@ -168,7 +174,7 @@ export const Navbar = ({
                   ))}
                 </ul>
               </div>
-              <div className="flex w-full flex-col space-y-3 sm:flex-row sm:gap-3 sm:space-y-0 md:w-fit">
+              <div className="flex w-full flex-col space-y-3 sm:flex-row sm:gap-3 sm:space-y-0 md:w-fit pt-4 lg:pt-0">
                 {authEnabled && loaderData?.isSignedIn ? (
                   <div className="flex items-center gap-3">
                     <Button 

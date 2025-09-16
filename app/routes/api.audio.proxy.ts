@@ -26,14 +26,21 @@ export async function loader({ request }: LoaderFunctionArgs) {
       return new Response('Audio URL not from allowed host', { status: 403 });
     }
 
-    // Fetch the audio file
+    // Fetch the audio file with timeout and better error handling
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    
     const response = await fetch(audioUrl, {
+      signal: controller.signal,
       headers: {
         'User-Agent': 'PodClip/1.0 (https://podclip.tech)',
         'Accept': 'audio/*,*/*;q=0.1',
         'Accept-Encoding': 'identity', // Disable compression for audio streaming
+        'Connection': 'keep-alive',
       },
     });
+    
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       return new Response(`Failed to fetch audio: ${response.status}`, { status: response.status });
@@ -75,6 +82,17 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   } catch (error) {
     console.error('Audio proxy error:', error);
-    return new Response('Failed to proxy audio', { status: 500 });
+    
+    // Handle specific error types
+    if (error instanceof Error) {
+      if (error.name === 'AbortError') {
+        return new Response('Audio request timed out', { status: 408 });
+      }
+      if (error.message.includes('fetch')) {
+        return new Response(`Network error: ${error.message}`, { status: 502 });
+      }
+    }
+    
+    return new Response(`Failed to proxy audio: ${error instanceof Error ? error.message : 'Unknown error'}`, { status: 500 });
   }
 }

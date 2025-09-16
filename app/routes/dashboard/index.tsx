@@ -56,11 +56,11 @@ export default function Page() {
           {/* Upgrade Prompt for Free Users */}
           {showUpgradePrompt && (
             <div className="px-4 lg:px-6">
-              <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-4">
+              <div className="bg-white border border-gray-200 rounded-lg p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                      <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                       </svg>
                     </div>
@@ -90,14 +90,12 @@ export default function Page() {
           {/* General Upgrade Banner for Free Users */}
           {showUpgradeBanner && (
             <div className="px-4 lg:px-6">
-              <div className="bg-gradient-to-r from-emerald-50 via-blue-50 to-purple-50 border border-emerald-200 rounded-lg p-4 relative overflow-hidden">
-                {/* Background decorative elements */}
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full blur-2xl opacity-30 transform translate-x-16 -translate-y-16"></div>
-                <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-emerald-100 to-blue-100 rounded-full blur-xl opacity-40 transform -translate-x-8 translate-y-8"></div>
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 relative overflow-hidden">
+                {/* Background decorative elements removed */}
                 
                 <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                   <div className="flex items-start lg:items-center gap-4">
-                    <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg flex-shrink-0">
+                    <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center shadow-lg flex-shrink-0">
                       <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                       </svg>
@@ -107,7 +105,7 @@ export default function Page() {
                         🚀 Unlock Your Full Potential
                       </h3>
                       <p className="text-sm text-gray-600">
-                        You've used {userQuota.summaries.used} of {userQuota.summaries.limit} free summaries. Upgrade for unlimited AI-powered insights!
+                        You've used {userQuota.summaries.used} of {userQuota.summaries.limit} free summaries. Upgrade for more AI-powered insights!
                       </p>
                     </div>
                   </div>
@@ -115,12 +113,12 @@ export default function Page() {
                     <Button
                       loading={upgradeLoading}
                       onClick={handleUpgradeClick}
-                      variant="hero"
+                      variant="default"
                       className="px-6 py-3 text-sm font-semibold shadow-lg hover:shadow-xl w-full sm:w-auto"
                     >
                       Upgrade Now
                     </Button>
-                    <p className="text-xs text-center text-gray-500">Starting at $9.99/mo</p>
+                    <p className="text-xs text-center text-gray-500">Starting at $12.99/mo</p>
                   </div>
                 </div>
               </div>
@@ -168,8 +166,8 @@ export default function Page() {
                   to="/dashboard/new-summary"
                   className="flex items-center p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
                 >
-                  <div className="p-2 bg-blue-50 rounded-lg mr-3">
-                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="p-2 bg-gray-50 rounded-lg mr-3">
+                    <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
                   </div>

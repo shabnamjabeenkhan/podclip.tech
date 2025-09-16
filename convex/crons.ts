@@ -16,7 +16,7 @@ crons.cron(
 crons.cron(
   "process-expired-subscriptions",
   "0 6 * * *", // Every day at 6:00 AM UTC
-  api.subscriptions.processExpiredSubscriptions
+  internal.subscriptions.processExpiredSubscriptions
 );
 
 export default crons;

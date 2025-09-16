@@ -1,7 +1,7 @@
-import { memo, useMemo, useState, useCallback, useEffect } from "react";
+import { memo, useMemo } from "react";
 import { type Icon } from "@tabler/icons-react";
 
-import { useLocation, useNavigate } from "react-router";
+import { useLocation, Link } from "react-router";
 import { Button } from "~/components/ui/button";
 import {
   SidebarGroup,
@@ -21,32 +21,22 @@ export const NavMain = memo(({
   }[];
 }) => {
   const location = useLocation();
-  const navigate = useNavigate();
   const { isMobile, setOpenMobile } = useSidebar();
-  const [loadingItems, setLoadingItems] = useState<{[key: string]: boolean}>({});
 
-  const handleItemClick = useCallback((url: string) => {
-    setLoadingItems(prev => ({ ...prev, [url]: true }));
-    navigate(url);
-    
+  const handleItemClick = () => {
     // Close mobile sidebar when navigating
     if (isMobile) {
       setOpenMobile(false);
     }
-  }, [navigate, isMobile, setOpenMobile]);
+  };
 
-  const navItems = useMemo(() => 
+  const navItems = useMemo(() =>
     items.map((item) => ({
       ...item,
       isActive: location.pathname === item.url,
-    })), 
+    })),
     [items, location.pathname]
   );
-
-  // Clear loading state when navigation completes
-  useEffect(() => {
-    setLoadingItems({});
-  }, [location.pathname]);
 
   return (
     <SidebarGroup>
@@ -56,12 +46,13 @@ export const NavMain = memo(({
             <SidebarMenuItem key={item.title}>
               <Button
                 variant={item.isActive ? "secondary" : "ghost"}
-                loading={loadingItems[item.url]}
-                onClick={() => handleItemClick(item.url)}
                 className="w-full justify-start h-8 px-2"
+                asChild
               >
-                {item.icon && <item.icon size={16} className="mr-2" />}
-                <span>{item.title}</span>
+                <Link to={item.url} onClick={handleItemClick}>
+                  {item.icon && <item.icon size={16} className="mr-2" />}
+                  <span>{item.title}</span>
+                </Link>
               </Button>
             </SidebarMenuItem>
           ))}

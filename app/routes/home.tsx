@@ -1,11 +1,9 @@
 import { isFeatureEnabled, isServiceEnabled } from "../../config";
-import ContentSection from "~/components/homepage/content";
+import AboutUs1 from "~/components/mvpblocks/about-us-1";
 import CoreFeaturesSection from "~/components/homepage/core-features";
-import { ConvexComparison } from "~/components/homepage/convex-comparison";
-import Footer from "~/components/homepage/footer";
+import FooterGlow from "~/components/mvpblocks/footer-glow";
 import Integrations from "~/components/homepage/integrations";
 import Pricing from "~/components/homepage/pricing";
-import Team from "~/components/homepage/team";
 import FAQ from "~/components/homepage/faq";
 import AiChatSection from "~/components/homepage/ai-chat-section";
 import DemoSection from "~/components/homepage/demo-section";
@@ -13,7 +11,7 @@ import { api } from "../../convex/_generated/api";
 import type { Route } from "./+types/home";
 
 export function meta({}: Route.MetaArgs) {
-  const title = "PodClip - AI-Powered Podcast Summaries";
+  const title = "Podclip - AI-Powered Podcast Summaries";
   const description =
     "Transform your podcast listening experience with AI-generated summaries and key takeaways. Save time and never miss important insights from your favorite shows.";
   const keywords = "podcast summaries, AI summaries, podcast player, key takeaways, audio summaries, podcast insights";
@@ -35,7 +33,7 @@ export function meta({}: Route.MetaArgs) {
     { property: "og:image:width", content: "1200" },
     { property: "og:image:height", content: "630" },
     { property: "og:url", content: siteUrl },
-    { property: "og:site_name", content: "PodClip" },
+    { property: "og:site_name", content: "Podclip" },
 
     // Twitter Card
     { name: "twitter:card", content: "summary_large_image" },
@@ -49,7 +47,7 @@ export function meta({}: Route.MetaArgs) {
       name: "keywords",
       content: keywords,
     },
-    { name: "author", content: "PodClip" },
+    { name: "author", content: "Podclip" },
     { name: "favicon", content: imageUrl },
   ];
 }
@@ -110,14 +108,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   return (
     <>
       <Integrations loaderData={loaderData} />
-      <ContentSection />
+      <AboutUs1 />
       <CoreFeaturesSection />
       <DemoSection />
       <AiChatSection />
-      <ConvexComparison />
       <Pricing loaderData={loaderData} />
       <FAQ />
-      <Footer />
+      <FooterGlow />
     </>
   );
 }
