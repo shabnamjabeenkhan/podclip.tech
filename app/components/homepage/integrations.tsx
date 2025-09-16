@@ -28,7 +28,7 @@ export default function IntegrationsSection({
     setIsHeroLoading(true);
   }, []);
   return (
-    <section id="hero" className="relative w-full overflow-x-hidden">
+    <section id="hero" className="relative w-full">
       <Navbar loaderData={loaderData} />
       
       <Spotlight
@@ -56,8 +56,8 @@ export default function IntegrationsSection({
       <main className="relative pb-16 pt-20 sm:pb-24 sm:pt-28 md:pb-32 md:pt-32 lg:pt-20 pointer-events-auto w-full overflow-x-hidden">
         <div className="mx-auto max-w-none sm:max-w-6xl px-3 sm:px-4 md:px-6 w-full">
           {/* Hero Title */}
-          <div className="text-center mb-6 sm:mb-8 md:mb-8">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold tracking-tight text-white mb-3 sm:mb-4 md:mb-6 leading-tight px-2 sm:px-0">
+          <div className="text-center mb-6 sm:mb-8 md:mb-8 w-full">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold tracking-tight text-white mb-3 sm:mb-4 md:mb-6 leading-tight px-2 sm:px-0 max-w-full word-wrap break-words">
               Transform Podcasts into <br className="hidden sm:block" />
               <span className="block sm:inline">Actionable Insights</span>
             </h1>
@@ -95,7 +95,7 @@ export default function IntegrationsSection({
           <div className="mx-auto mt-8 sm:mt-12 md:mt-16 max-w-none sm:max-w-4xl px-2 sm:px-0">
             <div className="grid gap-3 sm:gap-4 md:gap-6 md:grid-cols-2">
               {/* AI Summaries Card */}
-              <div className="rounded-lg sm:rounded-xl border border-white/20 bg-white/10 backdrop-blur-md p-3 sm:p-4 md:p-6 shadow-lg hover:shadow-xl transition-all hover:bg-white/15">
+              <div className="rounded-lg sm:rounded-xl border border-white/20 bg-white/10 bg-gray-800/90 backdrop-blur-md p-3 sm:p-4 md:p-6 shadow-lg hover:shadow-xl transition-all hover:bg-white/15 hover:bg-gray-700/90" style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}>
                 <div className="flex items-start gap-2 sm:gap-3 md:gap-4">
                   <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-green-500 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
                     <Brain className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />
@@ -108,7 +108,7 @@ export default function IntegrationsSection({
               </div>
 
               {/* Notion Integration Card */}
-              <div className="rounded-lg sm:rounded-xl border border-white/20 bg-white/10 backdrop-blur-md p-3 sm:p-4 md:p-6 shadow-lg hover:shadow-xl transition-all hover:bg-white/15">
+              <div className="rounded-lg sm:rounded-xl border border-white/20 bg-white/10 bg-gray-800/90 backdrop-blur-md p-3 sm:p-4 md:p-6 shadow-lg hover:shadow-xl transition-all hover:bg-white/15 hover:bg-gray-700/90" style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}>
                 <div className="flex items-start gap-2 sm:gap-3 md:gap-4">
                   <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
                     <Database className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />

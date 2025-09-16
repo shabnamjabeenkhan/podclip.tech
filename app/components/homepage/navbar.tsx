@@ -109,7 +109,7 @@ export const Navbar = ({
           className={cn(
             "mx-auto mt-2 max-w-none sm:max-w-6xl px-2 sm:px-3 md:px-4 lg:px-6 transition-all duration-300",
             isScrolled &&
-              "bg-background/50 max-w-none sm:max-w-4xl rounded-2xl border backdrop-blur-lg px-2 sm:px-3 md:px-4 lg:px-5 shadow-lg"
+              "bg-background/50 bg-gray-900/80 max-w-none sm:max-w-4xl rounded-2xl border backdrop-blur-lg px-2 sm:px-3 md:px-4 lg:px-5 shadow-lg backdrop-blur-fallback"
           )}
         >
           {/* Temporary debug indicator */}
