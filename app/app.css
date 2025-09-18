@@ -45,8 +45,8 @@
 
 :root {
     /* Dark Teal/Green Theme - Based on your chosen colors */
-    --background: #ffffff; /* White background */
-    --foreground: #1f2937; /* Dark text for white background */
+    --background: #0B1215; /* Obsidian background */
+    --foreground: #ffffff; /* White text for dark background */
     --card: #ffffff; /* Light card background */
     --card-foreground: #1f2937; /* Dark text on cards */
     --popover: #ffffff; /* Light popover */
@@ -69,7 +69,7 @@
     --chart-3: #06b6d4; /* Cyan */
     --chart-4: #f59e0b; /* Orange */
     --chart-5: #10b981; /* Light Green */
-    --sidebar: #1e293b; /* Dark sidebar */
+    --sidebar: #18181B; /* Dark sidebar */
     --sidebar-foreground: #f8fafc; /* Light text */
     --sidebar-primary: hsl(158, 62%, 33%); /* Teal primary */
     --sidebar-primary-foreground: #ffffff; /* White text */
@@ -131,9 +131,9 @@
 
 .dark {
     /* Dark theme is now the default - these override if needed */
-    --background: #1e293b;
-    --foreground: #f8fafc;
-    --sidebar: #1e293b;
+    --background: #0B1215;
+    --foreground: #ffffff;
+    --sidebar: #18181B;
     --sidebar-foreground: #f8fafc;
     --sidebar-primary: hsl(158, 62%, 33%);
     --sidebar-primary-foreground: #ffffff;

@@ -1,16 +1,20 @@
 "use client";
 import { useAuth } from "@clerk/react-router";
 import { useAction, useMutation, useQuery } from "convex/react";
-import { Check, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { Check, Loader2, Sparkles, ArrowRight, Star, Zap, Shield } from "lucide-react";
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { Button } from "~/components/ui/button";
+import { Badge } from "~/components/ui/badge";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
+  CardFooter,
 } from "~/components/ui/card";
+import { cn } from "~/lib/utils";
 import { api } from "../../../convex/_generated/api";
 import { isFeatureEnabled, config } from "../../../config";
 
@@ -23,6 +27,8 @@ export default function Pricing({ loaderData }: { loaderData: any }) {
   const { isSignedIn } = useAuth();
   const [loadingPriceId, setLoadingPriceId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [frequency, setFrequency] = useState<string>('monthly');
+  const [mounted, setMounted] = useState(false);
 
   const userSubscription = useQuery(api.subscriptions.fetchUserSubscription);
   const subscriptionStatus = useQuery(api.subscriptions.checkUserSubscriptionStatus, isSignedIn ? {} : "skip");
@@ -30,6 +36,12 @@ export default function Pricing({ loaderData }: { loaderData: any }) {
   const createCheckout = useAction(api.subscriptions.createCheckoutSession);
   const createPortalUrl = useAction(api.subscriptions.createCustomerPortalUrl);
   const upsertUser = useMutation(api.users.upsertUser);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
 
   const handleSubscribe = async (priceId: string) => {
     if (!isSignedIn) {
@@ -78,20 +90,40 @@ export default function Pricing({ loaderData }: { loaderData: any }) {
   };
 
   return (
-    <section id="pricing" className="relative w-full py-16 sm:py-20 md:py-24 lg:py-32">
-      {/* Background Effects - removed */}
+    <section id="pricing" className="not-prose relative flex w-full flex-col gap-16 overflow-hidden px-4 py-24 text-center sm:px-8">
+      {/* Background Effects */}
       <div className="absolute inset-0 -z-10 overflow-hidden">
+        <div className="bg-primary/10 absolute -top-[10%] left-[50%] h-[40%] w-[60%] -translate-x-1/2 rounded-full blur-3xl" />
+        <div className="bg-primary/5 absolute -right-[10%] -bottom-[10%] h-[40%] w-[40%] rounded-full blur-3xl" />
+        <div className="bg-primary/5 absolute -bottom-[10%] -left-[10%] h-[40%] w-[40%] rounded-full blur-3xl" />
       </div>
 
-      <div className="mx-auto max-w-5xl px-4 sm:px-6">
-        <div className="mx-auto max-w-2xl space-y-4 sm:space-y-6 text-center">
-          <h1 className="text-center text-2xl sm:text-3xl md:text-4xl font-semibold lg:text-5xl">
-            Pricing that Scales with You
-          </h1>
-          <p className="text-sm sm:text-base md:text-lg text-muted-foreground px-4 sm:px-0">
-            Choose the plan that fits your needs. All plans include full access
-            to our platform.
-          </p>
+      <div className="flex flex-col items-center justify-center gap-8">
+        <div className="flex flex-col items-center space-y-2">
+          <Badge
+            variant="outline"
+            className="border-primary/20 bg-primary/5 mb-4 rounded-full px-4 py-1 text-sm font-medium"
+          >
+            <Sparkles className="text-primary mr-1 h-3.5 w-3.5 animate-pulse" />
+            Pricing Plans
+          </Badge>
+          <motion.h1
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="from-foreground to-foreground/30 bg-gradient-to-b bg-clip-text text-4xl font-bold text-transparent sm:text-5xl"
+          >
+            Pick the perfect plan for your needs
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="text-muted-foreground max-w-md pt-2 text-lg"
+          >
+            Simple, transparent pricing that scales with your business. No
+            hidden fees, no surprises.
+          </motion.p>
         </div>
 
         {!loaderData?.plans ? (
@@ -103,172 +135,208 @@ export default function Pricing({ loaderData }: { loaderData: any }) {
             {error && <p className="text-red-500 mt-4 text-center text-sm sm:text-base">{error}</p>}
           </div>
         ) : (
-          <div className="mt-8 sm:mt-12 md:mt-16 lg:mt-20 grid gap-4 sm:gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
-            {loaderData.plans.items
-              .sort((a: any, b: any) => {
-                const priceComparison = a.prices[0].amount - b.prices[0].amount;
-                return priceComparison !== 0
-                  ? priceComparison
-                  : a.name.localeCompare(b.name);
-              })
-              .map((plan: any, index: number) => {
-                const isPopular =
-                  loaderData.plans.items.length === 2
-                    ? index === 1
-                    : index === Math.floor(loaderData.plans.items.length / 2); // Mark middle/higher priced plan as popular
-                const price = plan.prices[0];
-                // Check if this plan matches the user's current plan
-                const isCurrentPlan = (() => {
-                  if (!userQuota?.plan || userQuota.plan === 'free') return false;
-                  
-                  // Direct plan name matching for Basic, Pro, Premium
-                  const planName = plan.name.toLowerCase();
-                  const userPlan = userQuota.plan.toLowerCase();
-                  
-                  if ((planName.includes('basic') && userPlan === 'basic') ||
-                      (planName.includes('pro') && userPlan === 'pro') ||
-                      (planName.includes('premium') && userPlan === 'premium')) {
-                    return userSubscription?.status === "active";
-                  }
-                  
-                  // For lifetime users (one-time payments)
-                  if (userPlan === "lifetime" && !plan.isRecurring) {
-                    return price.amount >= 3900; // Assuming lifetime plans are $39+ (in cents)
-                  }
-                  
-                  // Legacy matching by amount for monthly plans
-                  if (userPlan === "monthly" && userSubscription?.status === "active") {
-                    return userSubscription.amount === price.amount;
-                  }
-                  
-                  return false;
-                })();
+          <>
+            <div className="mt-8 grid w-full max-w-6xl grid-cols-1 gap-6 md:grid-cols-3">
+              {loaderData.plans.items
+                .sort((a: any, b: any) => {
+                  const priceComparison = a.prices[0].amount - b.prices[0].amount;
+                  return priceComparison !== 0
+                    ? priceComparison
+                    : a.name.localeCompare(b.name);
+                })
+                .map((plan: any, index: number) => {
+                  const isPopular =
+                    loaderData.plans.items.length === 2
+                      ? index === 1
+                      : index === Math.floor(loaderData.plans.items.length / 2);
+                  const price = plan.prices[0];
+                  const isCurrentPlan = (() => {
+                    if (!userQuota?.plan || userQuota.plan === 'free') return false;
+                    const planName = plan.name.toLowerCase();
+                    const userPlan = userQuota.plan.toLowerCase();
+                    if ((planName.includes('basic') && userPlan === 'basic') ||
+                        (planName.includes('pro') && userPlan === 'pro') ||
+                        (planName.includes('premium') && userPlan === 'premium')) {
+                      return userSubscription?.status === "active";
+                    }
+                    if (userPlan === "lifetime" && !plan.isRecurring) {
+                      return price.amount >= 3900;
+                    }
+                    if (userPlan === "monthly" && userSubscription?.status === "active") {
+                      return userSubscription.amount === price.amount;
+                    }
+                    return false;
+                  })();
 
-                return (
-                  <Card
-                    key={plan.id}
-                    className={`relative flex flex-col h-full bg-slate-800/80 border-2 border-slate-700/50 text-white ${isPopular ? "border-2 border-primary shadow-lg" : ""} ${
-                      isCurrentPlan ? "border-2 border-green-500 bg-green-800/50" : ""
-                    }`}
-                  >
-                    {isPopular && !isCurrentPlan && (
-                      <span className="border-primary/20 bg-primary absolute inset-x-0 -top-3 mx-auto flex h-6 w-fit items-center rounded-full bg-gradient-to-r from-primary to-secondary px-3 py-1 text-xs font-medium text-white ring-1 ring-white/20 ring-offset-1 ring-offset-gray-950/5 ring-inset">
-                        Popular
-                      </span>
-                    )}
-                    {isCurrentPlan && (
-                      <span className="bg-green-500 text-white absolute inset-x-0 -top-3 mx-auto flex h-6 w-fit items-center rounded-full px-3 py-1 text-xs font-medium">
-                        Current Plan
-                      </span>
-                    )}
+                  const getIcon = () => {
+                    if (index === 0) return Star;
+                    if (index === 1) return Zap;
+                    return Shield;
+                  };
+                  const IconComponent = getIcon();
 
-                    <CardHeader className="p-4 sm:p-6">
-                      <CardTitle className="font-medium text-base sm:text-lg">{plan.name}</CardTitle>
-
-                      <span className="my-2 sm:my-3 block text-xl sm:text-2xl font-semibold">
-                        ${(price.amount / 100).toFixed(0)} /{" "}
-                        {price.interval || "mo"}
-                      </span>
-
-                      <CardDescription className="text-xs sm:text-sm text-white/70 min-h-[2.5rem] sm:min-h-[3rem]">
-                        {plan.description}
-                      </CardDescription>
-
-                      <Button
-                        className="mt-3 sm:mt-4 w-full text-sm sm:text-base py-2 sm:py-2.5"
-                        variant={
-                          isCurrentPlan
-                            ? "secondary"
-                            : isPopular
-                            ? "default"
-                            : "outline"
-                        }
-                        onClick={() => handleSubscribe(price.id)}
-                        disabled={loadingPriceId === price.id || (userQuota?.plan === "lifetime" && !plan.isRecurring)}
+                  return (
+                    <motion.div
+                      key={plan.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5, delay: 0.1 + index * 0.1 }}
+                      whileHover={{ y: -5 }}
+                      className="flex"
+                    >
+                      <Card
+                        className={cn(
+                          'bg-secondary/20 relative h-full w-full text-left transition-all duration-300 hover:shadow-lg',
+                          isPopular
+                            ? 'ring-primary/50 dark:shadow-primary/10 shadow-md ring-2'
+                            : 'hover:border-primary/30',
+                          isPopular &&
+                            'from-primary/[0.03] bg-gradient-to-b to-transparent',
+                        )}
                       >
-                        {loadingPriceId === price.id ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Setting up checkout...
-                          </>
-                        ) : isCurrentPlan ? (
-                          "✓ Current Plan"
-                        ) : userQuota?.plan === "lifetime" ? (
-                          // Lifetime users shouldn't be able to purchase again
-                          plan.isRecurring ? "Downgrade to Monthly" : "✓ Lifetime Active"
-                        ) : userSubscription?.status === "active" ? (
-                          (() => {
-                            const currentAmount = userSubscription.amount || 0;
-                            const newAmount = price.amount;
-
-                            if (newAmount > currentAmount) {
-                              return `Upgrade (+$${(
-                                (newAmount - currentAmount) /
-                                100
-                              ).toFixed(0)}/mo)`;
-                            } else if (newAmount < currentAmount) {
-                              return `Downgrade (-$${(
-                                (currentAmount - newAmount) /
-                                100
-                              ).toFixed(0)}/mo)`;
-                            } else {
-                              return "Manage Plan";
-                            }
-                          })()
-                        ) : (
-                          "Get Started"
+                        {isPopular && (
+                          <div className="absolute -top-3 right-0 left-0 mx-auto w-fit">
+                            <Badge className="bg-primary text-primary-foreground rounded-full px-4 py-1 shadow-sm">
+                              <Sparkles className="mr-1 h-3.5 w-3.5" />
+                              Popular
+                            </Badge>
+                          </div>
                         )}
-                      </Button>
-                    </CardHeader>
-
-                    <CardContent className="flex-grow space-y-3 sm:space-y-4 p-4 sm:p-6 pt-0">
-                      <hr className="border-dashed" />
-
-                      <ul className="list-outside space-y-2 sm:space-y-3 text-xs sm:text-sm text-white/70">
-                        <li className="flex items-center gap-2">
-                          <Check className="size-3" />
-                          {plan.isRecurring ?
-                            (price.amount <= 1299 ? "20 summaries per month" :
-                             price.amount <= 2299 ? "40 summaries per month" :
-                             price.amount <= 4999 ? "60 summaries per month" : "Unlimited summaries")
-                            : "70 summaries per month"}
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <Check className="size-3" />
-                          {plan.isRecurring ?
-                            (price.amount <= 1299 ? "25 searches per month" :
-                             price.amount <= 2299 ? "50 searches per month" :
-                             price.amount <= 4999 ? "70 searches per month" : "Unlimited searches")
-                            : "150 searches per month"}
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <Check className="size-3" />
-                          Chat with your Podcast Library
-                        </li>
-                        {/* <li className="flex items-center gap-2">
-                          <Check className="size-3" />
-                          All features included
-                        </li> */}
-                        {/* <li className="flex items-center gap-2">
-                          <Check className="size-3" />
-                          Priority support
-                        </li> */}
-                        <li className="flex items-center gap-2">
-                          <Check className="size-3" />
-                          Cancel anytime
-                        </li>
-                        {plan.isRecurring && (
-                          <li className="flex items-center gap-2">
-                            <Check className="size-3" />
-                            Recurring billing
-                          </li>
+                        {isCurrentPlan && (
+                          <div className="absolute -top-3 right-0 left-0 mx-auto w-fit">
+                            <Badge className="bg-green-500 text-white rounded-full px-4 py-1 shadow-sm">
+                              Current Plan
+                            </Badge>
+                          </div>
                         )}
-                      </ul>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-          </div>
+                        <CardHeader className={cn('pb-4', isPopular && 'pt-8')}>
+                          <div className="flex items-center gap-2">
+                            <div
+                              className={cn(
+                                'flex h-8 w-8 items-center justify-center rounded-full',
+                                isPopular
+                                  ? 'bg-primary/10 text-primary'
+                                  : 'bg-secondary text-foreground',
+                              )}
+                            >
+                              <IconComponent className="h-4 w-4" />
+                            </div>
+                            <CardTitle
+                              className={cn(
+                                'text-xl font-bold text-white',
+                                isPopular && 'text-primary',
+                              )}
+                            >
+                              {plan.name}
+                            </CardTitle>
+                          </div>
+                          <CardDescription className="mt-3 space-y-2">
+                            <p className="text-sm">{plan.description || "Podclip is an AI-powered tool that creates smart, concise text summaries of your podcast episodes. Easily export summaries to Notion and interact with your content using an AI chatbox—ask questions, clarify topics, and get insights from any episode you've summarized."}</p>
+                            <div className="pt-2">
+                              <div className="flex items-baseline">
+                                <span
+                                  className={cn(
+                                    'text-3xl font-bold',
+                                    isPopular ? 'text-primary' : 'text-foreground',
+                                  )}
+                                >
+                                  ${(price.amount / 100).toFixed(0)}
+                                </span>
+                                <span className="text-muted-foreground ml-1 text-sm">
+                                  /month, billed monthly
+                                </span>
+                              </div>
+                            </div>
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="grid gap-3 pb-6">
+                          {[
+                            plan.isRecurring ?
+                              (price.amount <= 1299 ? "20 summaries per month" :
+                               price.amount <= 2299 ? "40 summaries per month" :
+                               price.amount <= 4999 ? "60 summaries per month" : "Unlimited summaries")
+                              : "70 summaries per month",
+                            plan.isRecurring ?
+                              (price.amount <= 1299 ? "25 searches per month" :
+                               price.amount <= 2299 ? "50 searches per month" :
+                               price.amount <= 4999 ? "70 searches per month" : "Unlimited searches")
+                              : "150 searches per month",
+                            "Chat with your Podcast Library",
+                            "Cancel anytime",
+                            ...(plan.isRecurring ? ["Recurring billing"] : [])
+                          ].map((feature, featureIndex) => (
+                            <motion.div
+                              key={featureIndex}
+                              initial={{ opacity: 0, x: -5 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ duration: 0.3, delay: 0.5 + featureIndex * 0.05 }}
+                              className="flex items-center gap-2 text-sm"
+                            >
+                              <div
+                                className={cn(
+                                  'flex h-5 w-5 items-center justify-center rounded-full',
+                                  isPopular
+                                    ? 'bg-primary/10 text-primary'
+                                    : 'bg-secondary text-secondary-foreground',
+                                )}
+                              >
+                                <Check className="h-3.5 w-3.5" />
+                              </div>
+                              <span
+                                className={
+                                  isPopular
+                                    ? 'text-foreground'
+                                    : 'text-muted-foreground'
+                                }
+                              >
+                                {feature}
+                              </span>
+                            </motion.div>
+                          ))}
+                        </CardContent>
+                        <CardFooter>
+                          <Button
+                            variant={isCurrentPlan ? 'secondary' : 'default'}
+                            className={cn(
+                              'w-full font-medium transition-all duration-300',
+                              isCurrentPlan
+                                ? ''
+                                : 'bg-primary hover:bg-primary/90 hover:shadow-primary/20 hover:shadow-md text-white',
+                            )}
+                            onClick={() => handleSubscribe(price.id)}
+                            disabled={loadingPriceId === price.id || (userQuota?.plan === "lifetime" && !plan.isRecurring)}
+                          >
+                            {loadingPriceId === price.id ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Setting up checkout...
+                              </>
+                            ) : isCurrentPlan ? (
+                              "✓ Current Plan"
+                            ) : userSubscription?.status === "active" ? (
+                              (() => {
+                                const currentAmount = userSubscription.amount || 0;
+                                const newAmount = price.amount;
+                                if (newAmount > currentAmount) {
+                                  return `Upgrade (+$${((newAmount - currentAmount) / 100).toFixed(0)}/mo)`;
+                                } else if (newAmount < currentAmount) {
+                                  return `Downgrade (-$${((currentAmount - newAmount) / 100).toFixed(0)}/mo)`;
+                                } else {
+                                  return "Manage Plan";
+                                }
+                              })()
+                            ) : (
+                              "Get Started"
+                            )}
+                            <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                          </Button>
+                        </CardFooter>
+                      </Card>
+                    </motion.div>
+                  );
+                })}
+            </div>
+          </>
         )}
 
         {error && (
@@ -278,7 +346,8 @@ export default function Pricing({ loaderData }: { loaderData: any }) {
         )}
 
         {userSubscription &&
-          !loaderData.plans?.items.some(
+          loaderData?.plans?.items &&
+          !loaderData.plans.items.some(
             (plan: any) => plan.prices[0].id === userSubscription.polarPriceId
           ) && (
             <div className="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-md max-w-md mx-auto">

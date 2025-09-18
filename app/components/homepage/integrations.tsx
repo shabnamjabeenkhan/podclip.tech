@@ -12,8 +12,7 @@ import Resend from "~/components/logos/Resend";
 import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 import { Navbar } from "./navbar";
-import { Brain, Database, Zap, Users, ArrowRight } from "lucide-react";
-import Orb from "~/components/ui/orb";
+import { ArrowRight } from "lucide-react";
 import ShinyText from "~/components/ShinyText";
 import { Spotlight } from "~/components/ui/spotlight";
 
@@ -37,29 +36,19 @@ export default function IntegrationsSection({
         gradientThird="radial-gradient(50% 50% at 50% 50%, hsla(332, 100%, 85%, 0.06) 0, hsla(327, 100%, 85%, 0.06) 80%, transparent 100%)"
       />
       
-      {/* Animated Orb Background */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
-        <div className="w-[300px] h-[300px] sm:w-[400px] sm:h-[400px] md:w-[600px] md:h-[600px] lg:w-[800px] lg:h-[800px] xl:w-[1000px] xl:h-[1000px] opacity-30 sm:opacity-40 md:opacity-50 lg:opacity-60">
-          <Orb
-            hue={270}
-            hoverIntensity={0.3}
-            rotateOnHover={true}
-            forceHoverState={false}
-          />
-        </div>
-      </div>
       
       {/* Background gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/20 to-background pointer-events-none" />
       
       {/* Main hero content */}
-      <main className="relative pb-16 pt-20 sm:pb-24 sm:pt-28 md:pb-32 md:pt-32 lg:pt-20 pointer-events-auto w-full overflow-x-hidden">
+      <main className="relative pb-16 pt-32 sm:pb-24 sm:pt-40 md:pb-32 md:pt-48 lg:pt-32 xl:pt-40 pointer-events-auto w-full overflow-x-hidden">
         <div className="mx-auto max-w-none sm:max-w-6xl px-3 sm:px-4 md:px-6 w-full">
           {/* Hero Title */}
           <div className="text-center mb-6 sm:mb-8 md:mb-8 w-full">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold tracking-tight text-white mb-3 sm:mb-4 md:mb-6 leading-tight px-2 sm:px-0 max-w-full word-wrap break-words">
-              Transform Podcasts into <br className="hidden sm:block" />
-              <span className="block sm:inline">Actionable Insights</span>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight text-white mb-3 sm:mb-4 md:mb-6 leading-[0.9] px-2 sm:px-0 max-w-full word-wrap break-words">
+              <span className="block">Zero in on What Matters:</span>
+              <span className="block">Turn Podcast Hours into</span>
+              <span className="block">Business Breakthroughs</span>
             </h1>
             <p className="mx-auto mb-4 sm:mb-6 md:mb-8 mt-3 sm:mt-4 md:mt-6 max-w-lg sm:max-w-xl text-sm sm:text-base md:text-lg text-muted-foreground px-4 sm:px-2 md:px-0">
               Turn podcasts into clear summaries with jump-to timestamps, key takeaways, and business actionable insights—delivered instantly.
@@ -85,45 +74,12 @@ export default function IntegrationsSection({
           {/* Social Proof */}
           <div className="mx-auto mt-6 sm:mt-8 md:mt-12 max-w-3xl">
             <div className="text-center mb-4 sm:mb-6">
-              <p className="text-xs sm:text-sm font-medium text-muted-foreground px-4 sm:px-2 md:px-0">
+              <p className="text-sm sm:text-base md:text-lg font-medium text-muted-foreground px-4 sm:px-2 md:px-0">
                 ✨ Get your first 5 summaries absolutely free!
               </p>
             </div>
           </div>
 
-          {/* Feature Cards */}
-          <div className="mx-auto mt-8 sm:mt-12 md:mt-16 max-w-none sm:max-w-4xl px-2 sm:px-0">
-            <div className="grid gap-3 sm:gap-4 md:gap-6 md:grid-cols-2">
-              {/* AI Summaries Card */}
-              <div className="rounded-lg sm:rounded-xl border border-white/20 bg-white/10 bg-gray-800/90 backdrop-blur-md p-3 sm:p-4 md:p-6 shadow-lg hover:shadow-xl transition-all hover:bg-white/15 hover:bg-gray-700/90" style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}>
-                <div className="flex items-start gap-2 sm:gap-3 md:gap-4">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-green-500 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
-                    <Brain className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-semibold text-white text-sm sm:text-base md:text-lg mb-1 sm:mb-2">AI-Powered Summaries</h3>
-                    <p className="text-white/80 text-xs sm:text-sm md:text-base leading-relaxed">Turn podcasts into clear summaries with jump-to timestamps, key takeaways, and business actionable insights—delivered instantly.</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Notion Integration Card */}
-              <div className="rounded-lg sm:rounded-xl border border-white/20 bg-white/10 bg-gray-800/90 backdrop-blur-md p-3 sm:p-4 md:p-6 shadow-lg hover:shadow-xl transition-all hover:bg-white/15 hover:bg-gray-700/90" style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}>
-                <div className="flex items-start gap-2 sm:gap-3 md:gap-4">
-                  <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
-                    <Database className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-semibold text-white text-sm sm:text-base md:text-lg mb-1 sm:mb-2 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                      <span>Notion Integration</span>
-                      <span className="px-2 py-0.5 text-xs font-medium text-blue-200 bg-blue-600/30 backdrop-blur-sm rounded-full w-fit">Coming Soon</span>
-                    </h3>
-                    <p className="text-white/80 text-xs sm:text-sm md:text-base leading-relaxed">Automatically sync summaries to your Notion workspace in organized tables.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </main>
     </section>

@@ -132,13 +132,16 @@ export default defineSchema({
     content: v.string(), // Summary text
     takeaways: v.array(v.union(
       v.string(), // Legacy format (backward compatible)
-      v.object({  // New format with timestamps
+      v.object({  // New format with timestamps and spoken content
         text: v.string(),
         timestamp: v.optional(v.number()), // seconds
         confidence: v.optional(v.number()), // 0-1 confidence score
         formatted_time: v.optional(v.string()), // pre-formatted "12:34"
+        originalText: v.optional(v.string()), // Original AI-generated takeaway text
+        fullContext: v.optional(v.string()), // Actual spoken content around timestamp
+        matchedText: v.optional(v.string()), // Matched text segment from transcript
       })
-    )), // Array of key takeaways with optional timestamps
+    )), // Array of key takeaways with optional timestamps and spoken content
     actionable_insights: v.optional(v.array(v.object({
       action: v.string(), // Specific recommendation
       context: v.string(), // Why this matters based on episode content

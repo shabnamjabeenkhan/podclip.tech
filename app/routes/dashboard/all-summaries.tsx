@@ -6,6 +6,41 @@ import { api } from "../../../convex/_generated/api";
 import { useAudio } from "~/contexts/app-context";
 import { toast } from "sonner";
 
+// Utility function to break summary text into readable paragraphs
+function formatSummaryIntoParagraphs(content: string): string[] {
+  if (!content || content.trim() === '') return [];
+
+  // Split by existing paragraph breaks first
+  let paragraphs = content.split('\n\n').filter(p => p.trim());
+
+  // If we only have one paragraph, try to intelligently split it
+  if (paragraphs.length === 1) {
+    const text = paragraphs[0];
+    const sentences = text.split(/(?<=[.!?])\s+/);
+
+    if (sentences.length >= 4) {
+      // Split into 2-3 paragraphs based on sentence count
+      const midPoint = Math.ceil(sentences.length / 2);
+      paragraphs = [
+        sentences.slice(0, midPoint).join(' '),
+        sentences.slice(midPoint).join(' ')
+      ];
+    }
+  }
+
+  // Ensure we don't have more than 3 paragraphs for readability
+  if (paragraphs.length > 3) {
+    const third = Math.ceil(paragraphs.length / 3);
+    paragraphs = [
+      paragraphs.slice(0, third).join(' '),
+      paragraphs.slice(third, third * 2).join(' '),
+      paragraphs.slice(third * 2).join(' ')
+    ];
+  }
+
+  return paragraphs.filter(p => p.trim());
+}
+
 export default function AllSummaries() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"newest" | "oldest">("newest");
@@ -36,9 +71,15 @@ export default function AllSummaries() {
       filtered = userSummaries.filter(summary => {
         const title = (summary.episode_title || '').toLowerCase();
         const content = (summary.content || '').toLowerCase();
-        const takeaways = (summary.takeaways || []).map((t: any) => 
-          typeof t === 'object' ? (t.text || JSON.stringify(t)) : String(t)
-        ).join(' ').toLowerCase();
+        const takeaways = (summary.takeaways || []).map((t: any) => {
+          if (typeof t === 'string') {
+            return t;
+          } else if (typeof t === 'object' && t !== null) {
+            return t.text || t.content || String(t);
+          } else {
+            return String(t || '');
+          }
+        }).join(' ').toLowerCase();
         
         return title.includes(query) || 
                content.includes(query) || 
@@ -302,61 +343,20 @@ export default function AllSummaries() {
                       <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 sm:p-6 border border-blue-200">
                         <div className="text-gray-900 text-xl font-medium leading-relaxed">
                           {(() => {
-                            const content = typeof summary.content === 'string' ? summary.content : 
-                                           typeof summary.content === 'object' ? JSON.stringify(summary.content) : 
+                            const content = typeof summary.content === 'string' ? summary.content :
+                                           typeof summary.content === 'object' ? JSON.stringify(summary.content) :
                                            String(summary.content || '');
-                            
-                            // Split content by double newlines and callout markers
-                            const sections = content.split(/\n\s*\n/);
-                            const parts = [];
-                            
-                            for (const section of sections) {
-                              const trimmedSection = section.trim();
-                              if (!trimmedSection) continue;
-                              
-                              if (trimmedSection.includes('>')) {
-                                // This is a callout box section
-                                const calloutLines = trimmedSection.split('\n').filter((line: string) => line.trim());
-                                if (calloutLines.length >= 2) {
-                                  parts.push({ type: 'callout', content: trimmedSection });
-                                }
-                              } else {
-                                // This is a regular paragraph
-                                parts.push({ type: 'paragraph', content: trimmedSection });
-                              }
-                            }
-                            
-                            return parts.map((part: any, index: number) => {
-                              if (part.type === 'callout') {
-                                const lines = part.content.split('\n').filter((line: string) => line.trim());
-                                const title = lines[0]?.replace(/^>\s*\*\*(.*?)\*\*/, '$1') || '';
-                                const content = lines[1]?.replace(/^>\s*\*\*(.*?)\*\*/, '$1') || '';
-                                
-                                return (
-                                  <div key={index} className="my-12 p-6 bg-white/95 border-2 border-blue-400 rounded-xl shadow-lg">
-                                    <div className="flex items-center gap-3 mb-4">
-                                      <span className="text-blue-800 font-bold text-lg">{title}</span>
-                                    </div>
-                                    <div className="text-blue-900 font-semibold text-xl leading-relaxed">{content}</div>
-                                  </div>
-                                );
-                              } else if (part.content.trim()) {
-                                // Regular paragraph - parse bold formatting with enhanced styling
-                                const formattedParagraph = part.content.replace(
-                                  /\*\*(.*?)\*\*/g,
-                                  '<strong class="font-black text-gray-900 bg-yellow-200 px-2 py-1 rounded-md shadow-sm border border-yellow-300">$1</strong>'
-                                );
-                                
-                                return (
-                                  <div key={index} className="mb-12">
-                                    <p className="leading-relaxed text-gray-800 text-xl" dangerouslySetInnerHTML={{ 
-                                      __html: formattedParagraph 
-                                    }} />
-                                  </div>
-                                );
-                              }
-                              return null;
-                            });
+
+                            // Format content into readable paragraphs
+                            const paragraphs = formatSummaryIntoParagraphs(content);
+
+                            return paragraphs.map((paragraph, index) => (
+                              <div key={index} className={index > 0 ? "mt-6" : ""}>
+                                <p className="leading-relaxed text-gray-800 text-xl">
+                                  {paragraph}
+                                </p>
+                              </div>
+                            ));
                           })()}
                         </div>
                       </div>
@@ -372,13 +372,30 @@ export default function AllSummaries() {
                         </div>
                         <ul className="space-y-3 sm:space-y-4">
                           {summary.takeaways.map((takeaway: any, idx: number) => {
-                            // Handle both old string format and new timestamp format
-                            const isTimestamped = typeof takeaway === 'object' && takeaway.text && takeaway.timestamp;
-                            const rawText = isTimestamped ? takeaway.text : takeaway;
-                            // Ensure text is always a string to prevent React rendering errors
-                            let text = typeof rawText === 'string' ? rawText :
-                                       typeof rawText === 'object' ? JSON.stringify(rawText) :
-                                       String(rawText || '');
+                            // Robust handling of different takeaway formats
+                            let text = '';
+                            let timestamp = null;
+                            let formattedTime = null;
+                            let confidence = null;
+
+                            if (typeof takeaway === 'string') {
+                              // Simple string format
+                              text = takeaway;
+                            } else if (typeof takeaway === 'object' && takeaway !== null) {
+                              // Object format - extract text property
+                              text = takeaway.text || takeaway.content || String(takeaway);
+                              timestamp = takeaway.timestamp || null;
+                              formattedTime = takeaway.formatted_time || null;
+                              confidence = takeaway.confidence || null;
+                            } else {
+                              // Fallback for any other format
+                              text = String(takeaway || '');
+                            }
+
+                            // Final safety check to ensure text is never empty or just JSON
+                            if (!text || text.trim() === '' || text.startsWith('{"')) {
+                              text = `Key insight ${idx + 1} from this episode`;
+                            }
 
                             // Clean the text by removing timestamps and numbering patterns
                             text = text
@@ -389,12 +406,8 @@ export default function AllSummaries() {
                               .replace(/^\(\d{1,2}:\d{2}\)\s*/, '') // Remove timestamps like "(00:02) "
                               .trim();
 
-                            const timestamp = isTimestamped ? takeaway.timestamp : null;
-                            const formattedTime = isTimestamped ? takeaway.formatted_time : null;
-                            const confidence = isTimestamped ? takeaway.confidence : null;
-
                             // Debug logging for timestamp verification
-                            if (isTimestamped && timestamp) {
+                            if (timestamp && formattedTime) {
                               console.log('🔍 TAKEAWAY DEBUG:', {
                                 text: text.substring(0, 50) + '...',
                                 timestamp: timestamp,
@@ -408,9 +421,12 @@ export default function AllSummaries() {
                             
                             return (
                               <li key={idx} className="flex items-start gap-3">
+                                <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-medium mt-0.5">
+                                  {idx + 1}
+                                </span>
                                 <div className="flex-1 min-w-0">
                                   <span className="text-blue-700 text-sm sm:text-base leading-relaxed">{text}</span>
-                                  {isTimestamped && timestamp && (
+                                  {timestamp && formattedTime && (
                                     <div className="mt-2">
                                       <button
                                         onClick={() => {
@@ -434,11 +450,6 @@ export default function AllSummaries() {
                                       </button>
                                       {confidence && (
                                         <div className="flex items-center gap-2 mt-1">
-                                          {takeaway.matchedText && (
-                                            <span className="text-xs text-gray-500" title={`Matched transcript: "${takeaway.matchedText}"`}>
-                                              📄 Context available
-                                            </span>
-                                          )}
                                         </div>
                                       )}
                                     </div>

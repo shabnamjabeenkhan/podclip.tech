@@ -304,13 +304,14 @@ export function findTimestampForText(
     }
   }
 
-  // Return result with enhanced validation criteria
-  const minAccuracyThreshold = 0.3; // Minimum accuracy score required
+  // Return result with enhanced validation criteria (more lenient for better coverage)
+  const minAccuracyThreshold = 0.15; // Lowered threshold for better coverage
   const hasDecentMatch = bestMatch.accuracyScore >= minAccuracyThreshold &&
                         bestMatch.startIndex >= 0 &&
-                        (bestMatch.matchCount >= Math.max(1, Math.ceil(searchTerms.length * 0.2)) ||
+                        (bestMatch.matchCount >= Math.max(1, Math.ceil(searchTerms.length * 0.15)) || // More lenient ratio
                          bestMatch.keyMatchCount >= 1 ||
-                         bestMatch.exactPhraseBonus >= 2);
+                         bestMatch.exactPhraseBonus >= 1 || // Lowered phrase bonus requirement
+                         bestMatch.matchCount >= 2); // Accept if we have at least 2 term matches
 
   if (hasDecentMatch) {
     // Get the context around the match for validation
@@ -334,6 +335,92 @@ export function findTimestampForText(
       totalSearchTerms: searchTerms.length,
       accuracyScore: bestMatch.accuracyScore,
       contextQuality: bestMatch.contextQuality,
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Find the best keyword match for a takeaway when standard matching fails
+ */
+function findBestKeywordMatch(
+  takeaway: string,
+  words: DeepgramWord[],
+  usedTimestamps: number[]
+): {
+  timestamp: number;
+  confidence: number;
+  matchedText: string;
+  fullContext: string;
+  matchCount?: number;
+} | null {
+  // Extract important keywords from the takeaway (filter out common words)
+  const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'can', 'must', 'shall', 'this', 'that', 'these', 'those', 'he', 'she', 'it', 'they', 'we', 'you', 'i', 'me', 'him', 'her', 'us', 'them'];
+
+  const keywords = takeaway.toLowerCase()
+    .replace(/[^\w\s]/g, ' ')
+    .split(/\s+/)
+    .filter(word => word.length > 2 && !commonWords.includes(word))
+    .slice(0, 5); // Take top 5 most important words
+
+  if (keywords.length === 0) return null;
+
+  let bestMatch: {
+    index: number;
+    score: number;
+    matchCount: number;
+  } = { index: -1, score: 0, matchCount: 0 };
+
+  // Search through transcript in chunks of 30 words
+  const chunkSize = 30;
+  for (let i = 0; i <= words.length - chunkSize; i += 5) { // Step by 5 for overlapping windows
+    const chunk = words.slice(i, i + chunkSize);
+    const chunkText = chunk.map(w => w.word.toLowerCase()).join(' ');
+
+    // Skip if timestamp is too close to used ones
+    const chunkTimestamp = chunk[0].start;
+    const isTooClose = usedTimestamps.some(used => Math.abs(chunkTimestamp - used) < 10);
+    if (isTooClose) continue;
+
+    // Count keyword matches in this chunk
+    let matchCount = 0;
+    let score = 0;
+
+    for (const keyword of keywords) {
+      if (chunkText.includes(keyword)) {
+        matchCount++;
+        // Give higher score for longer, more specific keywords
+        score += keyword.length * 0.1 + 1;
+      }
+    }
+
+    // Calculate match ratio
+    const matchRatio = matchCount / keywords.length;
+    const finalScore = score * matchRatio;
+
+    if (finalScore > bestMatch.score && matchCount >= Math.max(1, Math.ceil(keywords.length * 0.3))) {
+      bestMatch = { index: i, score: finalScore, matchCount };
+    }
+  }
+
+  if (bestMatch.index >= 0) {
+    const matchChunk = words.slice(bestMatch.index, bestMatch.index + chunkSize);
+    const timestamp = matchChunk[0].start;
+    const confidence = Math.min(0.4, bestMatch.score / keywords.length); // Cap at 0.4 for keyword matches
+
+    // Get context
+    const contextStart = Math.max(0, bestMatch.index - 5);
+    const contextEnd = Math.min(words.length, bestMatch.index + chunkSize + 5);
+    const fullContext = words.slice(contextStart, contextEnd).map(w => w.word).join(' ');
+    const matchedText = matchChunk.slice(0, 10).map(w => w.word).join(' ');
+
+    return {
+      timestamp,
+      confidence,
+      matchedText,
+      fullContext,
+      matchCount: bestMatch.matchCount,
     };
   }
 
@@ -373,8 +460,9 @@ export function findTimestampsForTakeaways(
   }> = [];
 
   // For each takeaway, find the best timestamp that hasn't been used
-  for (const takeaway of takeaways) {
-    const timestampResult = findTimestampForText(takeaway, words, searchWindow, usedTimestamps);
+  for (let i = 0; i < takeaways.length; i++) {
+    const takeaway = takeaways[i];
+    let timestampResult = findTimestampForText(takeaway, words, searchWindow, usedTimestamps);
 
     if (timestampResult) {
       usedTimestamps.push(timestampResult.timestamp);
@@ -390,8 +478,80 @@ export function findTimestampsForTakeaways(
 
       console.log(`✅ Found unique timestamp for "${takeaway.substring(0, 50)}...": ${formatTimestamp(timestampResult.timestamp)} (confidence: ${(timestampResult.confidence * 100).toFixed(1)}%)`);
     } else {
-      results.push({ text: takeaway });
-      console.log(`❌ No unique timestamp found for: "${takeaway.substring(0, 50)}..."`);
+      // FALLBACK STRATEGY: Ensure every takeaway gets a timestamp
+      console.log(`🔄 No unique timestamp found for: "${takeaway.substring(0, 50)}...". Applying fallback strategy...`);
+
+      // Strategy 1: Try with relaxed criteria (ignore used timestamps temporarily)
+      const relaxedResult = findTimestampForText(takeaway, words, searchWindow, []);
+
+      if (relaxedResult) {
+        console.log(`🎯 Found relaxed match: ${formatTimestamp(relaxedResult.timestamp)} (confidence: ${(relaxedResult.confidence * 100).toFixed(1)}%)`);
+        usedTimestamps.push(relaxedResult.timestamp);
+        results.push({
+          text: takeaway,
+          timestamp: relaxedResult.timestamp,
+          confidence: Math.max(0.15, relaxedResult.confidence * 0.8), // Slightly reduce confidence
+          matchedText: relaxedResult.matchedText,
+          fullContext: relaxedResult.fullContext,
+          matchCount: relaxedResult.matchCount,
+          totalSearchTerms: relaxedResult.totalSearchTerms,
+        });
+      } else {
+        // Strategy 2: Expanded keyword search across entire transcript
+        console.log(`🔍 Attempting expanded keyword search for: "${takeaway.substring(0, 50)}..."`);
+
+        const expandedResult = findBestKeywordMatch(takeaway, words, usedTimestamps);
+
+        if (expandedResult) {
+          console.log(`✅ Found keyword match: ${formatTimestamp(expandedResult.timestamp)} (confidence: ${(expandedResult.confidence * 100).toFixed(1)}%)`);
+          usedTimestamps.push(expandedResult.timestamp);
+          results.push({
+            text: takeaway,
+            timestamp: expandedResult.timestamp,
+            confidence: expandedResult.confidence,
+            matchedText: expandedResult.matchedText,
+            fullContext: expandedResult.fullContext,
+            matchCount: expandedResult.matchCount || 0,
+            totalSearchTerms: takeaway.split(' ').length,
+          });
+        } else {
+          // Strategy 3: Even distribution as final fallback
+          const audioDuration = words[words.length - 1]?.end || 0;
+          const estimatedTimestamp = (audioDuration / takeaways.length) * (i + 0.5);
+
+          // Find the closest actual word timestamp to our estimate
+          let closestWordIndex = 0;
+          let minTimeDiff = Math.abs(words[0].start - estimatedTimestamp);
+
+          for (let j = 1; j < words.length; j++) {
+            const timeDiff = Math.abs(words[j].start - estimatedTimestamp);
+            if (timeDiff < minTimeDiff) {
+              minTimeDiff = timeDiff;
+              closestWordIndex = j;
+            }
+          }
+
+          const fallbackTimestamp = words[closestWordIndex].start;
+          usedTimestamps.push(fallbackTimestamp);
+
+          // Get context around the fallback timestamp
+          const contextStart = Math.max(0, closestWordIndex - 10);
+          const contextEnd = Math.min(words.length, closestWordIndex + 10);
+          const fallbackContext = words.slice(contextStart, contextEnd).map(w => w.word).join(' ');
+
+          results.push({
+            text: takeaway,
+            timestamp: fallbackTimestamp,
+            confidence: 0.1, // Lowest confidence for position-based fallback
+            matchedText: words.slice(closestWordIndex, Math.min(words.length, closestWordIndex + 5)).map(w => w.word).join(' '),
+            fullContext: fallbackContext,
+            matchCount: 0,
+            totalSearchTerms: takeaway.split(' ').length,
+          });
+
+          console.log(`📍 Applied position-based fallback for takeaway ${i + 1}: ${formatTimestamp(fallbackTimestamp)} (estimated position)`);
+        }
+      }
     }
   }
 

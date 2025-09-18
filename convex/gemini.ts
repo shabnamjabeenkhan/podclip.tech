@@ -142,7 +142,8 @@ export async function generateSummaryWithGemini(
   episodeTitle: string,
   episodeDescription?: string,
   audioUrl?: string,
-  ultraStrictMode: boolean = false
+  ultraStrictMode: boolean = false,
+  shouldGenerateInsights: boolean = false
 ) {
   const genAI = getGeminiClient();
 
@@ -191,6 +192,7 @@ export async function generateSummaryWithGemini(
   const isActionableGenre = genre === 'actionable';
 
   console.log(`🎯 Genre detected: ${genre} (actionable: ${isActionableGenre})`);
+  console.log(`💡 Insights generation: ${shouldGenerateInsights} (user choice overrides genre detection)`);
 
   if (transcriptWordCount < 2000) {
     console.log(`⚠️ GEMINI WARNING: Short transcript (${transcriptWordCount} words) may produce brief summaries`);
@@ -217,7 +219,7 @@ WORD COUNT VERIFICATION: After writing your summary, COUNT THE WORDS to ensure i
 
 ` : '';
 
-  const prompt = isActionableGenre && !useDefaultFormat ? `${strictnessPrefix}
+  const prompt = shouldGenerateInsights && !useDefaultFormat ? `${strictnessPrefix}
 You are a podcast summarizer that analyzes the episode's genre and adapts your output accordingly. This episode appears to be in a business/productivity/educational genre.
 
 🚨 ULTRA-CRITICAL ACCURACY INSTRUCTION:
@@ -412,8 +414,14 @@ KEY TAKEAWAYS:
     console.log("🎯 FINAL TAKEAWAYS COUNT:", finalTakeaways.length);
     console.log("🎯 FINAL TAKEAWAYS:", finalTakeaways);
 
-    // Parse actionable insights into structured format only for actionable genres (not default format)
-    const actionableInsights = (isActionableGenre && !useDefaultFormat) ?
+    // Parse actionable insights into structured format when user requested them (not just for actionable genres)
+    console.log("🔍 ACTIONABLE INSIGHTS PARSING:");
+    console.log("  shouldGenerateInsights:", shouldGenerateInsights);
+    console.log("  useDefaultFormat:", useDefaultFormat);
+    console.log("  actionableInsightsText length:", actionableInsightsText.length);
+    console.log("  actionableInsightsText preview:", actionableInsightsText.substring(0, 200) + "...");
+
+    const actionableInsights = (shouldGenerateInsights && !useDefaultFormat) ?
       actionableInsightsText
         .split(/\*\*Action \d+:/)
         .slice(1) // Remove empty first element
@@ -433,13 +441,16 @@ KEY TAKEAWAYS:
         })
         .filter(insight => insight.action.length > 0) : [];
 
+    console.log("🎉 FINAL ACTIONABLE INSIGHTS COUNT:", actionableInsights.length);
+    console.log("🎉 FINAL ACTIONABLE INSIGHTS:", actionableInsights);
+
     return {
       summary,
       takeaways: finalTakeaways,
       actionableInsights,
-      growthStrategy: isActionableGenre ? growthStrategyText : undefined,
-      keyInsight: isActionableGenre ? keyInsightText : undefined,
-      realityCheck: isActionableGenre ? realityCheckText : undefined,
+      growthStrategy: shouldGenerateInsights ? growthStrategyText : undefined,
+      keyInsight: shouldGenerateInsights ? keyInsightText : undefined,
+      realityCheck: shouldGenerateInsights ? realityCheckText : undefined,
       model: 'gemini-2.0-flash-exp',
       fullTranscriptProcessed: true
     };

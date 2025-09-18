@@ -5,8 +5,9 @@ import FooterGlow from "~/components/mvpblocks/footer-glow";
 import Integrations from "~/components/homepage/integrations";
 import Pricing from "~/components/homepage/pricing";
 import FAQ from "~/components/homepage/faq";
-import AiChatSection from "~/components/homepage/ai-chat-section";
+import RadialOrbitalTimeline from "~/components/ui/radial-orbital-timeline";
 import DemoSection from "~/components/homepage/demo-section";
+import { PulseBeamsSection } from "~/components/homepage/pulse-beams-section";
 import { api } from "../../convex/_generated/api";
 import type { Route } from "./+types/home";
 
@@ -108,12 +109,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   return (
     <>
       <Integrations loaderData={loaderData} />
-      <AboutUs1 />
-      <CoreFeaturesSection />
       <DemoSection />
-      <AiChatSection />
+      <AboutUs1 />
+      <RadialOrbitalTimeline />
+      <CoreFeaturesSection />
       <Pricing loaderData={loaderData} />
       <FAQ />
+      <PulseBeamsSection />
       <FooterGlow />
     </>
   );

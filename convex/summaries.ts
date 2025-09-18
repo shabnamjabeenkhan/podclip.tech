@@ -4,6 +4,64 @@ import { internal, api } from "./_generated/api";
 import { findTimestampForText, findTimestampsForTakeaways, formatTimestamp, verifyTakeawayAlignment } from "./deepgram";
 import { generateSummaryWithGemini, transcribeAudioWithGemini, getGeminiClient } from "./gemini";
 
+// Helper function for simple keyword matching when full transcript matching fails
+function findSimpleKeywordMatch(
+  takeaway: string,
+  words: any[],
+  usedTimestamps: number[]
+): { timestamp: number; confidence: number; matchedText: string } | null {
+  // Extract keywords from takeaway
+  const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'will', 'would', 'could', 'should', 'this', 'that', 'he', 'she', 'it', 'they'];
+
+  const keywords = takeaway.toLowerCase()
+    .replace(/[^\w\s]/g, ' ')
+    .split(/\s+/)
+    .filter(word => word.length > 3 && !commonWords.includes(word))
+    .slice(0, 3); // Use top 3 keywords
+
+  if (keywords.length === 0) return null;
+
+  let bestMatch = { index: -1, score: 0, matchCount: 0 };
+
+  // Search through transcript in chunks
+  const chunkSize = 25;
+  for (let i = 0; i <= words.length - chunkSize; i += 10) {
+    const chunk = words.slice(i, i + chunkSize);
+    const chunkText = chunk.map((w: any) => w.word?.toLowerCase() || '').join(' ');
+    const chunkTimestamp = chunk[0]?.start || 0;
+
+    // Skip if too close to used timestamps
+    const isTooClose = usedTimestamps.some(used => Math.abs(chunkTimestamp - used) < 15);
+    if (isTooClose) continue;
+
+    // Count keyword matches
+    let matchCount = 0;
+    let score = 0;
+
+    for (const keyword of keywords) {
+      if (chunkText.includes(keyword)) {
+        matchCount++;
+        score += keyword.length + 1;
+      }
+    }
+
+    if (matchCount > 0 && score > bestMatch.score) {
+      bestMatch = { index: i, score, matchCount };
+    }
+  }
+
+  if (bestMatch.index >= 0) {
+    const matchChunk = words.slice(bestMatch.index, bestMatch.index + chunkSize);
+    const timestamp = matchChunk[0]?.start || 0;
+    const confidence = Math.min(0.3, (bestMatch.matchCount / keywords.length) * 0.5);
+    const matchedText = matchChunk.slice(0, 8).map((w: any) => w.word || '').join(' ');
+
+    return { timestamp, confidence, matchedText };
+  }
+
+  return null;
+}
+
 // Emergency function to expand summaries that are too short
 async function expandSummaryToTargetLength(
   originalSummary: string,
@@ -81,7 +139,14 @@ function detectPodcastGenre(episodeTitle: string, episodeDescription?: string, t
     'self-help', 'self help', 'health', 'fitness', 'leadership', 'career', 'education', 'learning',
     'finance', 'investing', 'productivity', 'management', 'coaching', 'motivation',
     'success', 'growth', 'strateg', 'innovation', 'technology business', 'sales',
-    'tutorial', 'how-to', 'how to', 'guide', 'tips', 'advice', 'framework', 'method'
+    'tutorial', 'how-to', 'how to', 'guide', 'tips', 'advice', 'framework', 'method',
+    // Enhanced keywords for life advice and personal development
+    'life advice', 'life choice', 'decision making', 'mindset', 'philosophy', 'wisdom',
+    'fulfillment', 'purpose', 'meaning', 'priorities', 'values', 'goals', 'habit',
+    'relationship advice', 'marriage advice', 'parenting advice', 'work life balance',
+    'personal growth', 'self improvement', 'life lesson', 'life experience', 'insight',
+    'actionable', 'practical', 'implement', 'apply', 'strategy', 'approach', 'system',
+    'better life', 'optimize', 'maximize', 'effective', 'efficient', 'useful', 'valuable'
   ];
 
   // Use title, description, and first part of transcript (if available) for analysis
@@ -233,12 +298,15 @@ export const generateSummaryWithTimestamps = action({
     // Enhanced timestamp detection - check for actual word timestamp data
     const hasTimestamps = !!(transcriptData && 'wordTimestamps' in transcriptData && transcriptData.wordTimestamps && transcriptData.wordTimestamps.length > 0);
 
-    console.log(`🕒 Timestamp status for episode ${args.episodeId}:`, {
+    console.log(`🕒 DETAILED TIMESTAMP STATUS for episode ${args.episodeId}:`, {
       hasTranscriptData: !!transcriptData,
       hasTimestamps: hasTimestamps,
       transcriptSource: transcriptData && 'source' in transcriptData ? transcriptData.source : 'unknown',
       wordTimestampsCount: transcriptData && 'wordTimestamps' in transcriptData ? transcriptData.wordTimestamps?.length || 0 : 0,
-      deepgramError
+      useDeepgramRequested: args.useDeepgram,
+      deepgramError: deepgramError,
+      transcriptLength: transcriptData?.transcript?.length || 0,
+      fallbackStrategiesWillBeUsed: !hasTimestamps
     });
 
     // Declare variables at function scope
@@ -268,7 +336,9 @@ export const generateSummaryWithTimestamps = action({
           transcript,
           args.episodeTitle,
           args.episodeDescription,
-          args.episodeAudioUrl
+          args.episodeAudioUrl,
+          false, // ultraStrictMode
+          shouldGenerateInsights // Pass user's choice
         );
         
         console.log(`✅ Gemini summary completed for episode ${args.episodeId}`);
@@ -290,7 +360,8 @@ export const generateSummaryWithTimestamps = action({
               args.episodeTitle,
               args.episodeDescription,
               args.episodeAudioUrl,
-              true // Enable ultra-strict mode
+              true, // Enable ultra-strict mode
+              shouldGenerateInsights // Pass user's choice
             );
 
             const newWordCount = stricterResult.summary.split(/\s+/).filter((word: string) => word.length > 0).length;
@@ -383,6 +454,8 @@ export const generateSummaryWithTimestamps = action({
           timestamp?: number;
           confidence?: number;
           formatted_time?: string;
+          originalText?: string;
+          fullContext?: string;
         }> = geminiResult.takeaways;
 
         // Enhanced timestamp processing with improved fallback handling
@@ -411,6 +484,11 @@ export const generateSummaryWithTimestamps = action({
               console.log(`⏰ Timestamp: ${result.timestamp}s (${formatTimestamp(result.timestamp)})`);
               console.log(`📊 Confidence: ${(result.confidence! * 100).toFixed(1)}%`);
               console.log(`🎯 Matched: ${result.matchCount}/${result.totalSearchTerms} terms`);
+
+              // Log fullContext for debugging
+              if (result.fullContext) {
+                console.log(`🗣️ Full Context: "${result.fullContext.substring(0, 100)}..."`);
+              }
 
               // Enhanced verification with lower threshold for production
               const verification = verifyTakeawayAlignment(
@@ -449,13 +527,33 @@ export const generateSummaryWithTimestamps = action({
               }
             }
 
+            // Prepare both original AI text and actual spoken content
+            const originalText = result.text;
+            const spokenContent = result.fullContext;
+
+            // Use spoken content as takeaway text if available and good quality
+            let finalTakeawayText = originalText;
+            if (spokenContent && spokenContent.length > 30) {
+              // Clean up the spoken content to be more readable
+              const cleanedSpokenContent = spokenContent
+                .replace(/\s+/g, ' ') // normalize whitespace
+                .trim();
+
+              // Use spoken content if it's meaningful
+              if (cleanedSpokenContent.length > 30 && cleanedSpokenContent.length < 200) {
+                finalTakeawayText = cleanedSpokenContent;
+                console.log(`🗣️ Using spoken content as takeaway #${index + 1}: "${finalTakeawayText.substring(0, 50)}..."`);
+              }
+            }
+
             return {
-              text: result.text,
+              text: finalTakeawayText,
               timestamp: result.timestamp,
               formatted_time: result.timestamp ? formatTimestamp(result.timestamp) : undefined,
               confidence: result.confidence,
               matchedText: result.matchedText,
               fullContext: result.fullContext,
+              originalText: originalText, // Keep the original AI-generated text for reference
             };
           });
         } else {
@@ -479,13 +577,34 @@ export const generateSummaryWithTimestamps = action({
                   if (result.timestamp) {
                     console.log(`🔍 RECOVERED TIMESTAMP #${index + 1}: ${formatTimestamp(result.timestamp)} for "${result.text.substring(0, 50)}..."`);
                   }
+
+                  // Prepare both original AI text and actual spoken content
+                  const originalText = result.text;
+                  const spokenContent = result.fullContext;
+
+                  // Use spoken content as takeaway text if available and good quality
+                  let finalTakeawayText = originalText;
+                  if (spokenContent && spokenContent.length > 30) {
+                    // Clean up the spoken content to be more readable
+                    const cleanedSpokenContent = spokenContent
+                      .replace(/\s+/g, ' ') // normalize whitespace
+                      .trim();
+
+                    // Use spoken content if it's meaningful
+                    if (cleanedSpokenContent.length > 30 && cleanedSpokenContent.length < 200) {
+                      finalTakeawayText = cleanedSpokenContent;
+                      console.log(`🗣️ Using recovered spoken content as takeaway #${index + 1}: "${finalTakeawayText.substring(0, 50)}..."`);
+                    }
+                  }
+
                   return {
-                    text: result.text,
+                    text: finalTakeawayText,
                     timestamp: result.timestamp,
                     formatted_time: result.timestamp ? formatTimestamp(result.timestamp) : undefined,
                     confidence: result.confidence,
                     matchedText: result.matchedText,
                     fullContext: result.fullContext,
+                    originalText: originalText,
                   };
                 });
 
@@ -499,7 +618,74 @@ export const generateSummaryWithTimestamps = action({
             }
           }
 
-          console.log(`📊 Final status: timestamps available for ${processedTakeaways.filter((t: any) => t.timestamp).length}/${processedTakeaways.length} takeaways`);
+          // FINAL FALLBACK: Ensure every takeaway has a timestamp
+          const geminiTakeawaysWithoutTimestamps = processedTakeaways.filter((t: any) => !t.timestamp);
+          if (geminiTakeawaysWithoutTimestamps.length > 0) {
+            console.log(`🔧 GEMINI FINAL FALLBACK: Adding timestamps to ${geminiTakeawaysWithoutTimestamps.length} remaining takeaways without timestamps...`);
+
+            // Get episode duration for distribution (use a reasonable default if unavailable)
+            const estimatedDuration = 3600; // 1 hour default
+
+            // Process each takeaway without timestamp
+            for (let i = 0; i < processedTakeaways.length; i++) {
+              const takeaway = processedTakeaways[i];
+
+              // Check if it's a string or object without timestamp
+              if (typeof takeaway === 'string' || !takeaway.timestamp) {
+                // Distribute evenly across estimated episode duration
+                const estimatedTimestamp = (estimatedDuration / processedTakeaways.length) * (i + 0.5);
+
+                processedTakeaways[i] = {
+                  text: typeof takeaway === 'string' ? takeaway : takeaway.text,
+                  timestamp: estimatedTimestamp,
+                  formatted_time: formatTimestamp(estimatedTimestamp),
+                  confidence: 0.1, // Very low confidence for pure fallback
+                } as any;
+
+                console.log(`📍 Added fallback timestamp to takeaway ${i + 1}: ${formatTimestamp(estimatedTimestamp)} (estimated)`);
+              }
+            }
+          }
+
+          // CRITICAL: Ensure we ALWAYS have timestamps for every takeaway
+          const takeawaysWithTimestamps = processedTakeaways.filter((t: any) =>
+            typeof t === 'object' && t !== null && t.timestamp && t.formatted_time
+          );
+          const takeawaysWithoutTimestampsCount = processedTakeaways.length - takeawaysWithTimestamps.length;
+
+          console.log(`📊 DETAILED FINAL STATUS: ${takeawaysWithTimestamps.length}/${processedTakeaways.length} takeaways have complete timestamps`);
+          console.log(`🔍 Takeaway data analysis:`, processedTakeaways.map((t: any, i: number) => ({
+            index: i + 1,
+            type: typeof t,
+            hasTimestamp: typeof t === 'object' && t?.timestamp ? true : false,
+            hasFormattedTime: typeof t === 'object' && t?.formatted_time ? true : false,
+            text: typeof t === 'string' ? t.substring(0, 30) + '...' : (t?.text?.substring(0, 30) + '...' || 'No text')
+          })));
+
+          // ABSOLUTE FINAL FAILSAFE: If we still don't have timestamps for every takeaway
+          if (takeawaysWithoutTimestampsCount > 0) {
+            console.log(`🚨 ABSOLUTE FAILSAFE: ${takeawaysWithoutTimestampsCount} takeaways missing complete timestamps. Applying guaranteed timestamp assignment...`);
+
+            const estimatedDuration = 3600; // 1 hour default
+            for (let i = 0; i < processedTakeaways.length; i++) {
+              const takeaway = processedTakeaways[i];
+
+              if (typeof takeaway === 'string' || !takeaway.timestamp) {
+                const absoluteFallbackTimestamp = (estimatedDuration / processedTakeaways.length) * (i + 0.5);
+
+                processedTakeaways[i] = {
+                  text: typeof takeaway === 'string' ? takeaway : (takeaway.text || `Takeaway ${i + 1}`),
+                  timestamp: absoluteFallbackTimestamp,
+                  formatted_time: formatTimestamp(absoluteFallbackTimestamp),
+                  confidence: 0.05, // Absolute minimum confidence for failsafe
+                } as any;
+
+                console.log(`🔧 FAILSAFE: Assigned guaranteed timestamp to takeaway ${i + 1}: ${formatTimestamp(absoluteFallbackTimestamp)}`);
+              }
+            }
+          }
+
+          console.log(`✅ GUARANTEED: ALL ${processedTakeaways.length} takeaways now have timestamps`);
         }
 
         // Save summary to database
@@ -608,13 +794,23 @@ export const generateSummaryWithTimestamps = action({
       detectedGenre = detectPodcastGenre(args.episodeTitle, finalDescription, truncatedTranscript);
       const isActionableGenre = detectedGenre === 'actionable';
 
-      // Determine if insights should be generated based on user choice and genre
-      shouldGenerateInsights = args.generateInsights !== undefined
-        ? args.generateInsights  // Respect explicit user choice
-        : isActionableGenre;     // Default based on detected genre
+      // Determine if insights should be generated - prioritize explicit user choice
+      shouldGenerateInsights = args.generateInsights === true ||
+                              (args.generateInsights === undefined && isActionableGenre);
+
+      console.log(`🎯 INSIGHTS GENERATION DECISION:`, {
+        userChoice: args.generateInsights,
+        userChoiceType: typeof args.generateInsights,
+        detectedGenre: detectedGenre,
+        isActionableGenre: isActionableGenre,
+        finalDecision: shouldGenerateInsights,
+        logic: args.generateInsights === true ? 'USER_EXPLICIT_TRUE' :
+               args.generateInsights === false ? 'USER_EXPLICIT_FALSE' :
+               args.generateInsights === undefined ? 'USER_UNDEFINED_FALLBACK_TO_GENRE' : 'UNKNOWN'
+      });
 
       // Determine suggestion status for frontend
-      insightsSuggestion = args.generateInsights !== undefined
+      insightsSuggestion = args.generateInsights === true
         ? 'user_choice'
         : (isActionableGenre ? 'suggested' : 'disabled');
 
@@ -631,6 +827,11 @@ You are a podcast summarizer that analyzes the episode's genre and adapts your o
 1. Read through the ENTIRE transcript provided below from beginning to end
 2. Analyze the COMPLETE content of the episode - do not skip any section
 3. Only after reviewing the full transcript, extract the most important insights
+
+🎯 KEY TAKEAWAYS REQUIREMENT:
+- Write actual TAKEAWAYS (lessons, insights, principles) - NOT transcript quotes
+- Each takeaway should be a distilled lesson that captures what was discussed
+- Focus on what listeners can LEARN or APPLY, not what was literally said
 
 TRANSCRIPT ANALYSIS REQUIREMENT:
 - Read every word of the transcript below before proceeding
@@ -653,13 +854,21 @@ SUMMARY:
 [Write EXACTLY 150-200 words - count them! Include specific details, examples, key insights, interesting stories, important quotes, and juicy discussion points from the episode. Make it comprehensive and detailed, not generic.]
 
 KEY TAKEAWAYS:
-• First key takeaway highlighting important or useful point${hasTimestamps ? ' - "Supporting quote from transcript"' : ''}
-• Second important insight that listeners should know${hasTimestamps ? ' - "Supporting quote from transcript"' : ''}
-• Third actionable strategy or framework mentioned${hasTimestamps ? ' - "Supporting quote from transcript"' : ''}
-• Fourth valuable concept or principle discussed${hasTimestamps ? ' - "Supporting quote from transcript"' : ''}
-• Fifth noteworthy observation or data point${hasTimestamps ? ' - "Supporting quote from transcript"' : ''}
-• Sixth compelling story or example shared${hasTimestamps ? ' - "Supporting quote from transcript"' : ''}
-• Seventh memorable quote or final thought${hasTimestamps ? ' - "Supporting quote from transcript"' : ''}
+${hasTimestamps ? `IMPORTANT: Write clear, actionable takeaways that summarize key insights - NOT direct transcript quotes. Each takeaway should be a distilled lesson or insight that captures the essence of what was discussed.
+
+• First key takeaway highlighting important or useful point
+• Second important insight that listeners should know
+• Third actionable strategy or framework mentioned
+• Fourth valuable concept or principle discussed
+• Fifth noteworthy observation or data point
+• Sixth compelling story or example shared
+• Seventh memorable quote or final thought` : `• First key takeaway highlighting important or useful point
+• Second important insight that listeners should know
+• Third actionable strategy or framework mentioned
+• Fourth valuable concept or principle discussed
+• Fifth noteworthy observation or data point
+• Sixth compelling story or example shared
+• Seventh memorable quote or final thought`}
 
 ACTIONABLE INSIGHTS:
 **Action 1: [Specific actionable recommendation from the episode]**
@@ -729,26 +938,44 @@ SUMMARY:
 [Write EXACTLY 150-200 words - count them! Focus on the most interesting moments, entertainment value, funny stories, key discussions, memorable quotes, and noteworthy content. Include specific details and juicy discussion points. Make it engaging and informative without focusing on actionable advice.]
 
 KEY TAKEAWAYS:
-• First key takeaway focused on interesting or entertaining moment/lesson${hasTimestamps ? ' - "Supporting quote from transcript"' : ''}
-• Second important insight or memorable moment from the episode${hasTimestamps ? ' - "Supporting quote from transcript"' : ''}
-• Third noteworthy observation or discussion point${hasTimestamps ? ' - "Supporting quote from transcript"' : ''}
-• Fourth compelling story, example, or interesting revelation${hasTimestamps ? ' - "Supporting quote from transcript"' : ''}
-• Fifth entertaining moment or valuable perspective shared${hasTimestamps ? ' - "Supporting quote from transcript"' : ''}
-• Sixth notable quote, joke, or memorable exchange${hasTimestamps ? ' - "Supporting quote from transcript"' : ''}
-• Seventh final thought or standout moment from the episode${hasTimestamps ? ' - "Supporting quote from transcript"' : ''}
+${hasTimestamps ? `IMPORTANT: Write clear, digestible takeaways that capture the most interesting or entertaining insights - NOT direct transcript quotes. Each takeaway should be a distilled lesson, observation, or memorable moment.
+
+• First key takeaway focused on interesting or entertaining moment/lesson
+• Second important insight or memorable moment from the episode
+• Third noteworthy observation or discussion point
+• Fourth compelling story, example, or interesting revelation
+• Fifth entertaining moment or valuable perspective shared
+• Sixth notable quote, joke, or memorable exchange
+• Seventh final thought or standout moment from the episode` : `• First key takeaway focused on interesting or entertaining moment/lesson
+• Second important insight or memorable moment from the episode
+• Third noteworthy observation or discussion point
+• Fourth compelling story, example, or interesting revelation
+• Fifth entertaining moment or valuable perspective shared
+• Sixth notable quote, joke, or memorable exchange
+• Seventh final thought or standout moment from the episode`}
 `;
     } else {
         // Fallback to description-based summary - detect genre first
       detectedGenre = detectPodcastGenre(args.episodeTitle, args.episodeDescription);
       const isActionableGenre = detectedGenre === 'actionable';
 
-      // Determine if insights should be generated based on user choice and genre
-      shouldGenerateInsights = args.generateInsights !== undefined
-        ? args.generateInsights  // Respect explicit user choice
-        : isActionableGenre;     // Default based on detected genre
+      // Determine if insights should be generated - prioritize explicit user choice
+      shouldGenerateInsights = args.generateInsights === true ||
+                              (args.generateInsights === undefined && isActionableGenre);
+
+      console.log(`🎯 INSIGHTS GENERATION DECISION:`, {
+        userChoice: args.generateInsights,
+        userChoiceType: typeof args.generateInsights,
+        detectedGenre: detectedGenre,
+        isActionableGenre: isActionableGenre,
+        finalDecision: shouldGenerateInsights,
+        logic: args.generateInsights === true ? 'USER_EXPLICIT_TRUE' :
+               args.generateInsights === false ? 'USER_EXPLICIT_FALSE' :
+               args.generateInsights === undefined ? 'USER_UNDEFINED_FALLBACK_TO_GENRE' : 'UNKNOWN'
+      });
 
       // Determine suggestion status for frontend
-      insightsSuggestion = args.generateInsights !== undefined
+      insightsSuggestion = args.generateInsights === true
         ? 'user_choice'
         : (isActionableGenre ? 'suggested' : 'disabled');
 
@@ -765,6 +992,8 @@ SUMMARY:
 [Write EXACTLY 150-200 words - count them! Include specific details, examples, key insights, interesting stories, important quotes, and juicy discussion points from the episode. Make it comprehensive and detailed, not generic.]
 
 KEY TAKEAWAYS:
+IMPORTANT: Write clear, actionable takeaways that summarize key insights - NOT direct transcript quotes. Each takeaway should be a distilled lesson or insight that captures the essence of what was discussed.
+
 • First key takeaway highlighting important or useful point
 • Second important insight that listeners should know
 • Third actionable strategy or framework mentioned
@@ -827,6 +1056,8 @@ SUMMARY:
 [Write EXACTLY 150-200 words - count them! Focus on the most interesting moments, entertainment value, funny stories, key discussions, memorable quotes, and noteworthy content. Include specific details and juicy discussion points. Make it engaging and informative without focusing on actionable advice.]
 
 KEY TAKEAWAYS:
+IMPORTANT: Write clear, digestible takeaways that capture the most interesting or entertaining insights - NOT direct transcript quotes. Each takeaway should be a distilled lesson, observation, or memorable moment.
+
 • First key takeaway focused on interesting or entertaining moment/lesson
 • Second important insight or memorable moment from the episode
 • Third noteworthy observation or discussion point
@@ -922,7 +1153,7 @@ KEY TAKEAWAYS:
 
     let summary = summaryMatch ? summaryMatch[1].trim() : aiResponse;
     const takeawaysText = takeawaysMatch ? takeawaysMatch[1].trim() : "";
-    const actionableInsightsText = actionableInsightsMatch ? actionableInsightsMatch[1].trim() : "";
+    let actionableInsightsText = actionableInsightsMatch ? actionableInsightsMatch[1].trim() : "";
     const growthStrategyText = growthStrategyMatch ? growthStrategyMatch[1].trim() : "";
     const keyInsightText = keyInsightMatch ? keyInsightMatch[1].trim() : "";
     const realityCheckText = realityCheckMatch ? realityCheckMatch[1].trim() : "";
@@ -1048,6 +1279,9 @@ KEY TAKEAWAYS:
       timestamp?: number;
       confidence?: number;
       formatted_time?: string;
+      originalText?: string;
+      fullContext?: string;
+      matchedText?: string;
     }> = [];
 
     if (hasTimestamps && transcriptData && 'wordTimestamps' in transcriptData && transcriptData.wordTimestamps) {
@@ -1065,22 +1299,66 @@ KEY TAKEAWAYS:
           const timestampResult = findTimestampForText(quote, transcriptData.wordTimestamps!);
           
           if (timestampResult && timestampResult.confidence > 0.3) {
+            // Prepare both original AI text and actual spoken content
+            const originalText = takeawayText;
+            const spokenContent = timestampResult.fullContext;
+
+            // Use spoken content as takeaway text if available and good quality
+            let finalTakeawayText = originalText;
+            if (spokenContent && spokenContent.length > 30) {
+              // Clean up the spoken content to be more readable
+              const cleanedSpokenContent = spokenContent
+                .replace(/\s+/g, ' ') // normalize whitespace
+                .trim();
+
+              // Use spoken content if it's meaningful
+              if (cleanedSpokenContent.length > 30 && cleanedSpokenContent.length < 200) {
+                finalTakeawayText = cleanedSpokenContent;
+                console.log(`🗣️ Using spoken content as OpenAI takeaway: "${finalTakeawayText.substring(0, 50)}..."`);
+              }
+            }
+
             processedTakeaways.push({
-              text: takeawayText,
+              text: finalTakeawayText,
               timestamp: timestampResult.timestamp,
               confidence: timestampResult.confidence,
               formatted_time: formatTimestamp(timestampResult.timestamp),
+              matchedText: timestampResult.matchedText,
+              fullContext: timestampResult.fullContext,
+              originalText: originalText,
             });
             console.log(`✅ Found timestamp for "${takeawayText}": ${formatTimestamp(timestampResult.timestamp)}`);
           } else {
             // Fallback: try to find timestamp using the takeaway text itself
             const fallbackResult = findTimestampForText(takeawayText, transcriptData.wordTimestamps!);
             if (fallbackResult && fallbackResult.confidence > 0.2) {
+              // Prepare both original AI text and actual spoken content
+              const originalText = takeawayText;
+              const spokenContent = fallbackResult.fullContext;
+
+              // Use spoken content as takeaway text if available and good quality
+              let finalTakeawayText = originalText;
+              if (spokenContent && spokenContent.length > 30) {
+                // Clean up the spoken content to be more readable
+                const cleanedSpokenContent = spokenContent
+                  .replace(/\s+/g, ' ') // normalize whitespace
+                  .trim();
+
+                // Use spoken content if it's meaningful
+                if (cleanedSpokenContent.length > 30 && cleanedSpokenContent.length < 200) {
+                  finalTakeawayText = cleanedSpokenContent;
+                  console.log(`🗣️ Using fallback spoken content as OpenAI takeaway: "${finalTakeawayText.substring(0, 50)}..."`);
+                }
+              }
+
               processedTakeaways.push({
-                text: takeawayText,
+                text: finalTakeawayText,
                 timestamp: fallbackResult.timestamp,
                 confidence: fallbackResult.confidence,
                 formatted_time: formatTimestamp(fallbackResult.timestamp),
+                matchedText: fallbackResult.matchedText,
+                fullContext: fallbackResult.fullContext,
+                originalText: originalText,
               });
               console.log(`⚠️ Found fallback timestamp for "${takeawayText}": ${formatTimestamp(fallbackResult.timestamp)}`);
             } else {
@@ -1093,11 +1371,33 @@ KEY TAKEAWAYS:
           const timestampResult = findTimestampForText(takeaway, transcriptData.wordTimestamps!);
           
           if (timestampResult && timestampResult.confidence > 0.3) {
+            // Prepare both original AI text and actual spoken content
+            const originalText = takeaway;
+            const spokenContent = timestampResult.fullContext;
+
+            // Use spoken content as takeaway text if available and good quality
+            let finalTakeawayText = originalText;
+            if (spokenContent && spokenContent.length > 30) {
+              // Clean up the spoken content to be more readable
+              const cleanedSpokenContent = spokenContent
+                .replace(/\s+/g, ' ') // normalize whitespace
+                .trim();
+
+              // Use spoken content if it's meaningful
+              if (cleanedSpokenContent.length > 30 && cleanedSpokenContent.length < 200) {
+                finalTakeawayText = cleanedSpokenContent;
+                console.log(`🗣️ Using spoken content as OpenAI takeaway (no quote): "${finalTakeawayText.substring(0, 50)}..."`);
+              }
+            }
+
             processedTakeaways.push({
-              text: takeaway,
+              text: finalTakeawayText,
               timestamp: timestampResult.timestamp,
               confidence: timestampResult.confidence,
               formatted_time: formatTimestamp(timestampResult.timestamp),
+              matchedText: timestampResult.matchedText,
+              fullContext: timestampResult.fullContext,
+              originalText: originalText,
             });
             console.log(`✅ Found timestamp for "${takeaway}": ${formatTimestamp(timestampResult.timestamp)}`);
           } else {
@@ -1110,6 +1410,74 @@ KEY TAKEAWAYS:
       processedTakeaways = finalRawTakeaways;
     }
 
+    // FINAL FALLBACK FOR OPENAI PATH: Ensure every takeaway has a timestamp
+    const openaiBasicTakeawaysWithoutTimestamps = processedTakeaways.filter((t: any) => typeof t === 'string' || !t.timestamp);
+    if (openaiBasicTakeawaysWithoutTimestamps.length > 0) {
+      console.log(`🔧 OPENAI BASIC FALLBACK: Adding timestamps to ${openaiBasicTakeawaysWithoutTimestamps.length} remaining takeaways without timestamps...`);
+
+      // Get episode duration for distribution (use a reasonable default if unavailable)
+      const estimatedDuration = 3600; // 1 hour default
+
+      // Process each takeaway without timestamp
+      for (let i = 0; i < processedTakeaways.length; i++) {
+        const takeaway = processedTakeaways[i];
+
+        // Check if it's a string or object without timestamp
+        if (typeof takeaway === 'string' || !takeaway.timestamp) {
+          // Distribute evenly across estimated episode duration
+          const estimatedTimestamp = (estimatedDuration / processedTakeaways.length) * (i + 0.5);
+
+          processedTakeaways[i] = {
+            text: typeof takeaway === 'string' ? takeaway : takeaway.text,
+            timestamp: estimatedTimestamp,
+            formatted_time: formatTimestamp(estimatedTimestamp),
+            confidence: 0.1, // Very low confidence for pure fallback
+          };
+
+          console.log(`📍 Added fallback timestamp to takeaway ${i + 1}: ${formatTimestamp(estimatedTimestamp)} (estimated)`);
+        }
+      }
+    }
+
+    // CRITICAL FAILSAFE FOR OPENAI PATH: Ensure ALL takeaways have timestamps
+    const openaiTakeawaysWithTimestamps = processedTakeaways.filter((t: any) =>
+      typeof t === 'object' && t !== null && t.timestamp && t.formatted_time
+    );
+    const openaiTakeawaysWithoutTimestampsCount = processedTakeaways.length - openaiTakeawaysWithTimestamps.length;
+
+    console.log(`📊 OPENAI DETAILED STATUS: ${openaiTakeawaysWithTimestamps.length}/${processedTakeaways.length} takeaways have complete timestamps`);
+    console.log(`🔍 OPENAI Takeaway data analysis:`, processedTakeaways.map((t: any, i: number) => ({
+      index: i + 1,
+      type: typeof t,
+      hasTimestamp: typeof t === 'object' && t?.timestamp ? true : false,
+      hasFormattedTime: typeof t === 'object' && t?.formatted_time ? true : false,
+      text: typeof t === 'string' ? t.substring(0, 30) + '...' : (t?.text?.substring(0, 30) + '...' || 'No text')
+    })));
+
+    if (openaiTakeawaysWithoutTimestampsCount > 0) {
+      console.log(`🚨 OPENAI FAILSAFE: ${openaiTakeawaysWithoutTimestampsCount} takeaways missing complete timestamps. Applying guaranteed timestamp assignment...`);
+
+      const estimatedDuration = 3600; // 1 hour default
+      for (let i = 0; i < processedTakeaways.length; i++) {
+        const takeaway = processedTakeaways[i];
+
+        if (typeof takeaway === 'string' || !takeaway.timestamp) {
+          const absoluteFallbackTimestamp = (estimatedDuration / processedTakeaways.length) * (i + 0.5);
+
+          processedTakeaways[i] = {
+            text: typeof takeaway === 'string' ? takeaway : (takeaway.text || `Takeaway ${i + 1}`),
+            timestamp: absoluteFallbackTimestamp,
+            formatted_time: formatTimestamp(absoluteFallbackTimestamp),
+            confidence: 0.05, // Absolute minimum confidence for failsafe
+          };
+
+          console.log(`🔧 OPENAI FAILSAFE: Assigned guaranteed timestamp to takeaway ${i + 1}: ${formatTimestamp(absoluteFallbackTimestamp)}`);
+        }
+      }
+    }
+
+    console.log(`✅ OPENAI GUARANTEED: ALL ${processedTakeaways.length} takeaways now have timestamps`);
+
     // Enhanced actionable insights processing with fallback parsing
     let processedActionableInsights: Array<{
       action: string;
@@ -1118,9 +1486,22 @@ KEY TAKEAWAYS:
       resources: string;
     }> = [];
 
-    if (shouldGenerateInsights && actionableInsightsText) {
+    if (shouldGenerateInsights) {
       console.log("🔍 PROCESSING ACTIONABLE INSIGHTS");
+      console.log("📝 shouldGenerateInsights:", shouldGenerateInsights);
+      console.log("📝 actionableInsightsText length:", actionableInsightsText.length);
       console.log("📝 Raw actionable insights text:", actionableInsightsText.substring(0, 300) + "...");
+
+      // If structured parsing failed but we should generate insights, try to extract from full response
+      if (!actionableInsightsText && aiResponse) {
+        console.log("⚠️ Structured parsing failed, attempting fallback extraction from full AI response");
+        // Try to find any actionable content in the response
+        const fallbackMatch = aiResponse.match(/(?:ACTIONABLE|Action|ACTIONS?)[\s\S]*?(?=GROWTH STRATEGY|KEY INSIGHT|REALITY CHECK|$)/i);
+        if (fallbackMatch) {
+          console.log("✅ Found actionable content via fallback extraction");
+          actionableInsightsText = fallbackMatch[0];
+        }
+      }
 
       // Primary parsing: Look for **Action N:** pattern
       let insights = actionableInsightsText
@@ -1221,6 +1602,12 @@ KEY TAKEAWAYS:
 
       processedActionableInsights = insights;
       console.log(`🎉 Final processed insights count: ${processedActionableInsights.length}`);
+
+      // If we should generate insights but got none, log this issue for debugging
+      if (processedActionableInsights.length === 0) {
+        console.warn("⚠️ shouldGenerateInsights was true but no insights were processed");
+        console.warn("📝 AI Response preview:", aiResponse.substring(0, 500) + "...");
+      }
     }
 
     // Increment user's summary count after successful generation
@@ -1368,6 +1755,11 @@ You are a podcast summarizer that analyzes the episode's genre and adapts your o
 2. Analyze the COMPLETE content of the episode - do not skip any section
 3. Only after reviewing the full transcript, extract the most important insights
 
+🎯 KEY TAKEAWAYS REQUIREMENT:
+- Write actual TAKEAWAYS (lessons, insights, principles) - NOT transcript quotes
+- Each takeaway should be a distilled lesson that captures what was discussed
+- Focus on what listeners can LEARN or APPLY, not what was literally said
+
 TRANSCRIPT ANALYSIS REQUIREMENT:
 - Read every word of the transcript below before proceeding
 - The transcript contains the COMPLETE episode content (or as much as token limits allow)
@@ -1387,6 +1779,8 @@ SUMMARY:
 [Write EXACTLY 150-200 words - count them! Include specific details, examples, key insights, interesting stories, important quotes, and juicy discussion points from the episode. Make it comprehensive and detailed, not generic.]
 
 KEY TAKEAWAYS:
+IMPORTANT: Write clear, actionable takeaways that summarize key insights - NOT direct transcript quotes. Each takeaway should be a distilled lesson or insight that captures the essence of what was discussed.
+
 • First key takeaway highlighting important or useful point
 • Second important insight that listeners should know
 • Third actionable strategy or framework mentioned
@@ -1461,6 +1855,8 @@ SUMMARY:
 [Write EXACTLY 150-200 words - count them! Focus on the most interesting moments, entertainment value, funny stories, key discussions, memorable quotes, and noteworthy content. Include specific details and juicy discussion points. Make it engaging and informative without focusing on actionable advice.]
 
 KEY TAKEAWAYS:
+IMPORTANT: Write clear, digestible takeaways that capture the most interesting or entertaining insights - NOT direct transcript quotes. Each takeaway should be a distilled lesson, observation, or memorable moment.
+
 • First key takeaway focused on interesting or entertaining moment/lesson
 • Second important insight or memorable moment from the episode
 • Third noteworthy observation or discussion point
@@ -1508,6 +1904,8 @@ SUMMARY:
 [Write EXACTLY 150-200 words - count them! Include specific details, examples, key insights, interesting stories, important quotes, and juicy discussion points from the episode. Make it comprehensive and detailed, not generic.]
 
 KEY TAKEAWAYS:
+IMPORTANT: Write clear, actionable takeaways that summarize key insights - NOT direct transcript quotes. Each takeaway should be a distilled lesson or insight that captures the essence of what was discussed.
+
 • First key takeaway highlighting important or useful point
 • Second important insight that listeners should know
 • Third actionable strategy or framework mentioned
@@ -1570,6 +1968,8 @@ SUMMARY:
 [Write EXACTLY 150-200 words - count them! Focus on the most interesting moments, entertainment value, funny stories, key discussions, memorable quotes, and noteworthy content. Include specific details and juicy discussion points. Make it engaging and informative without focusing on actionable advice.]
 
 KEY TAKEAWAYS:
+IMPORTANT: Write clear, digestible takeaways that capture the most interesting or entertaining insights - NOT direct transcript quotes. Each takeaway should be a distilled lesson, observation, or memorable moment.
+
 • First key takeaway focused on interesting or entertaining moment/lesson
 • Second important insight or memorable moment from the episode
 • Third noteworthy observation or discussion point
@@ -1709,7 +2109,7 @@ KEY TAKEAWAYS:
 
     let summary = summaryMatch ? summaryMatch[1].trim() : aiResponse;
     const takeawaysText = takeawaysMatch ? takeawaysMatch[1].trim() : "";
-    const actionableInsightsText = actionableInsightsMatch ? actionableInsightsMatch[1].trim() : "";
+    let actionableInsightsText = actionableInsightsMatch ? actionableInsightsMatch[1].trim() : "";
     const growthStrategyText = growthStrategyMatch ? growthStrategyMatch[1].trim() : "";
     const keyInsightText = keyInsightMatch ? keyInsightMatch[1].trim() : "";
     const realityCheckText = realityCheckMatch ? realityCheckMatch[1].trim() : "";
@@ -1911,6 +2311,9 @@ export const createSummaryWithTimestamps = mutation({
         timestamp: v.optional(v.number()),
         confidence: v.optional(v.number()),
         formatted_time: v.optional(v.string()),
+        originalText: v.optional(v.string()),
+        fullContext: v.optional(v.string()),
+        matchedText: v.optional(v.string()),
       })
     )),
     actionableInsights: v.optional(v.array(v.object({

@@ -60,28 +60,6 @@ export default function FooterGlow() {
         <nav className="flex w-full flex-col gap-9 text-center md:w-auto md:flex-row md:justify-end md:text-left">
           <div>
             <div className="mb-3 text-xs font-semibold tracking-widest text-primary uppercase">
-              Product
-            </div>
-            <ul className="space-y-2">
-              <li>
-                <Link to="/dashboard" className="text-foreground/70 hover:text-primary transition-colors">
-                  Dashboard
-                </Link>
-              </li>
-              <li>
-                <Link to="/pricing" className="text-foreground/70 hover:text-primary transition-colors">
-                  Pricing
-                </Link>
-              </li>
-              <li>
-                <Link to="/dashboard/chat" className="text-foreground/70 hover:text-primary transition-colors">
-                  AI Chat
-                </Link>
-              </li>
-            </ul>
-          </div>
-          <div>
-            <div className="mb-3 text-xs font-semibold tracking-widest text-primary uppercase">
               Legal
             </div>
             <ul className="space-y-2">
@@ -121,7 +99,7 @@ export default function FooterGlow() {
           </div>
         </nav>
       </div>
-      <div className="text-foreground relative z-10 mt-6 text-center text-xs">
+      <div className="text-foreground relative z-10 mt-6 text-center text-xs px-4 sm:px-6">
         <span>&copy; {new Date().getFullYear()} Podclip. All rights reserved.</span>
         <div className="mt-4 pt-4 border-t border-foreground/10">
           <p className="text-xs text-muted-foreground">

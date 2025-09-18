@@ -15,16 +15,119 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "~/components/ui/card";
 import { api } from "../../convex/_generated/api";
 import { isFeatureEnabled, config } from "../../config";
+import clsx, { type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));
+
+type PlanTier = "Basic" | "Standard" | "Pro";
+
+interface PricingCardProps {
+  title: PlanTier | string;
+  price: string;
+  description?: string;
+  features: string[];
+  cta: string;
+  href: string;
+  featured?: boolean;
+  isCurrentPlan?: boolean;
+  onSubscribe?: () => void;
+  loading?: boolean;
+}
+
+function PricingCard({ plan }: { plan: PricingCardProps }) {
+  return (
+    <div
+      className={cn(
+        "relative flex flex-col rounded-lg p-6 text-left text-white",
+        plan.isCurrentPlan
+          ? "bg-gradient-to-b from-green-900/50 to-green-800/30 border border-green-500"
+          : plan.featured
+            ? "bg-gradient-to-b from-slate-800 to-slate-900 border border-teal-500"
+            : "bg-gradient-to-b from-slate-800 to-slate-900 border border-slate-600"
+      )}
+      aria-label={`${plan.title} plan`}
+    >
+      {/* Top badge */}
+      {(plan.featured || plan.isCurrentPlan) && (
+        <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+          <span className={cn(
+            "px-4 py-1 rounded-full text-xs font-medium",
+            plan.isCurrentPlan
+              ? "bg-green-500 text-white"
+              : "bg-teal-500 text-white"
+          )}>
+            {plan.isCurrentPlan ? "Current Plan" : "Popular"}
+          </span>
+        </div>
+      )}
+
+      <div className="mt-4">
+        <h3 className="text-xl font-semibold text-white mb-4">{plan.title}</h3>
+        <div className="mb-6">
+          <span className="text-3xl font-bold text-white">{plan.price}</span>
+        </div>
+
+        {plan.description && (
+          <p className="text-sm text-gray-300 mb-6 leading-relaxed">
+            {plan.description}
+          </p>
+        )}
+
+        {/* Upgrade/Downgrade button if applicable */}
+        {(plan.cta.includes("Upgrade") || plan.cta.includes("Downgrade")) && (
+          <div className="mb-6">
+            <Button
+              className={cn(
+                "w-full rounded-full text-sm font-medium py-2",
+                plan.cta.includes("Downgrade")
+                  ? "bg-teal-600 hover:bg-teal-700 text-white"
+                  : "bg-gray-700 hover:bg-gray-600 text-white"
+              )}
+              onClick={plan.onSubscribe}
+              disabled={plan.loading}
+            >
+              {plan.loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {plan.cta}
+            </Button>
+          </div>
+        )}
+
+        <div className="border-t border-dotted border-gray-600 pt-6">
+          <ul className="space-y-3">
+            {plan.features.map((feature) => (
+              <li key={feature} className="flex items-center text-sm text-gray-300">
+                <Check className="mr-3 h-4 w-4 text-gray-400" />
+                <span>{feature}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Main CTA button for non-upgrade/downgrade cases */}
+        {(!plan.cta.includes("Upgrade") && !plan.cta.includes("Downgrade")) && (
+          <div className="mt-8">
+            <Button
+              className={cn(
+                "w-full rounded-full text-sm font-medium py-2",
+                plan.isCurrentPlan
+                  ? "bg-green-600 hover:bg-green-700 text-white"
+                  : "bg-gray-700 hover:bg-gray-600 text-white"
+              )}
+              onClick={plan.onSubscribe}
+              disabled={plan.loading}
+            >
+              {plan.loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {plan.cta}
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function IntegratedPricing() {
   // Early return if payments are not enabled
@@ -62,12 +165,6 @@ export default function IntegratedPricing() {
   const [error, setError] = useState<string | null>(null);
 
   const getPlans = useAction(api.subscriptions.getAvailablePlans);
-  const subscriptionStatus = useQuery(
-    api.subscriptions.checkUserSubscriptionStatus,
-    {
-      userId: isSignedIn ? userId : undefined,
-    }
-  );
   const userSubscription = useQuery(api.subscriptions.fetchUserSubscription);
   const userQuota = useQuery(api.users.getUserQuota, isSignedIn ? {} : "skip");
   const createCheckout = useAction(api.subscriptions.createCheckoutSession);
@@ -155,35 +252,17 @@ export default function IntegratedPricing() {
   }
 
   return (
-    <section className="flex flex-col items-center justify-center min-h-screen px-4">
+    <section className="flex flex-col items-center justify-center min-h-screen px-4 bg-black text-white">
       <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold tracking-tight mb-4">
-          Simple, transparent pricing
+        <h1 className="text-4xl font-bold tracking-tight mb-4 text-white">
+          Pricing
         </h1>
-        <p className="text-xl text-muted-foreground mb-6">
-          Choose the plan that fits your podcast listening needs
+        <p className="text-xl text-gray-400 mb-6">
+          Select the plan that best suits your needs.
         </p>
-        <div className="max-w-3xl mx-auto bg-blue-50 border border-blue-200 rounded-lg p-6 text-left">
-          <h3 className="font-semibold text-blue-900 mb-3">📋 How it works:</h3>
-          <ul className="text-blue-800 space-y-2 text-sm">
-            <li><strong>Generate summaries</strong> by searching and clicking on podcast episodes</li>
-            <li><strong>Monthly quotas reset automatically</strong> at the start of each month</li>
-            <li><strong>When you reach your limit</strong>, you can't generate new summaries until your quota resets</li>
-            <li><strong>Need more summaries?</strong> Upgrade to a higher plan anytime</li>
-          </ul>
-        </div>
-        {isSignedIn && !subscriptionStatus?.hasActiveSubscription && (
-          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg max-w-md mx-auto">
-            <p className="text-blue-800 font-medium">📋 Complete your setup</p>
-            <p className="text-blue-700 text-sm mt-1">
-              You're signed in! Choose a plan below to access your dashboard and
-              start using all features.
-            </p>
-          </div>
-        )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-6xl w-full px-4">
+      <div className="not-prose mt-4 grid grid-cols-1 gap-6 min-[900px]:grid-cols-3">
         {plans.items
           .sort((a: any, b: any) => {
             const priceComparison = a.prices[0].amount - b.prices[0].amount;
@@ -195,254 +274,94 @@ export default function IntegratedPricing() {
             const isPopular =
               plans.items.length === 2
                 ? index === 1
-                : index === Math.floor(plans.items.length / 2); // Mark middle/higher priced plan as popular
-            const price = plan.prices[0]; // Use first price for display
-            // More robust current plan detection - use both plan name and amount matching
+                : index === Math.floor(plans.items.length / 2);
+            const price = plan.prices[0];
             const isCurrentPlan = (() => {
               if (!userSubscription?.status || userSubscription.status !== "active") return false;
               if (!userQuota?.plan || userQuota.plan === 'free') return false;
-              
-              // Primary method: plan name matching
+
               const planName = plan.name.toLowerCase();
               const userPlan = userQuota.plan.toLowerCase();
-              
+
               if ((planName.includes('basic') && userPlan === 'basic') ||
                   (planName.includes('pro') && userPlan === 'pro') ||
                   (planName.includes('premium') && userPlan === 'premium')) {
                 return true;
               }
-              
-              // Fallback method: amount matching for edge cases
+
               if (userSubscription.amount === price.amount) {
                 return true;
               }
-              
-              // Legacy plans
+
               if (userPlan === "monthly" && userSubscription.amount === price.amount) {
                 return true;
               }
-              
+
               return false;
             })();
 
             return (
-              <Card
-                key={plan.id}
-                className={`relative flex flex-col h-full ${
-                  isPopular ? "border-primary shadow-lg" : ""
-                } ${isCurrentPlan ? "border-green-500 bg-green-50/50" : ""}`}
-              >
-                {isPopular && !isCurrentPlan && (
-                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                    <span className="bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm font-medium">
-                      Most Popular
-                    </span>
-                  </div>
-                )}
-                {isCurrentPlan && (
-                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                    <span className="bg-green-500 text-white px-3 py-1 rounded-full text-sm font-medium">
-                      Current Plan
-                    </span>
-                  </div>
-                )}
-
-                <CardHeader>
-                  <CardTitle className="text-2xl">{plan.name}</CardTitle>
-                  <CardDescription>{plan.description}</CardDescription>
-                  <div className="mt-4">
-                    <span className="text-4xl font-bold">
-                      ${(price.amount / 100).toFixed(0)}
-                    </span>
-                    <span className="text-muted-foreground">
-                      /{price.interval || "month"}
-                    </span>
-                  </div>
-                </CardHeader>
-
-                <CardContent className="flex-grow space-y-4">
-                  <div className="flex items-center gap-3">
-                    <Check className="h-5 w-5 text-green-500" />
-                    <span>{(() => {
-                      if (!plan.isRecurring) return "70 summaries per month";
-                      if (price.amount <= 1299) return "20 summaries per month"; // Basic plan $12.99
-                      if (price.amount <= 2299) return "40 summaries per month"; // Pro plan $22.99
-                      if (price.amount <= 5000) return "60 summaries per month"; // Premium plan $50.00
-                      return "Unlimited summaries"; // Higher tier plans
-                    })()}</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Check className="h-5 w-5 text-green-500" />
-                    <span>{(() => {
-                      if (!plan.isRecurring) return "150 searches per month";
-                      if (price.amount <= 1299) return "25 searches per month"; // Basic plan $12.99
-                      if (price.amount <= 2299) return "50 searches per month"; // Pro plan $22.99
-                      if (price.amount <= 5000) return "70 searches per month"; // Premium plan $50.00
-                      return "Unlimited searches"; // Higher tier plans
-                    })()}</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Check className="h-5 w-5 text-green-500" />
-                    <span>Chat with your podcast library</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Check className="h-5 w-5 text-green-500" />
-                    <span>AI-generated summaries</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Check className="h-5 w-5 text-green-500" />
-                    <span>Cancel anytime</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Check className="h-5 w-5 text-green-500" />
-                    <span>Monthly quota resets automatically</span>
-                  </div>
-                </CardContent>
-
-                <CardFooter>
-                  <Button
-                    className="w-full"
-                    onClick={() => handleSubscribe(price.id)}
-                    loading={loadingPriceId === price.id}
-                    variant={isCurrentPlan ? "secondary" : "default"}
-                  >
-                    {isCurrentPlan ? (
-                      "✓ Current Plan"
-                    ) : userSubscription?.status === "active" ? (
-                      (() => {
-                        const currentAmount = userSubscription.amount || 0;
-                        const newAmount = price.amount;
-
-                        if (newAmount > currentAmount) {
-                          return `Upgrade (+$${(
-                            (newAmount - currentAmount) /
-                            100
-                          ).toFixed(0)}/mo)`;
-                        } else if (newAmount < currentAmount) {
-                          return `Downgrade (-$${(
-                            (currentAmount - newAmount) /
-                            100
-                          ).toFixed(0)}/mo)`;
-                        } else {
-                          return "Manage Plan";
-                        }
-                      })()
-                    ) : (
-                      "Get Started"
-                    )}
-                  </Button>
-                </CardFooter>
-              </Card>
+              <PricingCard key={plan.id} plan={{
+                title: `${plan.name} Plan`,
+                price: `$${(price.amount / 100).toFixed(0)} / month`,
+                description: "Podclip is an AI-powered tool that creates smart, concise text summaries of your podcast episodes. Easily export summaries to Notion and interact with your content using an AI chatbox—ask questions, clarify topics, and get insights from any episode you've summarized.",
+                features: [
+                  (() => {
+                    if (!plan.isRecurring) return "60 summaries per month";
+                    if (price.amount <= 1299) return "20 summaries per month";
+                    if (price.amount <= 2299) return "40 summaries per month";
+                    if (price.amount <= 5000) return "60 summaries per month";
+                    return "Unlimited summaries";
+                  })(),
+                  (() => {
+                    if (!plan.isRecurring) return "70 searches per month";
+                    if (price.amount <= 1299) return "25 searches per month";
+                    if (price.amount <= 2299) return "50 searches per month";
+                    if (price.amount <= 5000) return "70 searches per month";
+                    return "Unlimited searches";
+                  })(),
+                  "Chat with your Podcast Library",
+                  "Cancel anytime",
+                  "Recurring billing"
+                ],
+                cta: isCurrentPlan ? "✓ Current Plan" : userSubscription?.status === "active" ? (() => {
+                  const currentAmount = userSubscription.amount || 0;
+                  const newAmount = price.amount;
+                  if (newAmount > currentAmount) {
+                    return `Upgrade (+$${((newAmount - currentAmount) / 100).toFixed(0)}/mo)`;
+                  } else if (newAmount < currentAmount) {
+                    return `Downgrade (-$${((currentAmount - newAmount) / 100).toFixed(0)}/mo)`;
+                  } else {
+                    return "Manage Plan";
+                  }
+                })() : `Choose ${plan.name}`,
+                href: "#",
+                featured: isPopular && !isCurrentPlan,
+                isCurrentPlan: isCurrentPlan,
+                onSubscribe: () => handleSubscribe(price.id),
+                loading: loadingPriceId === price.id
+              }} />
             );
           })}
       </div>
 
-      <div className="mt-12 text-center max-w-4xl mx-auto">
-        <div className="bg-gray-50 border rounded-lg p-8 mb-8">
-          <h2 className="text-2xl font-semibold mb-6">Summary Quotas & Usage Policy</h2>
-          
-          <div className="grid md:grid-cols-3 gap-6 mb-8">
-            <div className="text-center">
-              <div className="bg-blue-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl">📊</span>
-              </div>
-              <h3 className="font-semibold text-lg mb-2">Basic Plan</h3>
-              <p className="text-sm text-gray-600">$12.99/month</p>
-              <p className="font-medium text-blue-600">20 summaries/month</p>
-              <p className="font-medium text-blue-600">25 searches/month</p>
-            </div>
-            
-            <div className="text-center">
-              <div className="bg-purple-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl">🚀</span>
-              </div>
-              <h3 className="font-semibold text-lg mb-2">Pro Plan</h3>
-              <p className="text-sm text-gray-600">$22.99/month</p>
-              <p className="font-medium text-purple-600">40 summaries/month</p>
-              <p className="font-medium text-purple-600">50 searches/month</p>
-            </div>
-            
-            <div className="text-center">
-              <div className="bg-amber-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl">💎</span>
-              </div>
-              <h3 className="font-semibold text-lg mb-2">Premium Plan</h3>
-              <p className="text-sm text-gray-600">$49.99/month</p>
-              <p className="font-medium text-amber-600">60 summaries/month</p>
-              <p className="font-medium text-amber-600">70 searches/month</p>
-            </div>
-          </div>
+      {error && (
+        <div className="mt-8 p-4 bg-red-50 border border-red-200 rounded-md max-w-md mx-auto">
+          <p className="text-red-800 text-center">{error}</p>
+        </div>
+      )}
 
-          <div className="text-left space-y-4 text-sm text-gray-700 max-w-2xl mx-auto">
-            <div className="flex items-start gap-3">
-              <span className="text-green-500 mt-1">✅</span>
-              <div>
-                <strong>Generate summaries</strong> by searching for and clicking on podcast episodes
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <span className="text-green-500 mt-1">🔄</span>
-              <div>
-                <strong>Quotas reset automatically</strong> at the start of each month for all plans
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <span className="text-red-500 mt-1">🚫</span>
-              <div>
-                <strong>When you reach your limit</strong>, you cannot search for or generate new summaries until your quota resets next month
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <span className="text-blue-500 mt-1">⬆️</span>
-              <div>
-                <strong>Need more summaries?</strong> Upgrade to a higher plan anytime to increase your monthly quota
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div className="bg-gray-50 border rounded-lg p-6 mb-6 text-left">
-          <h3 className="font-semibold text-lg mb-4 text-center">Terms & Conditions</h3>
-          <div className="text-sm text-gray-600 space-y-3 max-w-3xl mx-auto">
-            <p>
-              <strong>Pricing Policy:</strong> Plan prices are subject to change at any time. We reserve the right to modify, increase, or decrease pricing for any subscription plan with 30 days' notice to existing subscribers.
+      {userSubscription &&
+        !plans?.items.some(
+          (plan: any) => plan.prices[0].id === userSubscription.polarPriceId
+        ) && (
+          <div className="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-md max-w-md mx-auto">
+            <p className="text-amber-800 text-center text-sm">
+              You have an active subscription that's not shown above. Contact
+              support for assistance.
             </p>
-            <p>
-              <strong>Price Increases:</strong> Subscription prices may increase due to enhanced features, improved service quality, operational costs, or market conditions. Current subscribers will be notified via email before any price changes take effect.
-            </p>
-            <p>
-              <strong>Billing:</strong> All subscriptions are billed monthly in advance. Price changes will apply to your next billing cycle after the notice period. You may cancel your subscription at any time before the price increase takes effect.
-            </p>
-            <p>
-              <strong>Fair Use:</strong> All plans include specified quotas. Excessive usage beyond normal parameters may result in account limitations or additional charges.
-            </p>
-          </div>
-        </div>
-        
-        <p className="text-muted-foreground">
-          Need a custom plan?{" "}
-          <span className="text-primary cursor-pointer hover:underline">
-            Contact us
-          </span>
-        </p>
-        {error && (
-          <div className="mt-8 p-4 bg-red-50 border border-red-200 rounded-md">
-            <p className="text-red-800 text-center">{error}</p>
           </div>
         )}
-
-        {userSubscription &&
-          !plans?.items.some(
-            (plan: any) => plan.prices[0].id === userSubscription.polarPriceId
-          ) && (
-            <div className="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-md max-w-md mx-auto">
-              <p className="text-amber-800 text-center text-sm">
-                You have an active subscription that's not shown above. Contact
-                support for assistance.
-              </p>
-            </div>
-          )}
-      </div>
     </section>
   );
 }

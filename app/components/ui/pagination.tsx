@@ -57,13 +57,7 @@ export function Pagination({
   const visiblePages = getVisiblePages();
 
   return (
-    <div className="flex items-center justify-between px-2">
-      <div className="flex items-center space-x-2">
-        <p className="text-sm text-gray-600">
-          Page {currentPage} of {totalPages}
-        </p>
-      </div>
-      
+    <div className="flex items-center justify-center px-2">
       <div className="flex items-center space-x-1">
         {/* Previous Button */}
         <Button
@@ -71,7 +65,7 @@ export function Pagination({
           size="sm"
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage <= 1}
-          className="h-8 px-3"
+          className="h-8 px-3 !bg-black border-black text-white hover:!bg-gray-600 disabled:!bg-gray-800 disabled:text-gray-500 disabled:border-gray-700"
         >
           <ChevronLeft className="h-4 w-4" />
           <span className="sr-only sm:not-sr-only sm:ml-1">Previous</span>
@@ -83,7 +77,7 @@ export function Pagination({
             if (page === '...') {
               return (
                 <div key={`ellipsis-${index}`} className="px-2 py-1">
-                  <MoreHorizontal className="h-4 w-4 text-gray-400" />
+                  <MoreHorizontal className="h-4 w-4 text-gray-300" />
                 </div>
               );
             }
@@ -98,9 +92,9 @@ export function Pagination({
                 size="sm"
                 onClick={() => onPageChange(pageNum)}
                 className={`h-8 w-8 p-0 ${
-                  isActive 
-                    ? "bg-blue-600 text-white hover:bg-blue-700" 
-                    : "hover:bg-gray-100"
+                  isActive
+                    ? "!bg-gray-600 text-white hover:!bg-gray-600 border-gray-600"
+                    : "!bg-black border-black text-white hover:!bg-gray-600"
                 }`}
               >
                 {pageNum}
@@ -115,7 +109,7 @@ export function Pagination({
           size="sm"
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage >= totalPages}
-          className="h-8 px-3"
+          className="h-8 px-3 !bg-black border-black text-white hover:!bg-gray-600 disabled:!bg-gray-800 disabled:text-gray-500 disabled:border-gray-700"
         >
           <span className="sr-only sm:not-sr-only sm:mr-1">Next</span>
           <ChevronRight className="h-4 w-4" />
@@ -141,31 +135,25 @@ export function SimplePagination({
   totalPages?: number;
 }) {
   return (
-    <div className="flex items-center justify-between">
-      <div className="text-sm text-gray-600">
-        {currentPage && totalPages && (
-          <span>Page {currentPage} of {totalPages}</span>
-        )}
-      </div>
-      
+    <div className="flex items-center justify-center">
       <div className="flex items-center space-x-2">
         <Button
           variant="outline"
           size="sm"
           onClick={onPrev}
           disabled={!hasPrev}
-          className="h-8 px-3"
+          className="h-8 px-3 !bg-black border-black text-white hover:!bg-gray-600 disabled:!bg-gray-800 disabled:text-gray-500 disabled:border-gray-700"
         >
           <ChevronLeft className="h-4 w-4 mr-1" />
           Previous
         </Button>
-        
+
         <Button
           variant="outline"
           size="sm"
           onClick={onNext}
           disabled={!hasNext}
-          className="h-8 px-3"
+          className="h-8 px-3 !bg-black border-black text-white hover:!bg-gray-600 disabled:!bg-gray-800 disabled:text-gray-500 disabled:border-gray-700"
         >
           Next
           <ChevronRight className="h-4 w-4 ml-1" />

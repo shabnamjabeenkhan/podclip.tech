@@ -10,8 +10,8 @@ import { config, isFeatureEnabled } from "../../../config";
 const getMenuItems = () => {
   const items = [
   { name: "Home", href: "#hero" },
-  { name: "Features", href: "#features" },
   { name: "Demo", href: "/demo" },
+  { name: "Features", href: "#features" },
   ];
 
   // Only show pricing if payments are enabled

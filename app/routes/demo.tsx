@@ -26,16 +26,6 @@ export default function Demo() {
         controls={true}
         className="mb-8"
       />
-      
-      <div className="max-w-3xl mx-auto">
-        <h2 className="text-2xl font-semibold mb-4">What you'll see in this demo:</h2>
-        <ul className="space-y-2 text-muted-foreground">
-          <li>• Platform overview and navigation</li>
-          <li>• Key features and functionality</li>
-          <li>• User interface walkthrough</li>
-          <li>• Real-time capabilities demonstration</li>
-        </ul>
-      </div>
     </div>
   );
 }

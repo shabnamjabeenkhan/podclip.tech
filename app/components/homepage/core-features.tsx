@@ -1,29 +1,39 @@
 import { Button } from "~/components/ui/button";
 import { ArrowRight, Podcast, Brain, Database, CheckCircle } from "lucide-react";
 import { Link } from "react-router";
+import HighlightCard from "~/components/ui/highlight-card";
 
 export default function CoreFeaturesSection() {
-  const steps = [
+  const highlightCards = [
     {
-      number: "1",
-      icon: Podcast,
-      title: "Select Your Podcast",
-      description: "Search from our extensive database of popular shows.",
-      color: "bg-primary/10 text-primary"
+      title: "Podcast Discovery",
+      description: [
+        "Embark on intelligent podcast exploration,",
+        "discover episodes from millions of shows,",
+        "search with precision and purpose,",
+        "and build your audio knowledge library."
+      ],
+      icon: <Podcast className="w-8 h-8 text-white" />
     },
     {
-      number: "2", 
-      icon: Brain,
-      title: "AI Generates Summary",
-      description: "Our advanced AI processes the episode and creates a concise summary with key takeaways and actionable insights in under 10 seconds.",
-      color: "bg-primary/10 text-primary"
+      title: "Instant Insights",
+      description: [
+        "Transform hours of audio into insights,",
+        "extract key takeaways automatically,",
+        "generate summaries in seconds,",
+        "and never miss important points again."
+      ],
+      icon: <Brain className="w-8 h-8 text-white" />
     },
     {
-      number: "3",
-      icon: CheckCircle,
-      title: "Collaborate & Share",
-      description: "Share insights with your team and integrate into your existing research workflows.",
-      color: "bg-primary/10 text-primary"
+      title: "Share & Collaborate",
+      description: [
+        "Connect insights with your team,",
+        "share discoveries across platforms,",
+        "build collective knowledge together,",
+        "and amplify your research impact."
+      ],
+      icon: <CheckCircle className="w-8 h-8 text-white" />
     }
   ];
 
@@ -36,35 +46,22 @@ export default function CoreFeaturesSection() {
         {/* Section Header */}
         <div className="text-center mb-12 sm:mb-14 md:mb-16">
           <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-4 sm:mb-6">
-            How It All Connects
+            Explore Your Podcast Universe
           </h2>
           <p className="text-base sm:text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto px-4 sm:px-0">
-            Transform your podcast consumption into organized insights in just three simple steps.
+            Embark on a journey of discovery, transform audio into insights, and share knowledge with your network.
           </p>
         </div>
 
-        {/* Steps Grid */}
-        <div className="grid gap-6 sm:gap-8 md:grid-cols-3 mb-12 sm:mb-14 md:mb-16">
-          {steps.map((step, index) => (
-            <div key={index} className="text-center px-4 sm:px-0">
-              {/* Step Number */}
-              <div className="relative mb-4 sm:mb-6">
-                <div className={`w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 mx-auto rounded-full ${step.color} flex items-center justify-center text-lg sm:text-xl md:text-2xl font-bold mb-3 sm:mb-4`}>
-                  {step.number}
-                </div>
-                <div className="w-10 h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 mx-auto bg-background rounded-lg shadow-card flex items-center justify-center -mt-6 sm:-mt-7 md:-mt-8 relative z-10">
-                  <step.icon className={`w-5 h-5 sm:w-6 sm:h-6 ${step.color.split(' ')[1]}`} />
-                </div>
-              </div>
-
-              {/* Step Content */}
-              <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-2 sm:mb-3">
-                {step.title}
-              </h3>
-              <p className="text-sm sm:text-base text-muted-foreground leading-relaxed max-w-sm mx-auto">
-                {step.description}
-              </p>
-            </div>
+        {/* Highlight Cards Grid */}
+        <div className="flex flex-wrap justify-center gap-8 mb-12 sm:mb-14 md:mb-16">
+          {highlightCards.map((card, index) => (
+            <HighlightCard
+              key={index}
+              title={card.title}
+              description={card.description}
+              icon={card.icon}
+            />
           ))}
         </div>
 

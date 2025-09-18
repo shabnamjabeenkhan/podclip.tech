@@ -5,8 +5,43 @@ import { EnhancedAudioPlayer } from "~/components/audio/enhanced-audio-player";
 import { useAuth } from "@clerk/react-router";
 import { toast } from "sonner";
 import { useAudio } from "~/contexts/app-context";
-import { SimplePagination } from "~/components/ui/pagination";
+import { SimplePagination, Pagination } from "~/components/ui/pagination";
 import type { Route } from "./+types/new-summary";
+
+// Utility function to break summary text into readable paragraphs
+function formatSummaryIntoParagraphs(content: string): string[] {
+  if (!content || content.trim() === '') return [];
+
+  // Split by existing paragraph breaks first
+  let paragraphs = content.split('\n\n').filter(p => p.trim());
+
+  // If we only have one paragraph, try to intelligently split it
+  if (paragraphs.length === 1) {
+    const text = paragraphs[0];
+    const sentences = text.split(/(?<=[.!?])\s+/);
+
+    if (sentences.length >= 4) {
+      // Split into 2-3 paragraphs based on sentence count
+      const midPoint = Math.ceil(sentences.length / 2);
+      paragraphs = [
+        sentences.slice(0, midPoint).join(' '),
+        sentences.slice(midPoint).join(' ')
+      ];
+    }
+  }
+
+  // Ensure we don't have more than 3 paragraphs for readability
+  if (paragraphs.length > 3) {
+    const third = Math.ceil(paragraphs.length / 3);
+    paragraphs = [
+      paragraphs.slice(0, third).join(' '),
+      paragraphs.slice(third, third * 2).join(' '),
+      paragraphs.slice(third * 2).join(' ')
+    ];
+  }
+
+  return paragraphs.filter(p => p.trim());
+}
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -23,9 +58,8 @@ export default function NewSummary() {
   const [episodes, setEpisodes] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [episodePage, setEpisodePage] = useState(1);
-  const [isLoadingMoreEpisodes, setIsLoadingMoreEpisodes] = useState(false);
+  const [episodePaginationHistory, setEpisodePaginationHistory] = useState<{pubDate: number | null, direction: 'next' | 'prev'}[]>([]);
   const [generatingSummary, setGeneratingSummary] = useState<{[key: string]: boolean}>({});
   const [summaries, setSummaries] = useState<{[key: string]: any}>({});
   const [summaryErrors, setSummaryErrors] = useState<{[key: string]: string}>({});
@@ -316,7 +350,7 @@ export default function NewSummary() {
       setIsLoading(true);
       setCurrentPage(1);
     } else {
-      setIsLoadingMore(true);
+      setIsLoading(true);
     }
     
     try {
@@ -332,11 +366,8 @@ export default function NewSummary() {
         setSelectedPodcast(null);
         setEpisodes(null);
       } else {
-        // Append results for "Load More" functionality
-        setPodcastResults((prev: any) => ({
-          ...results,
-          results: [...(prev?.results || []), ...(results.results || [])]
-        }));
+        // For pagination, replace results instead of appending
+        setPodcastResults(results);
       }
       
       console.log("Podcast results:", results);
@@ -344,19 +375,22 @@ export default function NewSummary() {
       console.error("Search failed:", error);
     } finally {
       setIsLoading(false);
-      setIsLoadingMore(false);
     }
   };
 
   const handlePodcastSelect = async (podcast: any) => {
     setSelectedPodcast(podcast);
-    setEpisodePage(1);
     setIsLoading(true);
+
+    // Reset episode pagination state when selecting new podcast
+    setEpisodePage(1);
+    setEpisodePaginationHistory([]);
+
     try {
       const podcastData = await getPodcastEpisodes({ podcastId: podcast.id });
       setEpisodes(podcastData);
       console.log("Episodes:", podcastData);
-      
+
       // Check for existing summaries for each episode
       if (userQuota?.userId && podcastData.episodes) {
         await checkExistingSummariesForEpisodes(podcastData.episodes);
@@ -373,22 +407,58 @@ export default function NewSummary() {
     }
   };
 
-  const handleLoadMoreEpisodes = async () => {
-    if (!selectedPodcast || !episodes?.pagination?.hasNext) return;
-    
-    setIsLoadingMoreEpisodes(true);
+  const handleEpisodeNavigation = async (direction: 'next' | 'prev') => {
+    if (!selectedPodcast) return;
+
+    setIsLoading(true);
     try {
-      const podcastData = await getPodcastEpisodes({ 
-        podcastId: selectedPodcast.id,
-        nextEpisodePubDate: episodes.pagination.nextEpisodePubDate
-      });
-      
-      // Append new episodes to existing ones
-      setEpisodes((prev: any) => ({
-        ...podcastData,
-        episodes: [...(prev?.episodes || []), ...(podcastData.episodes || [])]
-      }));
-      
+      let podcastData;
+
+      if (direction === 'next') {
+        if (!episodes?.pagination?.hasNext) return;
+
+        // Get next page using nextEpisodePubDate
+        podcastData = await getPodcastEpisodes({
+          podcastId: selectedPodcast.id,
+          nextEpisodePubDate: episodes.pagination.nextEpisodePubDate
+        });
+
+        // Track pagination state for going back
+        setEpisodePaginationHistory(prev => [
+          ...prev,
+          { pubDate: episodes.pagination.nextEpisodePubDate, direction: 'next' }
+        ]);
+
+      } else { // direction === 'prev'
+        if (!episodes?.pagination?.hasPrev) return;
+
+        // Get previous page - need to go back in history
+        const newHistory = [...episodePaginationHistory];
+        newHistory.pop(); // Remove last state
+
+        if (newHistory.length === 0) {
+          // Back to first page
+          podcastData = await getPodcastEpisodes({
+            podcastId: selectedPodcast.id
+          });
+        } else {
+          // Go to previous state
+          const prevState = newHistory[newHistory.length - 1];
+          podcastData = await getPodcastEpisodes({
+            podcastId: selectedPodcast.id,
+            nextEpisodePubDate: prevState.pubDate || undefined
+          });
+        }
+
+        setEpisodePaginationHistory(newHistory);
+      }
+
+      // Replace episodes with new page (not append)
+      setEpisodes(podcastData);
+
+      // Update page number
+      setEpisodePage(prev => direction === 'next' ? prev + 1 : Math.max(1, prev - 1));
+
       // Check for existing summaries for new episodes
       if (userQuota?.userId && podcastData.episodes) {
         await checkExistingSummariesForEpisodes(podcastData.episodes);
@@ -398,12 +468,15 @@ export default function NewSummary() {
       if (podcastData.episodes) {
         await detectGenreForEpisodes(podcastData.episodes);
       }
+
+      console.log(`Episodes ${direction} page loaded`);
     } catch (error) {
-      console.error("Failed to load more episodes:", error);
+      console.error(`Failed to load ${direction} episodes page:`, error);
     } finally {
-      setIsLoadingMoreEpisodes(false);
+      setIsLoading(false);
     }
   };
+
 
   // Function to check existing summaries for multiple episodes
   const checkExistingSummariesForEpisodes = async (episodes: any[]) => {
@@ -448,7 +521,8 @@ export default function NewSummary() {
 
         setInsightsEnabled(prev => ({
           ...prev,
-          [episode.id]: detection.suggestion === 'suggested'
+          // Only set if user hasn't manually configured it yet
+          [episode.id]: prev[episode.id] !== undefined ? prev[episode.id] : detection.suggestion === 'suggested'
         }));
 
       } catch (error) {
@@ -479,6 +553,8 @@ export default function NewSummary() {
     
     try {
       // Use Deepgram-enabled summary generation for better timestamps
+      console.log("💡 User insights choice:", insightsEnabled[episodeId], "→", insightsEnabled[episodeId] === true);
+
       const summary = await generateSummaryWithTimestamps({
         episodeId: episodeId,
         episodeTitle: episode.title,
@@ -486,7 +562,7 @@ export default function NewSummary() {
         episodeAudioUrl: episode.audio,
         userId: userQuota?.userId || "",
         useDeepgram: true, // Enable Deepgram transcription
-        generateInsights: insightsEnabled[episodeId], // Pass user's insights preference
+        generateInsights: insightsEnabled[episodeId] === true, // Explicit boolean conversion
       });
       
       // Summary is already saved to database by generateSummaryWithTimestamps
@@ -676,13 +752,7 @@ export default function NewSummary() {
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-gray-900">
                   Found {podcastResults.pagination?.total || podcastResults.results?.length || 0} podcasts
-                  {podcastResults.results && podcastResults.pagination?.total && podcastResults.results.length < podcastResults.pagination.total && (
-                    <span className="text-sm font-normal text-gray-500 ml-2">
-                      (showing {podcastResults.results.length} of {podcastResults.pagination.total})
-                    </span>
-                  )}
                 </h2>
-                <span className="text-sm text-gray-500">Click a podcast to see episodes</span>
               </div>
               <div className="grid gap-4">
                 {podcastResults.results?.map((podcast: any, index: number) => (
@@ -724,47 +794,18 @@ export default function NewSummary() {
                 ))}
               </div>
               
-              {/* Load More Button */}
-              {podcastResults.pagination?.hasNext && (
-                <div className="flex justify-center mt-8">
-                  <button 
-                    onClick={() => {
-                      const nextPage = currentPage + 1;
-                      setCurrentPage(nextPage);
-                      handleSearch(nextPage, false);
+              {/* Pagination */}
+              {podcastResults.pagination && podcastResults.pagination.totalPages > 1 && (
+                <div className="mt-8">
+                  <Pagination
+                    currentPage={currentPage}
+                    totalPages={podcastResults.pagination.totalPages}
+                    onPageChange={(page) => {
+                      setCurrentPage(page);
+                      handleSearch(page, false);
                     }}
-                    disabled={isLoadingMore}
-                    className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-                  >
-                    {isLoadingMore ? (
-                      <>
-                        <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="m12 2 1 9-1 9a10 10 0 0 1 0-18Z"></path>
-                        </svg>
-                        Loading More...
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                        Load More Podcasts
-                      </>
-                    )}
-                  </button>
-                </div>
-              )}
-              
-              {/* Pagination Info */}
-              {podcastResults.pagination && (
-                <div className="text-center mt-6 text-sm text-gray-500">
-                  {podcastResults.pagination.hasNext ? (
-                    <p>Page {podcastResults.pagination.currentPage} of {podcastResults.pagination.totalPages} • 
-                      {podcastResults.pagination.total - podcastResults.results.length} more podcasts available</p>
-                  ) : (
-                    <p>Showing all {podcastResults.pagination.total} results</p>
-                  )}
+                    maxVisiblePages={7}
+                  />
                 </div>
               )}
             </div>
@@ -774,7 +815,7 @@ export default function NewSummary() {
           {selectedPodcast && (episodes || isLoading) && (
             <div className="space-y-6">
               <div className="flex items-center gap-4">
-                <button 
+                <button
                   onClick={() => {setSelectedPodcast(null); setEpisodes(null);}}
                   className="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium transition-colors"
                 >
@@ -784,6 +825,14 @@ export default function NewSummary() {
                   Back to podcasts
                 </button>
               </div>
+
+              {episodes?.episodes && (
+                <div className="mb-4">
+                  <h3 className="text-xl font-semibold text-gray-900">
+                    Episodes ({episodes?.pagination?.total || episodes?.total_episodes || episodes?.episodes?.length || 0})
+                  </h3>
+                </div>
+              )}
               
               <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
                 <div className="flex items-start gap-4">
@@ -816,18 +865,6 @@ export default function NewSummary() {
                   </div>
                 ) : episodes?.episodes ? (
                   <>
-                    <div className="flex items-center justify-between mb-6">
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        Episodes ({episodes?.pagination?.total || episodes?.total_episodes || episodes?.episodes?.length || 0})
-                      </h3>
-                      {episodes?.pagination && (
-                        <p className="text-sm text-gray-500">
-                          Showing {episodes.episodes?.length || 0} 
-                          {episodes.pagination.hasNext && " - Load more available"}
-                        </p>
-                      )}
-                    </div>
-                    
                     {episodes?.episodes?.map((episode: any, index: number) => (
                   <div key={index} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow">
                     <div className="space-y-4">
@@ -1038,7 +1075,14 @@ export default function NewSummary() {
                               <h5 className="font-medium text-gray-900">Summary</h5>
                             </div>
                             <div className="text-gray-900 leading-relaxed text-lg font-medium">
-                              {existingSummaries[episode.id].content}
+                              {(() => {
+                                const paragraphs = formatSummaryIntoParagraphs(existingSummaries[episode.id].content);
+                                return paragraphs.map((paragraph, index) => (
+                                  <div key={index} className={index > 0 ? "mt-4" : ""}>
+                                    <p>{paragraph}</p>
+                                  </div>
+                                ));
+                              })()}
                             </div>
                           </div>
                           
@@ -1053,13 +1097,28 @@ export default function NewSummary() {
                               </div>
                               <div className="space-y-4">
                                 {existingSummaries[episode.id].takeaways.map((takeaway: any, idx: number) => {
-                                  const rawText = typeof takeaway === 'object' ? takeaway.text : takeaway;
-                                  // Ensure text is always a string to prevent React rendering errors
-                                  const text = typeof rawText === 'string' ? rawText : 
-                                             typeof rawText === 'object' ? JSON.stringify(rawText) : 
-                                             String(rawText || '');
-                                  const timestamp = typeof takeaway === 'object' ? takeaway.timestamp : null;
-                                  const formattedTime = typeof takeaway === 'object' ? takeaway.formatted_time : null;
+                                  // Robust handling of different takeaway formats
+                                  let text = '';
+                                  let timestamp = null;
+                                  let formattedTime = null;
+
+                                  if (typeof takeaway === 'string') {
+                                    // Simple string format
+                                    text = takeaway;
+                                  } else if (typeof takeaway === 'object' && takeaway !== null) {
+                                    // Object format - extract text property
+                                    text = takeaway.text || takeaway.content || String(takeaway);
+                                    timestamp = takeaway.timestamp || null;
+                                    formattedTime = takeaway.formatted_time || null;
+                                  } else {
+                                    // Fallback for any other format
+                                    text = String(takeaway || '');
+                                  }
+
+                                  // Final safety check to ensure text is never empty or just JSON
+                                  if (!text || text.trim() === '' || text.startsWith('{"')) {
+                                    text = `Key insight ${idx + 1} from this episode`;
+                                  }
                                   
                                   // Check if this is a placeholder and replace it
                                   const isPlaceholder = text && text.match(/^\[Takeaway \d+\]$/);
@@ -1179,7 +1238,14 @@ export default function NewSummary() {
                               <h5 className="font-medium text-gray-900">Summary</h5>
                             </div>
                             <div className="text-gray-900 leading-relaxed text-lg font-medium">
-                              {summaries[episode.id].summary}
+                              {(() => {
+                                const paragraphs = formatSummaryIntoParagraphs(summaries[episode.id].summary);
+                                return paragraphs.map((paragraph, index) => (
+                                  <div key={index} className={index > 0 ? "mt-4" : ""}>
+                                    <p>{paragraph}</p>
+                                  </div>
+                                ));
+                              })()}
                             </div>
                           </div>
                           
@@ -1194,16 +1260,30 @@ export default function NewSummary() {
                               </div>
                               <div className="space-y-4">
                                 {summaries[episode.id].takeaways.map((takeaway: any, index: number) => {
-                                  // Handle both old string format and new timestamp format
-                                  const isTimestamped = typeof takeaway === 'object' && takeaway.text && takeaway.timestamp;
-                                  const rawText = isTimestamped ? takeaway.text : takeaway;
-                                  // Ensure text is always a string to prevent React rendering errors
-                                  const text = typeof rawText === 'string' ? rawText : 
-                                             typeof rawText === 'object' ? JSON.stringify(rawText) : 
-                                             String(rawText || '');
-                                  const timestamp = isTimestamped ? takeaway.timestamp : null;
-                                  const formattedTime = isTimestamped ? takeaway.formatted_time : null;
-                                  const confidence = isTimestamped ? takeaway.confidence : null;
+                                  // Robust handling of different takeaway formats
+                                  let text = '';
+                                  let timestamp = null;
+                                  let formattedTime = null;
+                                  let confidence = null;
+
+                                  if (typeof takeaway === 'string') {
+                                    // Simple string format
+                                    text = takeaway;
+                                  } else if (typeof takeaway === 'object' && takeaway !== null) {
+                                    // Object format - extract text property
+                                    text = takeaway.text || takeaway.content || String(takeaway);
+                                    timestamp = takeaway.timestamp || null;
+                                    formattedTime = takeaway.formatted_time || null;
+                                    confidence = takeaway.confidence || null;
+                                  } else {
+                                    // Fallback for any other format
+                                    text = String(takeaway || '');
+                                  }
+
+                                  // Final safety check to ensure text is never empty or just JSON
+                                  if (!text || text.trim() === '' || text.startsWith('{"')) {
+                                    text = `Key insight ${index + 1} from this episode`;
+                                  }
                                   
                                   return (
                                     <div key={index} className="flex items-start gap-3 animate-in fade-in slide-in-from-left-4 duration-300" style={{animationDelay: `${index * 100}ms`}}>
@@ -1212,7 +1292,7 @@ export default function NewSummary() {
                                       </span>
                                       <div className="flex-1">
                                         <div className="text-blue-700 leading-relaxed">{text}</div>
-                                        {isTimestamped && timestamp && (
+                                        {timestamp && formattedTime && (
                                           <div className="mt-2">
                                             <button
                                               onClick={() => {
@@ -1249,7 +1329,7 @@ export default function NewSummary() {
                           )}
 
                           {/* Actionable Insights Section */}
-                          {summaries[episode.id].actionableInsights && summaries[episode.id].actionableInsights.length > 0 && (
+                          {summaries[episode.id].actionable_insights && summaries[episode.id].actionable_insights.length > 0 && (
                             <div className="bg-white rounded-lg p-4 mb-6">
                               <div className="flex items-center gap-2 mb-4">
                                 <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1258,7 +1338,7 @@ export default function NewSummary() {
                                 <h5 className="font-medium text-gray-900">Actionable Insights</h5>
                               </div>
                               <div className="space-y-4">
-                                {summaries[episode.id].actionableInsights.map((insight: any, idx: number) => (
+                                {summaries[episode.id].actionable_insights.map((insight: any, idx: number) => (
                                   <div key={idx} className="border-l-4 border-green-500 pl-4 bg-green-50 rounded-r-lg p-3">
                                     <div className="flex items-start gap-2">
                                       <span className="flex-shrink-0 w-5 h-5 bg-green-600 text-white rounded-full flex items-center justify-center text-xs font-medium mt-0.5">
@@ -1387,31 +1467,22 @@ export default function NewSummary() {
                   </div>
                 ))}
                 
-                {/* Load More Episodes Button */}
-                {episodes?.pagination?.hasNext && (
-                  <div className="flex justify-center mt-8">
-                    <button 
-                      onClick={handleLoadMoreEpisodes}
-                      disabled={isLoadingMoreEpisodes}
-                      className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-                    >
-                      {isLoadingMoreEpisodes ? (
-                        <>
-                          <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="m12 2 1 9-1 9a10 10 0 0 1 0-18Z"></path>
-                          </svg>
-                          Loading More Episodes...
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
-                          Load More Episodes
-                        </>
-                      )}
-                    </button>
+                {/* Episodes Pagination */}
+                {episodes?.pagination && (episodes.pagination.hasNext || episodes.pagination.hasPrev) && (
+                  <div className="mt-8">
+                    <Pagination
+                      currentPage={episodePage}
+                      totalPages={Math.ceil((episodes.pagination.total || 0) / (episodes.pagination.currentCount || 10))}
+                      onPageChange={(page) => {
+                        // Only allow navigation to adjacent pages due to API limitations
+                        if (page === episodePage + 1 && episodes.pagination.hasNext) {
+                          handleEpisodeNavigation('next');
+                        } else if (page === episodePage - 1 && episodes.pagination.hasPrev) {
+                          handleEpisodeNavigation('prev');
+                        }
+                        // For non-adjacent pages, we can't navigate directly due to date-based API pagination
+                      }}
+                    />
                   </div>
                 )}
                     </>

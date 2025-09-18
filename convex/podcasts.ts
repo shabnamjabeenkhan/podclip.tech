@@ -42,10 +42,16 @@ export const searchPodcasts = action({
     
     const data = await response.json();
     console.log(`Search results: ${data.results?.length || 0} podcasts returned, offset: ${offset}, total: ${data.total || 0}`);
+    console.log(`Has next_offset: ${data.next_offset !== undefined ? data.next_offset : 'undefined'}`);
+
+    // Additional logging for debugging pagination issues
+    if (offset > 0 && (!data.results || data.results.length === 0)) {
+      console.warn(`⚠️ No results returned for offset ${offset} but total is ${data.total}. This may indicate API pagination issues.`);
+    }
     
     // Increment search count after successful search
     await ctx.runMutation(internal.users.incrementSearchCount);
-    
+
     return {
         ...data,
         pagination: {
@@ -53,7 +59,10 @@ export const searchPodcasts = action({
           limit,
           total: data.total || 0,
           hasNext:
-            typeof data.next_offset === "number" && data.next_offset >= 0,
+            typeof data.next_offset === "number" &&
+            data.next_offset >= 0 &&
+            (data.results?.length || 0) > 0 &&
+            (offset + (data.results?.length || 0)) < (data.total || 0),
           hasPrev: offset > 0,
           nextOffset: data.next_offset,
           currentPage: Math.floor(offset / limit) + 1,
