@@ -116,6 +116,11 @@ function FAQItem({ question, answer, index }: FAQItemProps) {
 
 const FAQ_ITEMS: Omit<FAQItemProps, 'index'>[] = [
   {
+    question: "Who is Podclip designed for?",
+    answer:
+      "Podclip is designed for anyone who listens to podcasts and wants to save time while retaining key information. However, our actionable insights feature is specifically optimized for business and entrepreneurship podcasts, providing strategic takeaways that professionals can implement immediately.",
+  },
+  {
     question: "Can I chat with AI about any podcast episode?",
     answer:
       "Yes! Our AI chat feature lets you ask questions about any episode you've summarized. Get deeper insights, clarifications, and explore topics further.",
