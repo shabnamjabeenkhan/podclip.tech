@@ -42,7 +42,7 @@ const defaultValues: AboutUsProps['values'] = [
   {
     title: 'Intelligence',
     description:
-      'Cutting-edge machine learning extracts impactful takeaways with accurate timestamps and turns hours of audio into practical, actionable insights entrepreneurs can apply immediately.',
+      'Cutting-edge AI extracts actionable insights directly from episode content, complete with real-life examples and practical scenarios. Each insight includes why it matters and specific implementation steps derived from the podcast discussion.',
     icon: 'Lightbulb',
   },
   {
