@@ -284,7 +284,7 @@ export default function AllSummaries() {
 
           {/* Summaries List */}
           {userSummaries && userSummaries.length > 0 && filteredAndSortedSummaries.length > 0 && (
-            <div className="space-y-4 sm:space-y-6">
+            <div className="space-y-6 sm:space-y-8">
               {filteredAndSortedSummaries.map((summary: any, index: number) => (
                 <div key={summary._id || index} className="bg-blue-50 rounded-lg sm:rounded-xl p-4 sm:p-6 border border-blue-200">
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 mb-3 sm:mb-4">

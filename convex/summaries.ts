@@ -314,7 +314,19 @@ export const generateSummaryWithTimestamps = action({
     let shouldGenerateInsights = false;
     let insightsSuggestion: 'suggested' | 'disabled' | 'user_choice' = 'disabled';
     let prompt;
-    
+
+    // Set shouldGenerateInsights based on user choice BEFORE any processing
+    shouldGenerateInsights = args.generateInsights === true;
+
+    console.log(`🎯 INSIGHTS GENERATION DECISION:`, {
+      userChoice: args.generateInsights,
+      userChoiceType: typeof args.generateInsights,
+      finalDecision: shouldGenerateInsights,
+      logic: args.generateInsights === true ? 'USER_EXPLICIT_TRUE' : 'USER_CHOSE_NO_INSIGHTS'
+    });
+
+    console.log(`💡 Insights generation: ${shouldGenerateInsights} (user choice: ${args.generateInsights})`);
+
     if (transcriptData?.hasTranscript && transcriptData.transcript) {
       // Use transcript for much better summary quality with Gemini (supports full transcript)
       const transcript = transcriptData.transcript;
@@ -347,7 +359,7 @@ export const generateSummaryWithTimestamps = action({
         let summaryWordCount = geminiResult.summary.split(/\s+/).filter((word: string) => word.length > 0).length;
         console.log(`📊 SUMMARY WORD COUNT: ${summaryWordCount} words (target: 150-200 words)`);
         console.log(`📝 Summary length: ${geminiResult.summary.length} characters`);
-        console.log(`🎯 Takeaways count: ${geminiResult.takeaways.length} (target: exactly 7)`);
+        console.log(`🎯 Takeaways count: ${geminiResult.takeaways.length} (target: 3-7)`);
 
         if (summaryWordCount < 150) {
           console.log(`🚨 CRITICAL ERROR: Gemini summary is too short (${summaryWordCount} words < 150)`);
@@ -517,7 +529,7 @@ export const generateSummaryWithTimestamps = action({
                   [] // No used timestamps restriction for fallback
                 );
 
-                if (fallbackResult && fallbackResult.accuracyScore && fallbackResult.accuracyScore > 0.1) {
+                if (fallbackResult && fallbackResult.accuracyScore && fallbackResult.accuracyScore > 0.5) {
                   console.log(`🔄 FALLBACK TIMESTAMP found: ${formatTimestamp(fallbackResult.timestamp)} (accuracy: ${(fallbackResult.accuracyScore * 100).toFixed(1)}%)`);
                   result.timestamp = fallbackResult.timestamp;
                   result.confidence = fallbackResult.confidence;
@@ -618,33 +630,24 @@ export const generateSummaryWithTimestamps = action({
             }
           }
 
-          // FINAL FALLBACK: Ensure every takeaway has a timestamp
-          const geminiTakeawaysWithoutTimestamps = processedTakeaways.filter((t: any) => !t.timestamp);
+          // NO ESTIMATED TIMESTAMPS: Remove takeaways without accurate timestamps
+          const geminiTakeawaysWithoutTimestamps = processedTakeaways.filter((t: any) => !t.timestamp || (t.confidence && t.confidence < 0.6));
           if (geminiTakeawaysWithoutTimestamps.length > 0) {
-            console.log(`🔧 GEMINI FINAL FALLBACK: Adding timestamps to ${geminiTakeawaysWithoutTimestamps.length} remaining takeaways without timestamps...`);
+            console.log(`❌ REMOVING ${geminiTakeawaysWithoutTimestamps.length} takeaways without accurate timestamps (confidence <60%)`);
 
-            // Get episode duration for distribution (use a reasonable default if unavailable)
-            const estimatedDuration = 3600; // 1 hour default
+            // Filter out takeaways without high-confidence timestamps
+            processedTakeaways = processedTakeaways.filter((takeaway: any) => {
+              const hasTimestamp = typeof takeaway === 'object' && takeaway.timestamp;
+              const hasAccuracy = !takeaway.confidence || takeaway.confidence >= 0.6;
 
-            // Process each takeaway without timestamp
-            for (let i = 0; i < processedTakeaways.length; i++) {
-              const takeaway = processedTakeaways[i];
-
-              // Check if it's a string or object without timestamp
-              if (typeof takeaway === 'string' || !takeaway.timestamp) {
-                // Distribute evenly across estimated episode duration
-                const estimatedTimestamp = (estimatedDuration / processedTakeaways.length) * (i + 0.5);
-
-                processedTakeaways[i] = {
-                  text: typeof takeaway === 'string' ? takeaway : takeaway.text,
-                  timestamp: estimatedTimestamp,
-                  formatted_time: formatTimestamp(estimatedTimestamp),
-                  confidence: 0.1, // Very low confidence for pure fallback
-                } as any;
-
-                console.log(`📍 Added fallback timestamp to takeaway ${i + 1}: ${formatTimestamp(estimatedTimestamp)} (estimated)`);
+              if (!hasTimestamp || !hasAccuracy) {
+                console.log(`❌ Removing: "${typeof takeaway === 'string' ? takeaway : takeaway.text}" (confidence: ${takeaway.confidence || 'N/A'})`);
+                return false;
               }
-            }
+              return true;
+            });
+
+            console.log(`✅ Quality over quantity: Keeping ${processedTakeaways.length} highly accurate takeaways`);
           }
 
           // CRITICAL: Ensure we ALWAYS have timestamps for every takeaway
@@ -794,20 +797,7 @@ export const generateSummaryWithTimestamps = action({
       detectedGenre = detectPodcastGenre(args.episodeTitle, finalDescription, truncatedTranscript);
       const isActionableGenre = detectedGenre === 'actionable';
 
-      // Determine if insights should be generated - prioritize explicit user choice
-      shouldGenerateInsights = args.generateInsights === true ||
-                              (args.generateInsights === undefined && isActionableGenre);
-
-      console.log(`🎯 INSIGHTS GENERATION DECISION:`, {
-        userChoice: args.generateInsights,
-        userChoiceType: typeof args.generateInsights,
-        detectedGenre: detectedGenre,
-        isActionableGenre: isActionableGenre,
-        finalDecision: shouldGenerateInsights,
-        logic: args.generateInsights === true ? 'USER_EXPLICIT_TRUE' :
-               args.generateInsights === false ? 'USER_EXPLICIT_FALSE' :
-               args.generateInsights === undefined ? 'USER_UNDEFINED_FALLBACK_TO_GENRE' : 'UNKNOWN'
-      });
+      // shouldGenerateInsights already set at function start based on user choice
 
       // Determine suggestion status for frontend
       insightsSuggestion = args.generateInsights === true
@@ -817,93 +807,47 @@ export const generateSummaryWithTimestamps = action({
       console.log(`🎯 Genre detected: ${detectedGenre} (actionable: ${isActionableGenre})`);
       console.log(`💡 Insights generation: ${shouldGenerateInsights} (user choice: ${args.generateInsights}, suggestion: ${insightsSuggestion})`);
 
-      // Use default format if we still can't determine proper content
-      const useDefaultFormat = !args.episodeDescription && !finalDescription;
+      // Use default format only when user hasn't explicitly requested actionable insights
+      // and we can't determine the genre from available information
+      const useDefaultFormat = !shouldGenerateInsights && !args.episodeDescription && !finalDescription;
 
-      prompt = shouldGenerateInsights && !useDefaultFormat ? `
-You are a podcast summarizer that analyzes the episode's genre and adapts your output accordingly. This episode appears to be in a business/productivity/educational genre.
+      prompt = shouldGenerateInsights ? `
+You are an expert podcast summariser.
+Your output is valid ONLY if it follows the enforced structure below.
+Any deviation (wrong sectioning, missing timestamps, wrong counts, or transcript-like copying) is INVALID and must be regenerated.
 
-🚨 CRITICAL INSTRUCTION: Before generating any summary or takeaways, you MUST:
-1. Read through the ENTIRE transcript provided below from beginning to end
-2. Analyze the COMPLETE content of the episode - do not skip any section
-3. Only after reviewing the full transcript, extract the most important insights
+### Required Sections (with headings):
+1. **Main Summary**
+   - Provide a 150-200 words of the entire episode.
+   - No timestamps in this section.
+2. **Key Takeaways**
+   - Generate between **3 and 7 key takeaways** from the podcast, numbered sequentially (1., 2., 3., etc.).
+   - Each takeaway must be a clearly important and relevant insight distilled from the content (not a verbatim quote).
+   - Begin each takeaway with a precise, jumpable timestamp in [hh:mm:ss] format.
+   - The timestamp must exactly match the moment the idea is spoken in the audio, enabling the user to jump to that point precisely.
+   - Number takeaways sequentially and place timestamps immediately before the takeaway text so they are easily clickable.
+   - Format for each item:
+     [hh:mm:ss] [1–2 sentence distilled insight]
+   - No transcript-like copying. Insights must be summarised in standalone, valuable terms.
+3. **Actionable Insights**
+   - Must include exactly **5 actionable insights** (not 7).
+   - Each Actionable Insight should be the **5 most practical and high-value applications** of the episode's content.
+   - Each insight must be a **specific, actionable instruction** framed as "Do this…" or "Apply this…"
+   - Format for each item:
+     Actionable Insight: [instruction]
 
-🎯 KEY TAKEAWAYS REQUIREMENT:
-- Write actual TAKEAWAYS (lessons, insights, principles) - NOT transcript quotes
-- Each takeaway should be a distilled lesson that captures what was discussed
-- Focus on what listeners can LEARN or APPLY, not what was literally said
-
-TRANSCRIPT ANALYSIS REQUIREMENT:
-- Read every word of the transcript below before proceeding
-- The transcript contains the COMPLETE episode content (or as much as token limits allow)
-- Extract takeaways from the ENTIRE episode content, not just the beginning
-- Ensure your summary reflects the full scope of discussion
-
-Generate a detailed, comprehensive summary that is EXACTLY 150-200 words (count your words carefully!) and exactly seven key takeaways highlighting important or useful points from across the ENTIRE episode.
-
-CRITICAL: Your summary MUST be between 150-200 words. Do not write shorter summaries. Include specific details, examples, insights, and juicy discussion points from the COMPLETE episode.
+### Debugging Self-Check (before final output):
+- Did I structure the response into **3 sections with headings**: Main Summary, Key Takeaways, Actionable Insights?
+- Are there between **3 and 7 Key Takeaways**, each starting with a **jumpable timestamp** in [hh:mm:ss] format and numbered sequentially?
+- Are there exactly **5 Actionable Insights**, practical and useful, not vague?
+- Did I avoid transcript-like copying?
+If ANY condition is not met, regenerate until fully compliant.
 
 Episode Title: ${args.episodeTitle}
 ${finalDescription ? `Episode Description: ${finalDescription}` : ''}
 
 Episode Transcript (READ ENTIRELY BEFORE PROCEEDING):
 ${truncatedTranscript}
-
-Format your response EXACTLY as:
-SUMMARY:
-[Write EXACTLY 150-200 words - count them! Include specific details, examples, key insights, interesting stories, important quotes, and juicy discussion points from the episode. Make it comprehensive and detailed, not generic.]
-
-KEY TAKEAWAYS:
-${hasTimestamps ? `IMPORTANT: Write clear, actionable takeaways that summarize key insights - NOT direct transcript quotes. Each takeaway should be a distilled lesson or insight that captures the essence of what was discussed.
-
-• First key takeaway highlighting important or useful point
-• Second important insight that listeners should know
-• Third actionable strategy or framework mentioned
-• Fourth valuable concept or principle discussed
-• Fifth noteworthy observation or data point
-• Sixth compelling story or example shared
-• Seventh memorable quote or final thought` : `• First key takeaway highlighting important or useful point
-• Second important insight that listeners should know
-• Third actionable strategy or framework mentioned
-• Fourth valuable concept or principle discussed
-• Fifth noteworthy observation or data point
-• Sixth compelling story or example shared
-• Seventh memorable quote or final thought`}
-
-ACTIONABLE INSIGHTS:
-**Action 1: [Specific actionable recommendation from the episode]**
-Context: [Why this action is important based on episode discussion]
-Application: [Concrete steps to implement this action]
-Resources: [Tools, methods, or resources mentioned]
-
-**Action 2: [Specific actionable recommendation from the episode]**
-Context: [Why this action is important based on episode discussion]
-Application: [Concrete steps to implement this action]
-Resources: [Tools, methods, or resources mentioned]
-
-**Action 3: [Specific actionable recommendation from the episode]**
-Context: [Why this action is important based on episode discussion]
-Application: [Concrete steps to implement this action]
-Resources: [Tools, methods, or resources mentioned]
-
-**Action 4: [Specific actionable recommendation from the episode]**
-Context: [Why this action is important based on episode discussion]
-Application: [Concrete steps to implement this action]
-Resources: [Tools, methods, or resources mentioned]
-
-**Action 5: [Specific actionable recommendation from the episode]**
-Context: [Why this action is important based on episode discussion]
-Application: [Concrete steps to implement this action]
-Resources: [Tools, methods, or resources mentioned]
-
-GROWTH STRATEGY:
-[2-3 sentences outlining strategic approaches, frameworks, or methodologies discussed that can drive growth, improvement, or success in business, career, or personal development]
-
-KEY INSIGHT:
-[1-2 sentences highlighting the most important revelation, principle, or "aha moment" from the episode that provides significant value or changes perspective]
-
-REALITY CHECK:
-[1-2 sentences addressing potential challenges, misconceptions, or important considerations that listeners should be aware of when implementing the discussed strategies or insights]
 ` : `
 You are a podcast summarizer that analyzes the episode's genre and adapts your output accordingly. ${useDefaultFormat ? 'Genre could not be determined - defaulting to general format.' : 'This episode appears to be entertainment/general content (comedy, fiction, sports, news, etc).'}
 
@@ -934,45 +878,32 @@ CRITICAL REQUIREMENTS:
 - Focus on entertainment value, interesting moments, and key lessons rather than actionable advice
 
 Format your response EXACTLY as:
-SUMMARY:
+**Main Summary**
 [Write EXACTLY 150-200 words - count them! Focus on the most interesting moments, entertainment value, funny stories, key discussions, memorable quotes, and noteworthy content. Include specific details and juicy discussion points. Make it engaging and informative without focusing on actionable advice.]
 
-KEY TAKEAWAYS:
+**Key Takeaways**
 ${hasTimestamps ? `IMPORTANT: Write clear, digestible takeaways that capture the most interesting or entertaining insights - NOT direct transcript quotes. Each takeaway should be a distilled lesson, observation, or memorable moment.
 
-• First key takeaway focused on interesting or entertaining moment/lesson
-• Second important insight or memorable moment from the episode
-• Third noteworthy observation or discussion point
-• Fourth compelling story, example, or interesting revelation
-• Fifth entertaining moment or valuable perspective shared
-• Sixth notable quote, joke, or memorable exchange
-• Seventh final thought or standout moment from the episode` : `• First key takeaway focused on interesting or entertaining moment/lesson
-• Second important insight or memorable moment from the episode
-• Third noteworthy observation or discussion point
-• Fourth compelling story, example, or interesting revelation
-• Fifth entertaining moment or valuable perspective shared
-• Sixth notable quote, joke, or memorable exchange
-• Seventh final thought or standout moment from the episode`}
+1. [00:05:23] First key takeaway focused on interesting or entertaining moment/lesson
+2. [00:12:15] Second important insight or memorable moment from the episode
+3. [00:18:40] Third noteworthy observation or discussion point
+4. [00:25:10] Fourth compelling story, example, or interesting revelation
+5. [00:33:45] Fifth entertaining moment or valuable perspective shared
+6. [00:41:20] Sixth notable quote, joke, or memorable exchange
+7. [00:49:05] Seventh final thought or standout moment from the episode` : `1. [00:05:23] First key takeaway focused on interesting or entertaining moment/lesson
+2. [00:12:15] Second important insight or memorable moment from the episode
+3. [00:18:40] Third noteworthy observation or discussion point
+4. [00:25:10] Fourth compelling story, example, or interesting revelation
+5. [00:33:45] Fifth entertaining moment or valuable perspective shared
+6. [00:41:20] Sixth notable quote, joke, or memorable exchange
+7. [00:49:05] Seventh final thought or standout moment from the episode`}
 `;
     } else {
         // Fallback to description-based summary - detect genre first
       detectedGenre = detectPodcastGenre(args.episodeTitle, args.episodeDescription);
       const isActionableGenre = detectedGenre === 'actionable';
 
-      // Determine if insights should be generated - prioritize explicit user choice
-      shouldGenerateInsights = args.generateInsights === true ||
-                              (args.generateInsights === undefined && isActionableGenre);
-
-      console.log(`🎯 INSIGHTS GENERATION DECISION:`, {
-        userChoice: args.generateInsights,
-        userChoiceType: typeof args.generateInsights,
-        detectedGenre: detectedGenre,
-        isActionableGenre: isActionableGenre,
-        finalDecision: shouldGenerateInsights,
-        logic: args.generateInsights === true ? 'USER_EXPLICIT_TRUE' :
-               args.generateInsights === false ? 'USER_EXPLICIT_FALSE' :
-               args.generateInsights === undefined ? 'USER_UNDEFINED_FALLBACK_TO_GENRE' : 'UNKNOWN'
-      });
+      // shouldGenerateInsights already set at function start based on user choice
 
       // Determine suggestion status for frontend
       insightsSuggestion = args.generateInsights === true
@@ -987,20 +918,27 @@ Generate a concise summary (2–4 sentences) and seven key takeaways highlightin
 Episode Title: ${args.episodeTitle}
 Episode Description: ${args.episodeDescription}
 
+Generate numbered key takeaways with timestamps and actionable insights.
+
 Format your response EXACTLY as:
-SUMMARY:
+
+**Main Summary**
 [Write EXACTLY 150-200 words - count them! Include specific details, examples, key insights, interesting stories, important quotes, and juicy discussion points from the episode. Make it comprehensive and detailed, not generic.]
 
-KEY TAKEAWAYS:
-IMPORTANT: Write clear, actionable takeaways that summarize key insights - NOT direct transcript quotes. Each takeaway should be a distilled lesson or insight that captures the essence of what was discussed.
+**Key Takeaways**
+1. [00:00:00] [Clear, actionable takeaway that summarizes a key insight - NOT direct transcript quotes. Should be a distilled lesson or insight that captures the essence of what was discussed.]
 
-• First key takeaway highlighting important or useful point
-• Second important insight that listeners should know
-• Third actionable strategy or framework mentioned
-• Fourth valuable concept or principle discussed
-• Fifth noteworthy observation or data point
-• Sixth compelling story or example shared
-• Seventh memorable quote or final thought
+2. [00:00:00] [Important insight that listeners should know]
+
+3. [00:00:00] [Actionable strategy or framework mentioned]
+
+4. [00:00:00] Key Takeaway: [Valuable concept or principle discussed]
+
+5. [00:00:00] Key Takeaway: [Noteworthy observation or data point]
+
+6. [00:00:00] Key Takeaway: [Compelling story or example shared]
+
+7. [00:00:00] Key Takeaway: [Memorable quote or final thought]
 
 ACTIONABLE INSIGHTS:
 **Action 1: [Specific actionable recommendation from the episode]**
@@ -1052,19 +990,23 @@ CRITICAL REQUIREMENTS:
 - Focus on entertainment value, interesting moments, and key lessons rather than actionable advice
 
 Format your response EXACTLY as:
-SUMMARY:
+**Main Summary**
 [Write EXACTLY 150-200 words - count them! Focus on the most interesting moments, entertainment value, funny stories, key discussions, memorable quotes, and noteworthy content. Include specific details and juicy discussion points. Make it engaging and informative without focusing on actionable advice.]
 
-KEY TAKEAWAYS:
-IMPORTANT: Write clear, digestible takeaways that capture the most interesting or entertaining insights - NOT direct transcript quotes. Each takeaway should be a distilled lesson, observation, or memorable moment.
+**Key Takeaways**
+1. [00:00:00] [Clear, digestible takeaway that captures an interesting or entertaining insight - NOT direct transcript quotes. Should be a distilled lesson, observation, or memorable moment.]
 
-• First key takeaway focused on interesting or entertaining moment/lesson
-• Second important insight or memorable moment from the episode
-• Third noteworthy observation or discussion point
-• Fourth compelling story, example, or interesting revelation
-• Fifth entertaining moment or valuable perspective shared
-• Sixth notable quote, joke, or memorable exchange
-• Seventh final thought or standout moment from the episode
+2. [00:00:00] [Important insight or memorable moment from the episode]
+
+3. [00:00:00] [Noteworthy observation or discussion point]
+
+4. [00:00:00] Key Takeaway: [Compelling story, example, or interesting revelation]
+
+5. [00:00:00] Key Takeaway: [Entertaining moment or valuable perspective shared]
+
+6. [00:00:00] Key Takeaway: [Notable quote, joke, or memorable exchange]
+
+7. [00:00:00] Key Takeaway: [Final thought or standout moment from the episode]
 `;
     }
 
@@ -1137,26 +1079,25 @@ IMPORTANT: Write clear, digestible takeaways that capture the most interesting o
         episodeDescription: args.episodeDescription,
         episodeAudioUrl: args.episodeAudioUrl,
         userId: args.userId,
+        generateInsights: args.generateInsights,
       });
     }
 
     const data = await response!.json();
     const aiResponse = data.choices[0].message.content;
 
-    // Parse the AI response
-    const summaryMatch = aiResponse.match(/SUMMARY:\s*([\s\S]*?)(?=KEY TAKEAWAYS:|$)/);
-    const takeawaysMatch = aiResponse.match(/KEY TAKEAWAYS:\s*([\s\S]*?)(?=ACTIONABLE INSIGHTS:|$)/);
-    const actionableInsightsMatch = aiResponse.match(/ACTIONABLE INSIGHTS:\s*([\s\S]*?)(?=GROWTH STRATEGY:|$)/);
-    const growthStrategyMatch = aiResponse.match(/GROWTH STRATEGY:\s*([\s\S]*?)(?=KEY INSIGHT:|$)/);
-    const keyInsightMatch = aiResponse.match(/KEY INSIGHT:\s*([\s\S]*?)(?=REALITY CHECK:|$)/);
-    const realityCheckMatch = aiResponse.match(/REALITY CHECK:\s*([\s\S]*?)(?=$)/);
+    // Parse the AI response using structured format - support both ** and ### formats
+    const mainSummaryMatch = aiResponse.match(/(?:\*\*Main Summary\*\*|### Main Summary)\s*([\s\S]*?)(?=(?:\*\*Key Takeaways\*\*|### Key Takeaways)|$)/);
+    const keyTakeawaysMatch = aiResponse.match(/(?:\*\*Key Takeaways\*\*|### Key Takeaways)\s*([\s\S]*?)(?=(?:\*\*Actionable Insights\*\*|### Actionable Insights)|$)/);
+    const actionableInsightsMatch = aiResponse.match(/(?:\*\*Actionable Insights\*\*|### Actionable Insights)\s*([\s\S]*?)(?=$)/);
 
-    let summary = summaryMatch ? summaryMatch[1].trim() : aiResponse;
-    const takeawaysText = takeawaysMatch ? takeawaysMatch[1].trim() : "";
+    let summary = mainSummaryMatch ? mainSummaryMatch[1].trim() : aiResponse;
+    const takeawaysText = keyTakeawaysMatch ? keyTakeawaysMatch[1].trim() : "";
     let actionableInsightsText = actionableInsightsMatch ? actionableInsightsMatch[1].trim() : "";
-    const growthStrategyText = growthStrategyMatch ? growthStrategyMatch[1].trim() : "";
-    const keyInsightText = keyInsightMatch ? keyInsightMatch[1].trim() : "";
-    const realityCheckText = realityCheckMatch ? realityCheckMatch[1].trim() : "";
+    // Removed growth strategy, key insight, and reality check from new format
+    const growthStrategyText = "";
+    const keyInsightText = "";
+    const realityCheckText = "";
 
     // Log word count analysis for OpenAI response
     let summaryWordCount = summary.split(/\s+/).filter((word: string) => word.length > 0).length;
@@ -1205,11 +1146,66 @@ IMPORTANT: Write clear, digestible takeaways that capture the most interesting o
       .map((item: string) => item.trim())
       .filter((item: string) => item.length > 0);
 
-    console.log(`🎯 OpenAI takeaways count: ${rawTakeaways.length} (target: exactly 7)`);
+    console.log(`🎯 OpenAI takeaways count: ${rawTakeaways.length} (target: 3-7)`);
     console.log("🎯 OpenAI RAW TAKEAWAYS TEXT:", takeawaysText);
 
-    // Fallback: If we don't have exactly 7 takeaways, try alternative parsing
+    // Fallback: If we don't have 3-7 takeaways, try alternative parsing
     let finalRawTakeaways = rawTakeaways;
+
+    // Parse the new structured format with clear section headings
+    if (keyTakeawaysMatch && actionableInsightsMatch) {
+      console.log("🎯 OpenAI DETECTED NEW STRUCTURED FORMAT");
+
+      // Parse numbered takeaways with timestamps: 1. [hh:mm:ss] ...
+      const numberedTakeawayPattern = /(\d+)\.\s*\[([^\]]+)\]\s*(.*?)(?=\n\d+\.|$)/gs;
+      const newFormatTakeaways: string[] = [];
+
+      let match;
+      while ((match = numberedTakeawayPattern.exec(takeawaysText)) !== null) {
+        const [, number, timestamp, keyTakeaway] = match;
+        const takeawayWithTimestamp = `[${timestamp}] ${keyTakeaway.trim()}`;
+        newFormatTakeaways.push(takeawayWithTimestamp);
+        console.log(`🎯 OpenAI PARSED TAKEAWAY ${number}: [${timestamp}] ${keyTakeaway.trim()}`);
+      }
+
+      // Parse actionable insights: 1. [instruction] or 1. Actionable Insight: [instruction]
+      const insightPattern = /(\d+)\.\s*(?:Actionable Insight:\s*)?(.*?)(?=\n\d+\.|$)/gs;
+      const newFormatActionableInsights: Array<{
+        action: string;
+        context: string;
+        application: string;
+        resources: string;
+      }> = [];
+
+      let insightMatch;
+      while ((insightMatch = insightPattern.exec(actionableInsightsText)) !== null) {
+        const [, number, insight] = insightMatch;
+        newFormatActionableInsights.push({
+          action: insight.trim(),
+          context: `Actionable insight ${number}`,
+          application: insight.trim(),
+          resources: ''
+        });
+        console.log(`🎯 OpenAI PARSED INSIGHT ${number}: ${insight.trim()}`);
+      }
+
+      if (newFormatTakeaways.length > 0) {
+        finalRawTakeaways = newFormatTakeaways;
+        console.log(`✅ OpenAI USING NEW STRUCTURED FORMAT: ${newFormatTakeaways.length} takeaways`);
+
+        // Update actionableInsightsText to use the new format insights if they exist
+        if (newFormatActionableInsights.length > 0) {
+          // Convert structured insights back to text format for existing processing logic
+          actionableInsightsText = newFormatActionableInsights.map((insight, index) =>
+            `**Action ${index + 1}: ${insight.action}**\nContext: ${insight.context}\nApplication: ${insight.application}\nResources: ${insight.resources}`
+          ).join('\n\n');
+          console.log(`✅ OpenAI USING NEW FORMAT ACTIONABLE INSIGHTS: ${newFormatActionableInsights.length} insights`);
+        }
+      } else {
+        console.log("⚠️ OpenAI NEW FORMAT PARSING FAILED, falling back to standard parsing");
+      }
+    }
+
     if (finalRawTakeaways.length !== 7) {
       console.log("⚠️ OpenAI TAKEAWAY COUNT MISMATCH! Expected 7, got:", finalRawTakeaways.length);
 
@@ -1298,7 +1294,7 @@ IMPORTANT: Write clear, digestible takeaways that capture the most interesting o
           // Find timestamp for the quote
           const timestampResult = findTimestampForText(quote, transcriptData.wordTimestamps!);
           
-          if (timestampResult && timestampResult.confidence > 0.3) {
+          if (timestampResult && timestampResult.confidence > 0.6) {
             // Prepare both original AI text and actual spoken content
             const originalText = takeawayText;
             const spokenContent = timestampResult.fullContext;
@@ -1331,7 +1327,7 @@ IMPORTANT: Write clear, digestible takeaways that capture the most interesting o
           } else {
             // Fallback: try to find timestamp using the takeaway text itself
             const fallbackResult = findTimestampForText(takeawayText, transcriptData.wordTimestamps!);
-            if (fallbackResult && fallbackResult.confidence > 0.2) {
+            if (fallbackResult && fallbackResult.confidence > 0.6) {
               // Prepare both original AI text and actual spoken content
               const originalText = takeawayText;
               const spokenContent = fallbackResult.fullContext;
@@ -1370,7 +1366,7 @@ IMPORTANT: Write clear, digestible takeaways that capture the most interesting o
           // No quote found, try to find timestamp using takeaway text
           const timestampResult = findTimestampForText(takeaway, transcriptData.wordTimestamps!);
           
-          if (timestampResult && timestampResult.confidence > 0.3) {
+          if (timestampResult && timestampResult.confidence > 0.6) {
             // Prepare both original AI text and actual spoken content
             const originalText = takeaway;
             const spokenContent = timestampResult.fullContext;
@@ -1411,32 +1407,23 @@ IMPORTANT: Write clear, digestible takeaways that capture the most interesting o
     }
 
     // FINAL FALLBACK FOR OPENAI PATH: Ensure every takeaway has a timestamp
-    const openaiBasicTakeawaysWithoutTimestamps = processedTakeaways.filter((t: any) => typeof t === 'string' || !t.timestamp);
+    const openaiBasicTakeawaysWithoutTimestamps = processedTakeaways.filter((t: any) => typeof t === 'string' || !t.timestamp || (t.confidence && t.confidence < 0.6));
     if (openaiBasicTakeawaysWithoutTimestamps.length > 0) {
-      console.log(`🔧 OPENAI BASIC FALLBACK: Adding timestamps to ${openaiBasicTakeawaysWithoutTimestamps.length} remaining takeaways without timestamps...`);
+      console.log(`❌ OPENAI: Removing ${openaiBasicTakeawaysWithoutTimestamps.length} takeaways without accurate timestamps (confidence <60%)`);
 
-      // Get episode duration for distribution (use a reasonable default if unavailable)
-      const estimatedDuration = 3600; // 1 hour default
+      // Filter out takeaways without high-confidence timestamps
+      processedTakeaways = processedTakeaways.filter((takeaway: any) => {
+        const hasTimestamp = typeof takeaway === 'object' && takeaway.timestamp;
+        const hasAccuracy = !takeaway.confidence || takeaway.confidence >= 0.6;
 
-      // Process each takeaway without timestamp
-      for (let i = 0; i < processedTakeaways.length; i++) {
-        const takeaway = processedTakeaways[i];
-
-        // Check if it's a string or object without timestamp
-        if (typeof takeaway === 'string' || !takeaway.timestamp) {
-          // Distribute evenly across estimated episode duration
-          const estimatedTimestamp = (estimatedDuration / processedTakeaways.length) * (i + 0.5);
-
-          processedTakeaways[i] = {
-            text: typeof takeaway === 'string' ? takeaway : takeaway.text,
-            timestamp: estimatedTimestamp,
-            formatted_time: formatTimestamp(estimatedTimestamp),
-            confidence: 0.1, // Very low confidence for pure fallback
-          };
-
-          console.log(`📍 Added fallback timestamp to takeaway ${i + 1}: ${formatTimestamp(estimatedTimestamp)} (estimated)`);
+        if (!hasTimestamp || !hasAccuracy) {
+          console.log(`❌ OPENAI Removing: "${typeof takeaway === 'string' ? takeaway : takeaway.text}" (confidence: ${takeaway.confidence || 'N/A'})`);
+          return false;
         }
-      }
+        return true;
+      });
+
+      console.log(`✅ OPENAI Quality control: Keeping ${processedTakeaways.length} highly accurate takeaways`);
     }
 
     // CRITICAL FAILSAFE FOR OPENAI PATH: Ensure ALL takeaways have timestamps
@@ -1671,6 +1658,7 @@ export const generateSummary = action({
     episodeDescription: v.string(),
     episodeAudioUrl: v.string(),
     userId: v.string(),
+    generateInsights: v.optional(v.boolean()),
   },
   handler: async (ctx, args): Promise<any> => {
     // Check if summary already exists for this episode and user
@@ -1745,84 +1733,52 @@ export const generateSummary = action({
       // Detect genre for appropriate prompt
       const genre = detectPodcastGenre(args.episodeTitle, finalDescription, enhancedTranscript);
       const isActionableGenre = genre === 'actionable';
-      const useDefaultFormat = !args.episodeDescription && !finalDescription;
 
-      prompt = isActionableGenre && !useDefaultFormat ? `
-You are a podcast summarizer that analyzes the episode's genre and adapts your output accordingly. This episode appears to be in a business/productivity/educational genre.
+      // Determine if insights should be generated - prioritize explicit user choice
+      const shouldGenerateInsights = args.generateInsights === true ||
+                                    (args.generateInsights === undefined && isActionableGenre);
 
-🚨 CRITICAL INSTRUCTION: Before generating any summary or takeaways, you MUST:
-1. Read through the ENTIRE transcript provided below from beginning to end
-2. Analyze the COMPLETE content of the episode - do not skip any section
-3. Only after reviewing the full transcript, extract the most important insights
+      // Use default format only when user hasn't explicitly requested actionable insights
+      // and we can't determine the genre from available information
+      const useDefaultFormat = !shouldGenerateInsights && !args.episodeDescription && !finalDescription;
 
-🎯 KEY TAKEAWAYS REQUIREMENT:
-- Write actual TAKEAWAYS (lessons, insights, principles) - NOT transcript quotes
-- Each takeaway should be a distilled lesson that captures what was discussed
-- Focus on what listeners can LEARN or APPLY, not what was literally said
+      prompt = shouldGenerateInsights ? `
+You are an expert podcast summariser.
+Your output is valid ONLY if it follows the enforced structure below.
+Any deviation (wrong sectioning, missing timestamps, wrong counts, or transcript-like copying) is INVALID and must be regenerated.
 
-TRANSCRIPT ANALYSIS REQUIREMENT:
-- Read every word of the transcript below before proceeding
-- The transcript contains the COMPLETE episode content (or as much as token limits allow)
-- Extract takeaways from the ENTIRE episode content, not just the beginning
-- Ensure your summary reflects the full scope of discussion
+### Required Sections (with headings):
+1. **Main Summary**
+   - Provide a 150-200 words of the entire episode.
+   - No timestamps in this section.
+2. **Key Takeaways**
+   - Generate between **3 and 7 key takeaways** from the podcast, numbered sequentially (1., 2., 3., etc.).
+   - Each takeaway must be a clearly important and relevant insight distilled from the content (not a verbatim quote).
+   - Begin each takeaway with a precise, jumpable timestamp in [hh:mm:ss] format.
+   - The timestamp must exactly match the moment the idea is spoken in the audio, enabling the user to jump to that point precisely.
+   - Number takeaways sequentially and place timestamps immediately before the takeaway text so they are easily clickable.
+   - Format for each item:
+     [hh:mm:ss] [1–2 sentence distilled insight]
+   - No transcript-like copying. Insights must be summarised in standalone, valuable terms.
+3. **Actionable Insights**
+   - Must include exactly **5 actionable insights** (not 7).
+   - Each Actionable Insight should be the **5 most practical and high-value applications** of the episode's content.
+   - Each insight must be a **specific, actionable instruction** framed as "Do this…" or "Apply this…"
+   - Format for each item:
+     Actionable Insight: [instruction]
 
-Generate a detailed, comprehensive summary that is EXACTLY 150-200 words (count your words carefully!) and exactly seven key takeaways highlighting important or useful points from across the ENTIRE episode.
+### Debugging Self-Check (before final output):
+- Did I structure the response into **3 sections with headings**: Main Summary, Key Takeaways, Actionable Insights?
+- Are there between **3 and 7 Key Takeaways**, each starting with a **jumpable timestamp** in [hh:mm:ss] format and numbered sequentially?
+- Are there exactly **5 Actionable Insights**, practical and useful, not vague?
+- Did I avoid transcript-like copying?
+If ANY condition is not met, regenerate until fully compliant.
 
 Episode Title: ${args.episodeTitle}
 ${finalDescription ? `Episode Description: ${finalDescription}` : ''}
 
 Episode Transcript (READ ENTIRELY BEFORE PROCEEDING):
 ${enhancedTranscript}
-
-Format your response EXACTLY as:
-SUMMARY:
-[Write EXACTLY 150-200 words - count them! Include specific details, examples, key insights, interesting stories, important quotes, and juicy discussion points from the episode. Make it comprehensive and detailed, not generic.]
-
-KEY TAKEAWAYS:
-IMPORTANT: Write clear, actionable takeaways that summarize key insights - NOT direct transcript quotes. Each takeaway should be a distilled lesson or insight that captures the essence of what was discussed.
-
-• First key takeaway highlighting important or useful point
-• Second important insight that listeners should know
-• Third actionable strategy or framework mentioned
-• Fourth valuable concept or principle discussed
-• Fifth noteworthy observation or data point
-• Sixth compelling story or example shared
-• Seventh memorable quote or final thought
-
-ACTIONABLE INSIGHTS:
-**Action 1: [Specific actionable recommendation from the episode]**
-Context: [Why this action is important based on episode discussion]
-Application: [Concrete steps to implement this action]
-Resources: [Tools, methods, or resources mentioned]
-
-**Action 2: [Specific actionable recommendation from the episode]**
-Context: [Why this action is important based on episode discussion]
-Application: [Concrete steps to implement this action]
-Resources: [Tools, methods, or resources mentioned]
-
-**Action 3: [Specific actionable recommendation from the episode]**
-Context: [Why this action is important based on episode discussion]
-Application: [Concrete steps to implement this action]
-Resources: [Tools, methods, or resources mentioned]
-
-**Action 4: [Specific actionable recommendation from the episode]**
-Context: [Why this action is important based on episode discussion]
-Application: [Concrete steps to implement this action]
-Resources: [Tools, methods, or resources mentioned]
-
-**Action 5: [Specific actionable recommendation from the episode]**
-Context: [Why this action is important based on episode discussion]
-Application: [Concrete steps to implement this action]
-Resources: [Tools, methods, or resources mentioned]
-
-GROWTH STRATEGY:
-[2-3 sentences outlining strategic approaches, frameworks, or methodologies discussed that can drive growth, improvement, or success in business, career, or personal development]
-
-KEY INSIGHT:
-[1-2 sentences highlighting the most important revelation, principle, or "aha moment" from the episode that provides significant value or changes perspective]
-
-REALITY CHECK:
-[1-2 sentences addressing potential challenges, misconceptions, or important considerations that listeners should be aware of when implementing the discussed strategies or insights]
 ` : `
 You are a podcast summarizer that analyzes the episode's genre and adapts your output accordingly. ${useDefaultFormat ? 'Genre could not be determined - defaulting to general format.' : 'This episode appears to be entertainment/general content (comedy, fiction, sports, news, etc).'}
 
@@ -1851,19 +1807,23 @@ CRITICAL REQUIREMENTS:
 - Focus on entertainment value, interesting moments, and key lessons rather than actionable advice
 
 Format your response EXACTLY as:
-SUMMARY:
+**Main Summary**
 [Write EXACTLY 150-200 words - count them! Focus on the most interesting moments, entertainment value, funny stories, key discussions, memorable quotes, and noteworthy content. Include specific details and juicy discussion points. Make it engaging and informative without focusing on actionable advice.]
 
-KEY TAKEAWAYS:
-IMPORTANT: Write clear, digestible takeaways that capture the most interesting or entertaining insights - NOT direct transcript quotes. Each takeaway should be a distilled lesson, observation, or memorable moment.
+**Key Takeaways**
+1. [00:00:00] [Clear, digestible takeaway that captures an interesting or entertaining insight - NOT direct transcript quotes. Should be a distilled lesson, observation, or memorable moment.]
 
-• First key takeaway focused on interesting or entertaining moment/lesson
-• Second important insight or memorable moment from the episode
-• Third noteworthy observation or discussion point
-• Fourth compelling story, example, or interesting revelation
-• Fifth entertaining moment or valuable perspective shared
-• Sixth notable quote, joke, or memorable exchange
-• Seventh final thought or standout moment from the episode
+2. [00:00:00] [Important insight or memorable moment from the episode]
+
+3. [00:00:00] [Noteworthy observation or discussion point]
+
+4. [00:00:00] Key Takeaway: [Compelling story, example, or interesting revelation]
+
+5. [00:00:00] Key Takeaway: [Entertaining moment or valuable perspective shared]
+
+6. [00:00:00] Key Takeaway: [Notable quote, joke, or memorable exchange]
+
+7. [00:00:00] Key Takeaway: [Final thought or standout moment from the episode]
 `;
     } else {
       // Fallback to description-based summary - handle missing description
@@ -1900,19 +1860,24 @@ Episode Title: ${args.episodeTitle}
 ${finalDescription ? `Episode Description: ${finalDescription}` : ''}
 
 Format your response EXACTLY as:
-SUMMARY:
+
+**Main Summary**
 [Write EXACTLY 150-200 words - count them! Include specific details, examples, key insights, interesting stories, important quotes, and juicy discussion points from the episode. Make it comprehensive and detailed, not generic.]
 
-KEY TAKEAWAYS:
-IMPORTANT: Write clear, actionable takeaways that summarize key insights - NOT direct transcript quotes. Each takeaway should be a distilled lesson or insight that captures the essence of what was discussed.
+**Key Takeaways**
+1. [00:00:00] [Clear, actionable takeaway that summarizes a key insight - NOT direct transcript quotes. Should be a distilled lesson or insight that captures the essence of what was discussed.]
 
-• First key takeaway highlighting important or useful point
-• Second important insight that listeners should know
-• Third actionable strategy or framework mentioned
-• Fourth valuable concept or principle discussed
-• Fifth noteworthy observation or data point
-• Sixth compelling story or example shared
-• Seventh memorable quote or final thought
+2. [00:00:00] [Important insight that listeners should know]
+
+3. [00:00:00] [Actionable strategy or framework mentioned]
+
+4. [00:00:00] Key Takeaway: [Valuable concept or principle discussed]
+
+5. [00:00:00] Key Takeaway: [Noteworthy observation or data point]
+
+6. [00:00:00] Key Takeaway: [Compelling story or example shared]
+
+7. [00:00:00] Key Takeaway: [Memorable quote or final thought]
 
 ACTIONABLE INSIGHTS:
 **Action 1: [Specific actionable recommendation from the episode]**
@@ -1964,19 +1929,23 @@ CRITICAL REQUIREMENTS:
 - Focus on entertainment value, interesting moments, and key lessons rather than actionable advice
 
 Format your response EXACTLY as:
-SUMMARY:
+**Main Summary**
 [Write EXACTLY 150-200 words - count them! Focus on the most interesting moments, entertainment value, funny stories, key discussions, memorable quotes, and noteworthy content. Include specific details and juicy discussion points. Make it engaging and informative without focusing on actionable advice.]
 
-KEY TAKEAWAYS:
-IMPORTANT: Write clear, digestible takeaways that capture the most interesting or entertaining insights - NOT direct transcript quotes. Each takeaway should be a distilled lesson, observation, or memorable moment.
+**Key Takeaways**
+1. [00:00:00] [Clear, digestible takeaway that captures an interesting or entertaining insight - NOT direct transcript quotes. Should be a distilled lesson, observation, or memorable moment.]
 
-• First key takeaway focused on interesting or entertaining moment/lesson
-• Second important insight or memorable moment from the episode
-• Third noteworthy observation or discussion point
-• Fourth compelling story, example, or interesting revelation
-• Fifth entertaining moment or valuable perspective shared
-• Sixth notable quote, joke, or memorable exchange
-• Seventh final thought or standout moment from the episode
+2. [00:00:00] [Important insight or memorable moment from the episode]
+
+3. [00:00:00] [Noteworthy observation or discussion point]
+
+4. [00:00:00] Key Takeaway: [Compelling story, example, or interesting revelation]
+
+5. [00:00:00] Key Takeaway: [Entertaining moment or valuable perspective shared]
+
+6. [00:00:00] Key Takeaway: [Notable quote, joke, or memorable exchange]
+
+7. [00:00:00] Key Takeaway: [Final thought or standout moment from the episode]
 `;
     }
 
@@ -2072,7 +2041,7 @@ IMPORTANT: Write clear, digestible takeaways that capture the most interesting o
         "Continuous learning and adaptation are crucial for long-term growth"
       ];
 
-      console.log(`🎯 Fallback takeaways count: ${takeaways.length} (target: exactly 7) - ✅ EXACTLY 7 TAKEAWAYS`);
+      console.log(`🎯 Fallback takeaways count: ${takeaways.length} (target: 3-7) - ✅ VALID TAKEAWAY COUNT`);
 
       // Increment user's summary count after successful generation (fallback case)
       await ctx.runMutation(internal.users.incrementSummaryCount);
@@ -2099,20 +2068,18 @@ IMPORTANT: Write clear, digestible takeaways that capture the most interesting o
     const data = await response!.json();
     const aiResponse = data.choices[0].message.content;
 
-    // Parse the AI response
-    const summaryMatch = aiResponse.match(/SUMMARY:\s*([\s\S]*?)(?=KEY TAKEAWAYS:|$)/);
-    const takeawaysMatch = aiResponse.match(/KEY TAKEAWAYS:\s*([\s\S]*?)(?=ACTIONABLE INSIGHTS:|$)/);
-    const actionableInsightsMatch = aiResponse.match(/ACTIONABLE INSIGHTS:\s*([\s\S]*?)(?=GROWTH STRATEGY:|$)/);
-    const growthStrategyMatch = aiResponse.match(/GROWTH STRATEGY:\s*([\s\S]*?)(?=KEY INSIGHT:|$)/);
-    const keyInsightMatch = aiResponse.match(/KEY INSIGHT:\s*([\s\S]*?)(?=REALITY CHECK:|$)/);
-    const realityCheckMatch = aiResponse.match(/REALITY CHECK:\s*([\s\S]*?)(?=$)/);
+    // Parse the AI response using structured format - support both ** and ### formats
+    const mainSummaryMatch = aiResponse.match(/(?:\*\*Main Summary\*\*|### Main Summary)\s*([\s\S]*?)(?=(?:\*\*Key Takeaways\*\*|### Key Takeaways)|$)/);
+    const keyTakeawaysMatch = aiResponse.match(/(?:\*\*Key Takeaways\*\*|### Key Takeaways)\s*([\s\S]*?)(?=(?:\*\*Actionable Insights\*\*|### Actionable Insights)|$)/);
+    const actionableInsightsMatch = aiResponse.match(/(?:\*\*Actionable Insights\*\*|### Actionable Insights)\s*([\s\S]*?)(?=$)/);
 
-    let summary = summaryMatch ? summaryMatch[1].trim() : aiResponse;
-    const takeawaysText = takeawaysMatch ? takeawaysMatch[1].trim() : "";
+    let summary = mainSummaryMatch ? mainSummaryMatch[1].trim() : aiResponse;
+    const takeawaysText = keyTakeawaysMatch ? keyTakeawaysMatch[1].trim() : "";
     let actionableInsightsText = actionableInsightsMatch ? actionableInsightsMatch[1].trim() : "";
-    const growthStrategyText = growthStrategyMatch ? growthStrategyMatch[1].trim() : "";
-    const keyInsightText = keyInsightMatch ? keyInsightMatch[1].trim() : "";
-    const realityCheckText = realityCheckMatch ? realityCheckMatch[1].trim() : "";
+    // Removed growth strategy, key insight, and reality check from new format
+    const growthStrategyText = "";
+    const keyInsightText = "";
+    const realityCheckText = "";
 
     // Log word count analysis for secondary OpenAI response (without transcript)
     let summaryWordCountNoTranscript = summary.split(/\s+/).filter((word: string) => word.length > 0).length;
@@ -2153,17 +2120,48 @@ IMPORTANT: Write clear, digestible takeaways that capture the most interesting o
       console.log(`✅ OpenAI no-transcript summary word count is within target range`);
     }
 
-    // Extract individual takeaways
-    const takeaways = takeawaysText
-      .split("•")
-      .map((item: string) => item.trim())
-      .filter((item: string) => item.length > 0);
+    // Extract individual takeaways and handle new format parsing
+    let finalTakeaways: string[] = [];
 
-    console.log(`🎯 OpenAI (no transcript) takeaways count: ${takeaways.length} (target: exactly 7)`);
-    console.log("🎯 OpenAI (no transcript) RAW TAKEAWAYS TEXT:", takeawaysText);
+    // Check if we should parse the new structured format with clear section headings
+    // Use simple genre detection for parsing decisions
+    const legacyGenre = detectPodcastGenre(args.episodeTitle, args.episodeDescription);
+    const shouldParseNewFormat = args.generateInsights === true ||
+                                (args.generateInsights === undefined && legacyGenre === 'actionable');
 
-    // Fallback: If we don't have exactly 7 takeaways, try alternative parsing
-    let finalTakeaways = takeaways;
+    if (keyTakeawaysMatch && shouldParseNewFormat) {
+      console.log("🎯 Legacy OpenAI DETECTED NEW STRUCTURED FORMAT");
+
+      // Parse numbered takeaways with timestamps: 1. [hh:mm:ss] ...
+      const numberedTakeawayPattern = /(\d+)\.\s*\[([^\]]+)\]\s*(.*?)(?=\n\d+\.|$)/gs;
+
+      let match;
+      while ((match = numberedTakeawayPattern.exec(takeawaysText)) !== null) {
+        const [, number, timestamp, keyTakeaway] = match;
+        const takeawayWithTimestamp = `[${timestamp}] ${keyTakeaway.trim()}`;
+        finalTakeaways.push(takeawayWithTimestamp);
+        console.log(`🎯 Legacy OpenAI PARSED TAKEAWAY ${number}: [${timestamp}] ${keyTakeaway.trim()}`);
+      }
+
+      if (finalTakeaways.length === 0) {
+        console.log("⚠️ Legacy OpenAI NEW FORMAT PARSING FAILED, falling back to standard parsing");
+      } else {
+        console.log(`✅ Legacy OpenAI USING NEW STRUCTURED FORMAT: ${finalTakeaways.length} takeaways`);
+      }
+    }
+
+    // Fall back to old format parsing if new format failed or not applicable
+    if (finalTakeaways.length === 0) {
+      const takeaways = takeawaysText
+        .split("•")
+        .map((item: string) => item.trim())
+        .filter((item: string) => item.length > 0);
+
+      console.log(`🎯 OpenAI (no transcript) takeaways count: ${takeaways.length} (target: 3-7)`);
+      console.log("🎯 OpenAI (no transcript) RAW TAKEAWAYS TEXT:", takeawaysText);
+
+      finalTakeaways = takeaways;
+    }
     if (finalTakeaways.length !== 7) {
       console.log("⚠️ OpenAI (no transcript) TAKEAWAY COUNT MISMATCH! Expected 7, got:", finalTakeaways.length);
 
@@ -2227,31 +2225,59 @@ IMPORTANT: Write clear, digestible takeaways that capture the most interesting o
     console.log("🎯 OpenAI (no transcript) FINAL TAKEAWAYS COUNT:", finalTakeaways.length);
     console.log("🎯 OpenAI (no transcript) FINAL TAKEAWAYS:", finalTakeaways);
 
-    // Process actionable insights into structured format - only for actionable genres (not default format)
-    // Use the same genre detection logic as the prompt generation
-    const detectedGenre = transcriptData?.hasTranscript && transcriptData.transcript ?
-      detectPodcastGenre(args.episodeTitle, args.episodeDescription, transcriptData.transcript.substring(0, 1000)) :
-      detectPodcastGenre(args.episodeTitle, args.episodeDescription);
-    const isActionableDetected = detectedGenre === 'actionable';
+    // Process actionable insights - handle both new structured format and old format
+    let processedActionableInsights: Array<{
+      action: string;
+      context: string;
+      application: string;
+      resources: string;
+    }> = [];
 
-    const processedActionableInsights = isActionableDetected ? actionableInsightsText
-      .split(/\*\*Action \d+:/)
-      .slice(1) // Remove empty first element
-      .map((insight: string) => {
-        const lines = insight.trim().split('\n').filter((line: string) => line.trim());
-        const action = lines[0]?.replace(/\*\*$/, '') || '';
-        const context = lines.find((line: string) => line.startsWith('Context:'))?.replace('Context: ', '') || '';
-        const application = lines.find((line: string) => line.startsWith('Application:'))?.replace('Application: ', '') || '';
-        const resources = lines.find((line: string) => line.startsWith('Resources:'))?.replace('Resources: ', '') || '';
+    if (shouldParseNewFormat && actionableInsightsText) {
+      console.log("🔍 Legacy OpenAI PROCESSING ACTIONABLE INSIGHTS");
 
-        return {
-          action: action.trim(),
-          context: context.trim(),
-          application: application.trim(),
-          resources: resources.trim()
-        };
-      })
-      .filter((insight: { action: string; context: string; application: string; resources: string }) => insight.action.length > 0) : [];
+      // Try parsing new structured format first: 1. Actionable Insight: ...
+      const newFormatInsightPattern = /(\d+)\.\s*Actionable Insight:\s*(.*?)(?=\n\d+\.|$)/gs;
+      let newFormatMatch;
+
+      while ((newFormatMatch = newFormatInsightPattern.exec(actionableInsightsText)) !== null) {
+        const [, number, insight] = newFormatMatch;
+        processedActionableInsights.push({
+          action: insight.trim(),
+          context: `Actionable insight ${number}`,
+          application: insight.trim(),
+          resources: ''
+        });
+        console.log(`🎯 Legacy OpenAI PARSED NEW FORMAT INSIGHT ${number}: ${insight.trim()}`);
+      }
+
+      // Fallback to old format parsing if new format didn't work
+      if (processedActionableInsights.length === 0) {
+        console.log("🔄 Legacy OpenAI falling back to old actionable insights format");
+        const oldFormatInsights = actionableInsightsText
+          .split(/\*\*Action \d+:/)
+          .slice(1) // Remove empty first element
+          .map((insight: string) => {
+            const lines = insight.trim().split('\n').filter((line: string) => line.trim());
+            const action = lines[0]?.replace(/\*\*$/, '') || '';
+            const context = lines.find((line: string) => line.startsWith('Context:'))?.replace('Context: ', '') || '';
+            const application = lines.find((line: string) => line.startsWith('Application:'))?.replace('Application: ', '') || '';
+            const resources = lines.find((line: string) => line.startsWith('Resources:'))?.replace('Resources: ', '') || '';
+
+            return {
+              action: action.trim(),
+              context: context.trim(),
+              application: application.trim(),
+              resources: resources.trim()
+            };
+          })
+          .filter((insight: { action: string; context: string; application: string; resources: string }) => insight.action.length > 0);
+
+        processedActionableInsights = oldFormatInsights;
+      }
+
+      console.log(`🎯 Legacy OpenAI FINAL ACTIONABLE INSIGHTS COUNT: ${processedActionableInsights.length}`);
+    }
 
     // Increment user's summary count after successful generation
     console.log(`🚀 ABOUT TO INCREMENT: User ${args.userId} summary count`);

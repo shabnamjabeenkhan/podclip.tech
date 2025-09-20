@@ -304,16 +304,16 @@ export function findTimestampForText(
     }
   }
 
-  // Return result with enhanced validation criteria (more lenient for better coverage)
-  const minAccuracyThreshold = 0.15; // Lowered threshold for better coverage
-  const hasDecentMatch = bestMatch.accuracyScore >= minAccuracyThreshold &&
-                        bestMatch.startIndex >= 0 &&
-                        (bestMatch.matchCount >= Math.max(1, Math.ceil(searchTerms.length * 0.15)) || // More lenient ratio
-                         bestMatch.keyMatchCount >= 1 ||
-                         bestMatch.exactPhraseBonus >= 1 || // Lowered phrase bonus requirement
-                         bestMatch.matchCount >= 2); // Accept if we have at least 2 term matches
+  // Return result with high accuracy requirements - no estimates allowed
+  const minAccuracyThreshold = 0.6; // Raised threshold for accurate timestamps only
+  const hasAccurateMatch = bestMatch.accuracyScore >= minAccuracyThreshold &&
+                          bestMatch.startIndex >= 0 &&
+                          (bestMatch.matchCount >= Math.max(2, Math.ceil(searchTerms.length * 0.4)) || // Higher matching ratio required
+                           bestMatch.keyMatchCount >= 2 ||  // Require multiple key matches
+                           bestMatch.exactPhraseBonus >= 2 || // Higher phrase bonus requirement
+                           (bestMatch.matchCount >= 3 && bestMatch.sequentialMatches >= 2)); // Strong sequential matches
 
-  if (hasDecentMatch) {
+  if (hasAccurateMatch) {
     // Get the context around the match for validation
     const contextStart = Math.max(0, bestMatch.startIndex - 5);
     const contextEnd = Math.min(words.length, bestMatch.startIndex + searchWindow + 5);
@@ -322,7 +322,7 @@ export function findTimestampForText(
     const fullContext = words.slice(contextStart, contextEnd)
       .map(w => w.word).join(' ');
 
-    console.log(`✅ ENHANCED MATCH FOUND: accuracy=${bestMatch.accuracyScore.toFixed(3)}, matches=${bestMatch.matchCount}/${searchTerms.length}, key=${bestMatch.keyMatchCount}/${keyTerms.length}, seq=${bestMatch.sequentialMatches}, phrase=${bestMatch.exactPhraseBonus}`);
+    console.log(`✅ HIGH-ACCURACY MATCH FOUND: accuracy=${bestMatch.accuracyScore.toFixed(3)}, matches=${bestMatch.matchCount}/${searchTerms.length}, key=${bestMatch.keyMatchCount}/${keyTerms.length}, seq=${bestMatch.sequentialMatches}, phrase=${bestMatch.exactPhraseBonus}`);
     console.log(`📍 Timestamp: ${formatTimestamp(words[bestMatch.startIndex].start)}`);
     console.log(`🎯 Context: "${matchedText.substring(0, 100)}..."`);
 
@@ -337,6 +337,9 @@ export function findTimestampForText(
       contextQuality: bestMatch.contextQuality,
     };
   }
+
+  console.log(`❌ NO HIGH-ACCURACY MATCH: accuracy=${bestMatch.accuracyScore.toFixed(3)} < 0.6 threshold, matches=${bestMatch.matchCount}/${searchTerms.length}`);
+  console.log(`🎯 Quality standards enforced - skipping takeaway without accurate timestamp`);
 
   return null;
 }
@@ -490,7 +493,7 @@ export function findTimestampsForTakeaways(
         results.push({
           text: takeaway,
           timestamp: relaxedResult.timestamp,
-          confidence: Math.max(0.15, relaxedResult.confidence * 0.8), // Slightly reduce confidence
+          confidence: Math.max(0.6, relaxedResult.confidence * 0.9), // Require higher confidence for relaxed matches
           matchedText: relaxedResult.matchedText,
           fullContext: relaxedResult.fullContext,
           matchCount: relaxedResult.matchCount,
@@ -515,41 +518,12 @@ export function findTimestampsForTakeaways(
             totalSearchTerms: takeaway.split(' ').length,
           });
         } else {
-          // Strategy 3: Even distribution as final fallback
-          const audioDuration = words[words.length - 1]?.end || 0;
-          const estimatedTimestamp = (audioDuration / takeaways.length) * (i + 0.5);
+          // Strategy 3: No estimated timestamps - skip takeaways without accurate matches
+          console.log(`❌ SKIPPING takeaway without accurate timestamp: "${takeaway.substring(0, 50)}..."`);
+          console.log(`🎯 Reason: Could not find reliable word matches in transcript (minimum confidence required)`);
 
-          // Find the closest actual word timestamp to our estimate
-          let closestWordIndex = 0;
-          let minTimeDiff = Math.abs(words[0].start - estimatedTimestamp);
-
-          for (let j = 1; j < words.length; j++) {
-            const timeDiff = Math.abs(words[j].start - estimatedTimestamp);
-            if (timeDiff < minTimeDiff) {
-              minTimeDiff = timeDiff;
-              closestWordIndex = j;
-            }
-          }
-
-          const fallbackTimestamp = words[closestWordIndex].start;
-          usedTimestamps.push(fallbackTimestamp);
-
-          // Get context around the fallback timestamp
-          const contextStart = Math.max(0, closestWordIndex - 10);
-          const contextEnd = Math.min(words.length, closestWordIndex + 10);
-          const fallbackContext = words.slice(contextStart, contextEnd).map(w => w.word).join(' ');
-
-          results.push({
-            text: takeaway,
-            timestamp: fallbackTimestamp,
-            confidence: 0.1, // Lowest confidence for position-based fallback
-            matchedText: words.slice(closestWordIndex, Math.min(words.length, closestWordIndex + 5)).map(w => w.word).join(' '),
-            fullContext: fallbackContext,
-            matchCount: 0,
-            totalSearchTerms: takeaway.split(' ').length,
-          });
-
-          console.log(`📍 Applied position-based fallback for takeaway ${i + 1}: ${formatTimestamp(fallbackTimestamp)} (estimated position)`);
+          // Don't add this takeaway - maintain quality over quantity
+          // results.push() is omitted - takeaway is skipped entirely
         }
       }
     }

@@ -6,7 +6,9 @@ import { useAuth } from "@clerk/react-router";
 import { api } from "../../../convex/_generated/api";
 import type { Route } from "./+types/index";
 import { Button } from "~/components/ui/button";
+import { Banner } from "~/components/ui/banner";
 import { useState, useCallback } from "react";
+import { Rocket } from "lucide-react";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -19,16 +21,12 @@ export function meta({}: Route.MetaArgs) {
 export default function Page() {
   const { isSignedIn } = useAuth();
   const navigate = useNavigate();
-  const [newSummaryLoading, setNewSummaryLoading] = useState(false);
-  const [upgradeLoading, setUpgradeLoading] = useState(false);
   
   const handleNewSummaryClick = useCallback(() => {
-    setNewSummaryLoading(true);
     navigate("/dashboard/new-summary");
   }, [navigate]);
 
   const handleUpgradeClick = useCallback(() => {
-    setUpgradeLoading(true);
     navigate("/pricing");
   }, [navigate]);
   
@@ -76,7 +74,6 @@ export default function Page() {
                     </div>
                   </div>
                   <Button
-                    loading={upgradeLoading}
                     onClick={handleUpgradeClick}
                     className="px-4 py-2 text-sm font-medium"
                   >
@@ -90,38 +87,38 @@ export default function Page() {
           {/* General Upgrade Banner for Free Users */}
           {showUpgradeBanner && (
             <div className="px-4 lg:px-6">
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 relative overflow-hidden">
-                {/* Background decorative elements removed */}
-                
-                <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                  <div className="flex items-start lg:items-center gap-4">
-                    <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center shadow-lg flex-shrink-0">
-                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                      </svg>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                        🚀 Unlock Your Full Potential
-                      </h3>
-                      <p className="text-sm text-gray-600">
-                        You've used {userQuota.summaries.used} of {userQuota.summaries.limit} free summaries. Upgrade for more AI-powered insights!
-                      </p>
-                    </div>
+              <Banner
+                variant="muted"
+                className="bg-sidebar text-sidebar-foreground"
+                layout="complex"
+                icon={
+                  <div
+                    className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/15 max-md:mt-0.5"
+                    aria-hidden="true"
+                  >
+                    <Rocket className="opacity-80" size={16} strokeWidth={2} />
                   </div>
-                  <div className="flex flex-col gap-2 lg:flex-shrink-0">
+                }
+                action={
+                  <div className="flex flex-col gap-2 max-md:flex-wrap">
                     <Button
-                      loading={upgradeLoading}
+                      size="sm"
+                      className="text-sm bg-white text-black hover:bg-white/90"
                       onClick={handleUpgradeClick}
-                      variant="default"
-                      className="px-6 py-3 text-sm font-semibold shadow-lg hover:shadow-xl w-full sm:w-auto"
                     >
                       Upgrade Now
                     </Button>
-                    <p className="text-xs text-center text-gray-500">Starting at $12.99/mo</p>
+                    <p className="text-xs text-center text-muted-foreground">Starting at $12.99/mo</p>
                   </div>
+                }
+              >
+                <div className="space-y-0.5">
+                  <p className="text-sm font-medium">Unlock Your Full Potential</p>
+                  <p className="text-sm text-muted-foreground">
+                    You've used {userQuota.summaries.used} of {userQuota.summaries.limit} free summaries. Upgrade for more AI-powered insights!
+                  </p>
                 </div>
-              </div>
+              </Banner>
             </div>
           )}
 
@@ -134,7 +131,6 @@ export default function Page() {
               </div>
               <div className="flex gap-3">
                 <Button
-                  loading={newSummaryLoading}
                   onClick={handleNewSummaryClick}
                   className="inline-flex items-center px-3 sm:px-4 py-2 text-sm font-medium"
                 >

@@ -202,9 +202,9 @@ export async function generateSummaryWithGemini(
     console.log(`🚨 ULTRA-STRICT MODE ENABLED: Maximum word count enforcement`);
   }
 
-  // If we still can't determine genre after transcription, default to entertainment format
-  // but without actionable insights
-  const useDefaultFormat = !episodeDescription && !finalDescription;
+  // Use default format only when user hasn't explicitly requested actionable insights
+  // and we can't determine the genre from available information
+  const useDefaultFormat = !shouldGenerateInsights && !episodeDescription && !finalDescription;
 
   const strictnessPrefix = ultraStrictMode ? `
 🚨 ULTRA-STRICT MODE: This is your FINAL ATTEMPT. You MUST generate EXACTLY 150-200 words or this will be considered a failure.
@@ -219,69 +219,45 @@ WORD COUNT VERIFICATION: After writing your summary, COUNT THE WORDS to ensure i
 
 ` : '';
 
-  const prompt = shouldGenerateInsights && !useDefaultFormat ? `${strictnessPrefix}
-You are a podcast summarizer that analyzes the episode's genre and adapts your output accordingly. This episode appears to be in a business/productivity/educational genre.
+  const prompt = shouldGenerateInsights ? `${strictnessPrefix}
+You are an expert podcast summariser.
+Your output is valid ONLY if it follows the enforced structure below.
+Any deviation (wrong sectioning, missing timestamps, wrong counts, or transcript-like copying) is INVALID and must be regenerated.
 
-🚨 ULTRA-CRITICAL ACCURACY INSTRUCTION:
-1. READ EVERY SINGLE WORD of the transcript below from START TO FINISH
-2. ANALYZE THE COMPLETE EPISODE CONTENT - do not skim or skip sections
-3. VERIFY your takeaways reflect content from THROUGHOUT the episode (beginning, middle, and end)
-4. ENSURE each takeaway accurately represents what was ACTUALLY SAID in the transcript
-5. Only generate takeaways based on DIRECT CONTENT from the transcript - no assumptions
+### Required Sections (with headings):
+1. **Main Summary**
+   - Provide a 150-200 words of the entire episode.
+   - No timestamps in this section.
+2. **Key Takeaways**
+   - Must include exactly **7 numbered takeaways**, in chronological order.
+   - Each takeaway must begin with a placeholder timestamp [TIMESTAMP] - DO NOT guess timestamps
+   - Format for each item:
+     1. [TIMESTAMP] [1–2 sentence distilled insight]
+   - No transcript-like copying. Insights must be summarised in standalone, valuable terms.
+3. **Actionable Insights**
+   - Must include exactly **5 actionable insights** (not 7).
+   - Derive each insight directly from the content and themes of the chosen episode.
+   - For each actionable insight, display the information in three separate sections:
+     • Actionable Insight: Present the specific instruction based on episode content
+     • Why this matters: Brief explanation of the benefit or reason for the action
+     • Real-life example: Practical scenario demonstrating application of the insight (must not simply repeat the original instruction—add new context or detail)
+   - Format for each item:
+     1. **Actionable Insight**: [Specific instruction based on episode content]
+        **Why this matters**: [Brief explanation of the benefit or reason]
+        **Real-life example**: [Practical scenario with new context, not repeating the instruction]
 
-TRANSCRIPT ANALYSIS REQUIREMENT:
-- Read every word of the transcript below before proceeding
-- The transcript contains the COMPLETE episode content
-- Extract takeaways from the ENTIRE episode, not just the beginning
-- Ensure your summary reflects the full scope of discussion
-
-Generate a detailed, comprehensive summary that is EXACTLY 150-200 words (count your words carefully!) and exactly seven key takeaways highlighting important or useful points from across the ENTIRE episode.
-
-CRITICAL: Your summary MUST be between 150-200 words. Do not write shorter summaries. Include specific details, examples, insights, and juicy discussion points from the COMPLETE episode.
+### Debugging Self-Check (before final output):
+- Did I structure the response into **3 sections with headings**: Main Summary, Key Takeaways, Actionable Insights?
+- Are there exactly **7 Key Takeaways**, each starting with a **jumpable timestamp** in [hh:mm:ss] format?
+- Are there exactly **5 Actionable Insights**, practical and useful, not vague?
+- Did I avoid transcript-like copying?
+If ANY condition is not met, regenerate until fully compliant.
 
 Episode Title: ${episodeTitle}
 ${finalDescription ? `Episode Description: ${finalDescription}` : ''}
 
 COMPLETE Episode Transcript (READ ENTIRELY BEFORE PROCEEDING):
 ${finalTranscript}
-
-Format your response EXACTLY as:
-SUMMARY:
-[Write EXACTLY 150-200 words - count them! Include specific details, examples, key insights, interesting stories, important quotes, and juicy discussion points from the episode. Make it comprehensive and detailed, not generic.]
-
-KEY TAKEAWAYS:
-• First key takeaway highlighting important or useful point
-• Second important insight that listeners should know
-• Third actionable strategy or framework mentioned
-• Fourth valuable concept or principle discussed
-• Fifth noteworthy observation or data point
-• Sixth compelling story or example shared
-• Seventh memorable quote or final thought
-
-ACTIONABLE INSIGHTS:
-**Action 1: [Specific action or recommendation inspired by the content]**
-Context: [The reason or context for this suggestion - why this matters based on episode content]
-Application: [If relevant, an example or scenario of how this could be applied in real life, related to the episode's topic or audience]
-Resources: [Any specific tools, books, apps, websites, or resources mentioned in the episode]
-
-**Action 2: [Specific action or recommendation inspired by the content]**
-Context: [The reason or context for this suggestion - why this matters based on episode content]
-Application: [If relevant, an example or scenario of how this could be applied in real life, related to the episode's topic or audience]
-Resources: [Any specific tools, books, apps, websites, or resources mentioned in the episode]
-
-**Action 3: [Specific action or recommendation inspired by the content]**
-Context: [The reason or context for this suggestion - why this matters based on episode content]
-Application: [If relevant, an example or scenario of how this could be applied in real life, related to the episode's topic or audience]
-Resources: [Any specific tools, books, apps, websites, or resources mentioned in the episode]
-
-GROWTH STRATEGY:
-[2-3 sentences outlining strategic approaches, frameworks, or methodologies discussed that can drive growth, improvement, or success in business, career, or personal development]
-
-KEY INSIGHT:
-[1-2 sentences highlighting the most important revelation, principle, or "aha moment" from the episode that provides significant value or changes perspective]
-
-REALITY CHECK:
-[1-2 sentences addressing potential challenges, misconceptions, or important considerations that listeners should be aware of when implementing the discussed strategies or insights]
 ` : `${strictnessPrefix}
 You are a podcast summarizer that analyzes the episode's genre and adapts your output accordingly. ${useDefaultFormat ? 'Genre could not be determined - defaulting to general format.' : 'This episode appears to be entertainment/general content (comedy, fiction, sports, news, etc).'}
 
@@ -314,17 +290,18 @@ CRITICAL REQUIREMENTS:
 - Focus on entertainment value, interesting moments, and key lessons rather than actionable advice
 
 Format your response EXACTLY as:
-SUMMARY:
+
+**Main Summary**
 [Write EXACTLY 150-200 words - count them! Focus on the most interesting moments, entertainment value, funny stories, key discussions, memorable quotes, and noteworthy content. Include specific details and juicy discussion points. Make it engaging and informative without focusing on actionable advice.]
 
-KEY TAKEAWAYS:
-• First key takeaway focused on interesting or entertaining moment/lesson
-• Second important insight or memorable moment from the episode
-• Third noteworthy observation or discussion point
-• Fourth compelling story, example, or interesting revelation
-• Fifth entertaining moment or valuable perspective shared
-• Sixth notable quote, joke, or memorable exchange
-• Seventh final thought or standout moment from the episode
+**Key Takeaways**
+1. [TIMESTAMP] First key takeaway focused on interesting or entertaining moment/lesson
+2. [TIMESTAMP] Second important insight or memorable moment from the episode
+3. [TIMESTAMP] Third noteworthy observation or discussion point
+4. [TIMESTAMP] Fourth compelling story, example, or interesting revelation
+5. [TIMESTAMP] Fifth entertaining moment or valuable perspective shared
+6. [TIMESTAMP] Sixth notable quote, joke, or memorable exchange
+7. [TIMESTAMP] Seventh final thought or standout moment from the episode
 `;
 
   try {
@@ -334,123 +311,115 @@ KEY TAKEAWAYS:
 
     console.log("🤖 GEMINI RAW RESPONSE (first 500 chars):", text.substring(0, 500));
 
-    // Parse the response to extract summary, takeaways, and actionable insights
-    const summaryMatch = text.match(/SUMMARY:\s*([\s\S]*?)(?=KEY TAKEAWAYS:|$)/);
-    const takeawaysMatch = text.match(/KEY TAKEAWAYS:\s*([\s\S]*?)(?=ACTIONABLE INSIGHTS:|$)/);
-    const actionableInsightsMatch = text.match(/ACTIONABLE INSIGHTS:\s*([\s\S]*?)(?=GROWTH STRATEGY:|$)/);
-    const growthStrategyMatch = text.match(/GROWTH STRATEGY:\s*([\s\S]*?)(?=KEY INSIGHT:|$)/);
-    const keyInsightMatch = text.match(/KEY INSIGHT:\s*([\s\S]*?)(?=REALITY CHECK:|$)/);
-    const realityCheckMatch = text.match(/REALITY CHECK:\s*([\s\S]*?)(?=$)/);
+    // Parse the response to extract the structured format - support both ** and ### formats
+    const mainSummaryMatch = text.match(/(?:\*\*Main Summary\*\*|### Main Summary)\s*([\s\S]*?)(?=(?:\*\*Key Takeaways\*\*|### Key Takeaways)|$)/);
+    const keyTakeawaysMatch = text.match(/(?:\*\*Key Takeaways\*\*|### Key Takeaways)\s*([\s\S]*?)(?=(?:\*\*Actionable Insights\*\*|### Actionable Insights)|$)/);
+    const actionableInsightsMatch = text.match(/(?:\*\*Actionable Insights\*\*|### Actionable Insights)\s*([\s\S]*?)(?=$)/);
 
-    const summary = summaryMatch?.[1]?.trim() || text;
-    const takeawaysText = takeawaysMatch?.[1]?.trim() || '';
-
-    console.log("🎯 TAKEAWAYS RAW TEXT:", takeawaysText);
-    console.log("🎯 TAKEAWAYS SPLIT BY NEWLINE:", takeawaysText.split('\n'));
-
+    const summary = mainSummaryMatch?.[1]?.trim() || text;
+    const takeawaysText = keyTakeawaysMatch?.[1]?.trim() || '';
     const actionableInsightsText = actionableInsightsMatch?.[1]?.trim() || '';
-    const growthStrategyText = growthStrategyMatch?.[1]?.trim() || '';
-    const keyInsightText = keyInsightMatch?.[1]?.trim() || '';
-    const realityCheckText = realityCheckMatch?.[1]?.trim() || '';
 
-    // Parse takeaways into array
-    const takeaways = takeawaysText
-      .split('\n')
-      .filter(line => line.trim().startsWith('•'))
-      .map(line => line.replace(/^•\s*/, '').trim())
-      .filter(takeaway => takeaway.length > 0);
+    console.log("🎯 NEW FORMAT TAKEAWAYS RAW TEXT:", takeawaysText);
+    console.log("🎯 NEW FORMAT ACTIONABLE INSIGHTS RAW TEXT:", actionableInsightsText);
+    console.log("🎯 ACTIONABLE INSIGHTS LENGTH:", actionableInsightsText.length);
+    console.log("🎯 SHOULD GENERATE INSIGHTS:", shouldGenerateInsights);
+
+    // Parse numbered takeaways with timestamps: 1. [hh:mm:ss] ...
+    const takeaways: string[] = [];
+    const numberedTakeawayPattern = /(\d+)\.\s*\[([^\]]+)\]\s*(.*?)(?=\n\d+\.|$)/gs;
+
+    console.log("🔍 REGEX PATTERN:", numberedTakeawayPattern.source);
+    console.log("🔍 TAKEAWAYS TEXT LENGTH:", takeawaysText.length);
+    console.log("🔍 TAKEAWAYS PREVIEW:", takeawaysText.substring(0, 200));
+
+    let match;
+    while ((match = numberedTakeawayPattern.exec(takeawaysText)) !== null) {
+      const [, number, timestamp, keyTakeaway] = match;
+
+      console.log(`🎯 PARSING TAKEAWAY ${number}: ${timestamp}`);
+      console.log(`🎯 KEY TAKEAWAY: ${keyTakeaway.trim()}`);
+
+      // Store takeaway with timestamp
+      const takeawayWithTimestamp = `[${timestamp}] ${keyTakeaway.trim()}`;
+      takeaways.push(takeawayWithTimestamp);
+    }
+
+    // Parse actionable insights with structured format: Action, Why this matters, Real-life example
+    const actionableInsights: Array<{
+      action: string;
+      context: string;
+      application: string;
+      resources: string;
+    }> = [];
+
+    // Parse actionable insights with three-part structure: Actionable Insight, Why this matters, Real-life example
+    // More robust pattern to handle multiline content and variations in formatting
+    const insightPattern = /(\d+)\.\s*\*\*Actionable Insight\*\*:\s*([\s\S]*?)\s*\*\*Why this matters\*\*:\s*([\s\S]*?)\s*\*\*Real-life example\*\*:\s*([\s\S]*?)(?=\n\d+\.\s*\*\*Actionable Insight\*\*|$)/g;
+    let insightMatch;
+    while ((insightMatch = insightPattern.exec(actionableInsightsText)) !== null) {
+      const [, number, actionableInsight, whyMatters, realLifeExample] = insightMatch;
+
+      console.log(`🎯 PARSING ACTIONABLE INSIGHT ${number}:`);
+      console.log(`  Actionable Insight: ${actionableInsight.trim()}`);
+      console.log(`  Why this matters: ${whyMatters.trim()}`);
+      console.log(`  Real-life example: ${realLifeExample.trim()}`);
+
+      actionableInsights.push({
+        action: actionableInsight.trim(),
+        context: whyMatters.trim(),
+        application: realLifeExample.trim(),
+        resources: ''
+      });
+    }
+
+    // Fallback to simple format if structured format doesn't match
+    if (actionableInsights.length === 0 && actionableInsightsText.length > 0) {
+      console.log("⚠️ Structured format not found, falling back to simple format parsing");
+      const fallbackPattern = /(\d+)\.\s*(?:Actionable Insight:\s*)?(.*?)(?=\n\d+\.|$)/gs;
+      let fallbackMatch;
+      while ((fallbackMatch = fallbackPattern.exec(actionableInsightsText)) !== null) {
+        const [, number, insight] = fallbackMatch;
+
+        console.log(`🎯 FALLBACK PARSING ACTIONABLE INSIGHT ${number}: ${insight.trim()}`);
+
+        actionableInsights.push({
+          action: insight.trim(),
+          context: `Actionable insight ${number}`,
+          application: insight.trim(),
+          resources: ''
+        });
+      }
+    }
 
     console.log("🎯 PARSED TAKEAWAYS COUNT:", takeaways.length);
     console.log("🎯 PARSED TAKEAWAYS:", takeaways);
+    console.log("🎯 PARSED ACTIONABLE INSIGHTS COUNT:", actionableInsights.length);
 
-    // Fallback: If we don't have exactly 7 takeaways, try alternative parsing
-    let finalTakeaways = takeaways;
+    // Use the parsed takeaways and actionable insights from new format
+    const finalTakeaways = takeaways;
+    const finalActionableInsights = actionableInsights;
+
     if (finalTakeaways.length !== 7) {
       console.log("⚠️ TAKEAWAY COUNT MISMATCH! Expected 7, got:", finalTakeaways.length);
+      console.log("✅ Using new format with quality over quantity approach");
+    }
 
-      // Try parsing with numbered list (1. 2. 3. etc.)
-      const numberedTakeaways = takeawaysText
-        .split('\n')
-        .filter(line => /^\d+\./.test(line.trim()))
-        .map(line => line.replace(/^\d+\.\s*/, '').trim())
-        .filter(takeaway => takeaway.length > 0);
-
-      console.log("🔄 TRYING NUMBERED PARSING:", numberedTakeaways.length, numberedTakeaways);
-
-      if (numberedTakeaways.length === 7) {
-        finalTakeaways = numberedTakeaways;
-        console.log("✅ FIXED WITH NUMBERED PARSING!");
-      } else {
-        // Try parsing with dash/hyphen (- takeaway)
-        const dashedTakeaways = takeawaysText
-          .split('\n')
-          .filter(line => line.trim().startsWith('-'))
-          .map(line => line.replace(/^-\s*/, '').trim())
-          .filter(takeaway => takeaway.length > 0);
-
-        console.log("🔄 TRYING DASHED PARSING:", dashedTakeaways.length, dashedTakeaways);
-
-        if (dashedTakeaways.length === 7) {
-          finalTakeaways = dashedTakeaways;
-          console.log("✅ FIXED WITH DASHED PARSING!");
-        } else {
-          // Last resort: split by lines and take first 7 non-empty lines
-          const lineTakeaways = takeawaysText
-            .split('\n')
-            .map(line => line.trim())
-            .filter(line => line.length > 0)
-            .slice(0, 7);
-
-          console.log("🔄 TRYING LINE PARSING:", lineTakeaways.length, lineTakeaways);
-
-          if (lineTakeaways.length >= 4) {
-            finalTakeaways = lineTakeaways;
-            console.log("✅ FIXED WITH LINE PARSING!");
-          }
-        }
-      }
+    if (finalActionableInsights.length !== 5) {
+      console.log("⚠️ ACTIONABLE INSIGHTS COUNT MISMATCH! Expected 5, got:", finalActionableInsights.length);
     }
 
     console.log("🎯 FINAL TAKEAWAYS COUNT:", finalTakeaways.length);
     console.log("🎯 FINAL TAKEAWAYS:", finalTakeaways);
-
-    // Parse actionable insights into structured format when user requested them (not just for actionable genres)
-    console.log("🔍 ACTIONABLE INSIGHTS PARSING:");
-    console.log("  shouldGenerateInsights:", shouldGenerateInsights);
-    console.log("  useDefaultFormat:", useDefaultFormat);
-    console.log("  actionableInsightsText length:", actionableInsightsText.length);
-    console.log("  actionableInsightsText preview:", actionableInsightsText.substring(0, 200) + "...");
-
-    const actionableInsights = (shouldGenerateInsights && !useDefaultFormat) ?
-      actionableInsightsText
-        .split(/\*\*Action \d+:/)
-        .slice(1) // Remove empty first element
-        .map(insight => {
-          const lines = insight.trim().split('\n').filter(line => line.trim());
-          const action = lines[0]?.replace(/\*\*$/, '') || '';
-          const context = lines.find(line => line.startsWith('Context:'))?.replace('Context: ', '') || '';
-          const application = lines.find(line => line.startsWith('Application:'))?.replace('Application: ', '') || '';
-          const resources = lines.find(line => line.startsWith('Resources:'))?.replace('Resources: ', '') || '';
-
-          return {
-            action: action.trim(),
-            context: context.trim(),
-            application: application.trim(),
-            resources: resources.trim()
-          };
-        })
-        .filter(insight => insight.action.length > 0) : [];
-
-    console.log("🎉 FINAL ACTIONABLE INSIGHTS COUNT:", actionableInsights.length);
-    console.log("🎉 FINAL ACTIONABLE INSIGHTS:", actionableInsights);
+    console.log("🎯 FINAL ACTIONABLE INSIGHTS COUNT:", finalActionableInsights.length);
 
     return {
       summary,
       takeaways: finalTakeaways,
-      actionableInsights,
-      growthStrategy: shouldGenerateInsights ? growthStrategyText : undefined,
-      keyInsight: shouldGenerateInsights ? keyInsightText : undefined,
-      realityCheck: shouldGenerateInsights ? realityCheckText : undefined,
+      actionableInsights: finalActionableInsights,
+      growthStrategy: undefined, // Removed in new format
+      keyInsight: undefined, // Removed in new format
+      realityCheck: undefined, // Removed in new format
       model: 'gemini-2.0-flash-exp',
       fullTranscriptProcessed: true
     };

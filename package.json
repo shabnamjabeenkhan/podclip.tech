@@ -16,6 +16,8 @@
     "@convex-dev/resend": "^0.1.2-beta.2",
     "@deepgram/sdk": "^4.11.2",
     "@google/generative-ai": "^0.24.1",
+    "@headlessui/react": "^2.2.8",
+    "@heroicons/react": "^2.2.0",
     "@hookform/resolvers": "^5.1.1",
     "@notionhq/client": "^4.0.1",
     "@polar-sh/sdk": "^0.32.16",

@@ -6,13 +6,13 @@ import { useQuery } from "convex/react";
 import { useUser, useAuth } from "@clerk/react-router";
 import { useState, useEffect } from "react";
 import Markdown from "react-markdown";
-import { LoaderIcon, SendIcon } from "lucide-react";
-import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "~/components/ui/select";
+import { FileText, Link, Files } from "lucide-react";
+import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from '@headlessui/react';
+import { CheckIcon, ChevronDownIcon } from '@heroicons/react/20/solid';
 import { AnimatedAIChat } from "~/components/ui/animated-ai-chat";
+import { EmptyState } from "~/components/ui/empty-state";
 import { cn } from "~/lib/utils";
+import clsx from 'clsx';
 import { isFeatureEnabled, config } from "../../../config";
 import { api } from "convex/_generated/api";
 
@@ -27,6 +27,7 @@ export default function Chat() {
   
   // Local state for selected episode
   const [selectedSummaryId, setSelectedSummaryId] = useState<string | null>(initialSummaryId);
+  const [query, setQuery] = useState('');
 
   // Check if user can access chat - temporarily disabled to prevent errors
   // const chatAccess = useQuery(api.users.canUserAccessChat);
@@ -136,85 +137,109 @@ export default function Chat() {
 
   return (
     <div className="flex flex-col w-full min-h-screen bg-white relative overflow-x-hidden">
+      <style dangerouslySetInnerHTML={{
+        __html: `
+          input[data-headlessui-combobox-input] {
+            color: #000000 !important;
+          }
+          .combobox-input-black {
+            color: #000000 !important;
+          }
+        `
+      }} />
 
       <div className="flex flex-col w-full py-4 md:py-8 relative z-10">
         <div className="w-full max-w-none sm:max-w-2xl md:max-w-3xl lg:max-w-4xl space-y-4 lg:space-y-6 px-4 sm:px-6 lg:px-8 mx-auto">
 
         {/* Episode Selection Dropdown */}
-        <Card className="border border-white/[0.05] bg-white/[0.02] backdrop-blur-2xl">
-          <CardHeader className="pb-3 lg:pb-4">
-            <CardTitle className="text-lg lg:text-xl font-semibold text-black flex items-center gap-2 lg:gap-3">
-              <div className="flex items-center justify-center w-8 lg:w-10 h-8 lg:h-10 bg-black/[0.05] rounded-full">
-                🎧
-              </div>
-              <span className="text-base lg:text-xl">Select an Episode to Chat About</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            {userSummaries && userSummaries.length > 0 ? (
-              <div className="relative w-full">
-                <Select
-                  value={selectedSummaryId || ""}
-                  onValueChange={handleEpisodeSelect}
+        {userSummaries && userSummaries.length > 0 ? (
+          <div className="space-y-4">
+            <h2 className="text-lg lg:text-xl font-semibold text-black">
+              Select an Episode to Chat About
+            </h2>
+            <div className="relative w-full">
+                <Combobox
+                  value={userSummaries?.find((s: any) => s._id === selectedSummaryId) || null}
+                  onChange={(value) => value && handleEpisodeSelect(value._id)}
+                  onClose={() => setQuery('')}
                 >
-                <SelectTrigger className="w-full min-w-0 h-16 lg:h-20 border border-black/[0.05] hover:border-black/20 focus:border-black/30 bg-white shadow-sm py-3 lg:py-4 px-3 lg:px-4 text-left overflow-hidden">
-                  <div className="flex-1 min-w-0 flex flex-col justify-center px-2 lg:px-4 py-1 overflow-hidden">
-                    {selectedSummaryId && summary ? (
-                      <div className="font-semibold text-sm lg:text-base text-black leading-tight truncate w-full">
-                        {summary.episode_title || "Episode Summary"}
-                      </div>
-                    ) : (
-                      <div className="truncate w-full text-black/50 text-sm lg:text-base">
-                        <span className="hidden md:inline">🔍 Choose an episode from your summaries...</span>
-                        <span className="md:hidden">🔍 Choose an episode...</span>
-                      </div>
-                    )}
+                  <div className="relative">
+                    <ComboboxInput
+                      style={{
+                        color: '#000000 !important',
+                      } as React.CSSProperties}
+                      className={clsx(
+                        'w-full min-w-0 h-16 lg:h-20 border border-black/[0.05] hover:border-black/20 focus:border-black/30 bg-white shadow-sm py-3 lg:py-4 px-3 lg:px-4 pr-10 text-left overflow-hidden rounded-lg',
+                        'focus:outline-none focus:ring-2 focus:ring-black/10 placeholder:text-black/60',
+                        '[&>*]:!text-black [&]:!text-black combobox-input-black'
+                      )}
+                      displayValue={(summary: any) => summary?.episode_title || ''}
+                      onChange={(event) => setQuery(event.target.value)}
+                      placeholder="Choose an episode from your summaries..."
+                    />
+                    <ComboboxButton className="group absolute inset-y-0 right-0 px-2.5">
+                      <ChevronDownIcon
+                        className="size-5 text-black group-hover:text-black/80"
+                        style={{ color: '#000000', fill: '#000000', stroke: '#000000' }}
+                      />
+                    </ComboboxButton>
                   </div>
-                </SelectTrigger>
-                <SelectContent className="max-h-72 border border-black/[0.05] bg-white/90 backdrop-blur-xl w-full max-w-[calc(100vw-2rem)] sm:max-w-none p-1">
-                  {userSummaries.map((summary: any) => (
-                    <SelectItem key={summary._id} value={summary._id} className="py-3 h-auto min-h-[3rem] hover:bg-black/[0.05] focus:bg-black/[0.05] whitespace-normal">
-                      <div className="flex flex-col items-start w-full space-y-1 pb-4">
-                        <div className="font-semibold text-sm text-black w-full leading-relaxed whitespace-normal">
-                          {summary.episode_title || `Episode Summary`}
-                        </div>
-                        {summary.podcast_title && (
-                          <div className="text-xs text-black/60 w-full leading-relaxed whitespace-normal">
-                            📻 {summary.podcast_title}
+
+                  <ComboboxOptions
+                    anchor="bottom"
+                    transition
+                    className={clsx(
+                      'w-[--input-width] rounded-lg border border-black/[0.05] bg-white/90 backdrop-blur-xl p-1 [--anchor-gap:--spacing(1)] empty:invisible max-h-72 overflow-y-auto',
+                      'transition duration-100 ease-in data-leave:data-closed:opacity-0'
+                    )}
+                  >
+                    {userSummaries
+                      ?.filter((summary: any) =>
+                        query === '' ||
+                        summary.episode_title?.toLowerCase().includes(query.toLowerCase()) ||
+                        summary.podcast_title?.toLowerCase().includes(query.toLowerCase())
+                      )
+                      ?.map((summary: any) => (
+                        <ComboboxOption
+                          key={summary._id}
+                          value={summary}
+                          className="group flex cursor-default items-start gap-2 rounded-lg px-3 py-3 select-none data-focus:bg-black/[0.05] min-h-[3rem]"
+                        >
+                          <CheckIcon className="invisible size-4 fill-black mt-1 group-data-selected:visible flex-shrink-0" />
+                          <div className="flex flex-col items-start w-full space-y-1">
+                            <div className="font-semibold text-sm text-black w-full leading-relaxed">
+                              {summary.episode_title || `Episode Summary`}
+                            </div>
+                            {summary.podcast_title && (
+                              <div className="text-xs text-black/60 w-full leading-relaxed">
+                                📻 {summary.podcast_title}
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-                </Select>
+                        </ComboboxOption>
+                      ))}
+                  </ComboboxOptions>
+                </Combobox>
               </div>
-            ) : userSummaries === undefined ? (
-              <div className="flex items-center justify-center py-8 bg-white rounded-lg border border-dashed border-black/[0.05]">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-black/60 mr-3"></div>
-                <span className="text-base text-black/70">Loading your summaries...</span>
-              </div>
-            ) : (
-              <div className="text-center py-8 bg-white rounded-lg border border-dashed border-black/[0.05]">
-                <div className="w-16 h-16 bg-black/[0.05] rounded-full flex items-center justify-center mx-auto mb-4">
-                  📝
-                </div>
-                <p className="text-base text-black mb-2 font-medium">
-                  No summaries found
-                </p>
-                <p className="text-sm text-black/60 mb-4">
-                  Create your first summary to start chatting with AI about podcast episodes!
-                </p>
-                <Button
-                  onClick={() => navigate('/dashboard/new-summary')}
-                  className="bg-black text-white hover:bg-black/90 px-6 py-2"
-                >
-                  ✨ Create New Summary
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            </div>
+        ) : userSummaries === undefined ? (
+          <div className="flex items-center justify-center py-8 bg-white rounded-lg border border-dashed border-black/[0.05]">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-black/60 mr-3"></div>
+            <span className="text-base text-black/70">Loading your summaries...</span>
+          </div>
+        ) : (
+          <div className="flex justify-center py-8">
+            <EmptyState
+              title="No summaries found"
+              description="Create your first summary to start chatting with AI about podcast episodes!"
+              icons={[FileText, Link, Files]}
+              action={{
+                label: "Create New Summary",
+                onClick: () => navigate('/dashboard/new-summary')
+              }}
+            />
+          </div>
+        )}
 
         {/* Chat Interface */}
         {selectedSummaryId && (
@@ -236,8 +261,10 @@ export default function Chat() {
                 {/* Chat Messages */}
                 <div className="space-y-4 md:space-y-6">
                   {messages.map((message) => {
-                    // Safely handle the message content
-                    const messageContent = message.content || '';
+                    // Safely handle the message content and remove word count text
+                    let messageContent = message.content || '';
+                    // Remove word count text like "(Word Count 163)" from the message
+                    messageContent = messageContent.replace(/\(Word Count \d+\)/g, '').trim();
                     const messageParts = message.parts || [];
 
                     return (
@@ -261,9 +288,11 @@ export default function Chat() {
                             messageParts.map((part, partIndex) => {
                               switch (part.type) {
                                 case "text":
-                                  const textContent = typeof part.text === 'string' ? part.text :
+                                  let textContent = typeof part.text === 'string' ? part.text :
                                                     typeof part.text === 'object' ? JSON.stringify(part.text) :
                                                     String(part.text || '');
+                                  // Remove word count text from part content as well
+                                  textContent = textContent.replace(/\(Word Count \d+\)/g, '').trim();
                                   return (
                                     <div
                                       key={`${message.id}-${partIndex}`}

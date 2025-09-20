@@ -1,40 +1,22 @@
-import { memo, useState, useCallback } from "react";
+import { useCallback } from "react";
 import { Link } from "react-router";
-import { LogoIcon } from "~/components/logo";
-import {
-  Convex,
-  Polar,
-  ReactIcon,
-  ReactRouter,
-  ClerkLogo,
-} from "~/components/logos";
-import Resend from "~/components/logos/Resend";
 import { Button } from "~/components/ui/button";
-import { cn } from "~/lib/utils";
 import { Navbar } from "./navbar";
 import { ArrowRight } from "lucide-react";
 import ShinyText from "~/components/ShinyText";
-import { Spotlight } from "~/components/ui/spotlight";
 
 export default function IntegrationsSection({
   loaderData,
 }: {
   loaderData?: { isSignedIn: boolean; hasActiveSubscription: boolean };
 }) {
-  const [isHeroLoading, setIsHeroLoading] = useState(false);
-
   const handleHeroClick = useCallback(() => {
-    setIsHeroLoading(true);
+    // Handle hero click logic if needed
   }, []);
   return (
     <section id="hero" className="relative w-full">
       <Navbar loaderData={loaderData} />
       
-      <Spotlight
-        gradientFirst="radial-gradient(68.54% 68.72% at 55.02% 31.46%, hsla(336, 100%, 50%, 0.08) 0, hsla(341, 100%, 55%, 0.04) 50%, hsla(336, 100%, 45%, 0) 80%)"
-        gradientSecond="radial-gradient(50% 50% at 50% 50%, hsla(333, 100%, 85%, 0.08) 0, hsla(335, 100%, 55%, 0.04) 80%, transparent 100%)"
-        gradientThird="radial-gradient(50% 50% at 50% 50%, hsla(332, 100%, 85%, 0.06) 0, hsla(327, 100%, 85%, 0.06) 80%, transparent 100%)"
-      />
       
       
       {/* Background gradient overlay */}
@@ -60,7 +42,6 @@ export default function IntegrationsSection({
                 asChild
                 size="lg"
                 className="group px-4 sm:px-6 md:px-8 py-2 sm:py-3 md:py-4 text-sm sm:text-base md:text-lg font-semibold bg-gradient-to-r from-primary to-secondary hover:from-primary/90 hover:to-secondary/90 shadow-lg hover:shadow-xl transition-all duration-300 w-full sm:w-auto"
-                loading={isHeroLoading}
                 onClick={handleHeroClick}
               >
                 <Link to="/sign-up" prefetch="viewport" className="flex items-center justify-center">
@@ -86,30 +67,3 @@ export default function IntegrationsSection({
   );
 }
 
-const IntegrationCard = memo(({
-  children,
-  className,
-  borderClassName,
-}: {
-  children: React.ReactNode;
-  className?: string;
-  borderClassName?: string;
-}) => {
-  return (
-    <div
-      className={cn(
-        "bg-background relative flex size-20 rounded-xl dark:bg-transparent",
-        className
-      )}
-    >
-      <div
-        role="presentation"
-        className={cn(
-          "absolute inset-0 rounded-xl border border-black/20 dark:border-white/25",
-          borderClassName
-        )}
-      />
-      <div className="relative z-20 m-auto size-fit *:size-8">{children}</div>
-    </div>
-  );
-});
