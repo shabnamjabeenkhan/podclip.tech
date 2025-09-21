@@ -1,6 +1,8 @@
 import { useQuery } from "convex/react";
 import { useAuth } from "@clerk/react-router";
 import { api } from "../../../convex/_generated/api";
+import { GlowingCard } from "~/components/ui/glowing-card";
+import { StatisticsCard } from "~/components/ui/statistics-card";
 
 export function StatsCards() {
   const { isSignedIn } = useAuth();
@@ -87,40 +89,66 @@ export function StatsCards() {
 
   return (
     <div className="grid grid-cols-1 gap-3 xs:grid-cols-2 lg:grid-cols-3">
-      {stats.map((stat) => (
-        <div 
-          key={stat.title} 
-          className={`p-4 sm:p-6 rounded-lg border transition-all duration-300 ${
-            stat.highlighted 
-              ? 'bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 shadow-lg hover:shadow-xl hover:scale-[1.02] ring-2 ring-green-200/50' 
-              : 'bg-white border-gray-200 hover:shadow-md'
-          }`}
-        >
-          <div className="flex items-center">
-            <div className={`p-2 rounded-lg flex-shrink-0 ${getColorClasses(stat.color)} ${stat.highlighted ? 'shadow-md' : ''}`}>
-              {stat.icon}
+      {stats.map((stat) => {
+        if (stat.highlighted && stat.title === "Time Saved") {
+          return (
+            <GlowingCard
+              key={stat.title}
+              title="Time Saved"
+              value={stat.value}
+              subtitle={stat.subtitle}
+            />
+          );
+        }
+
+        // Use StatisticsCard for Summaries Generated and Searches Performed
+        if (stat.title === "Summaries Generated" || stat.title === "Searches Performed") {
+          return (
+            <StatisticsCard
+              key={stat.title}
+              title={stat.title}
+              value={stat.value}
+              subtitle={stat.subtitle}
+              icon={stat.icon}
+            />
+          );
+        }
+
+        return (
+          <div
+            key={stat.title}
+            className={`p-4 sm:p-6 rounded-lg border transition-all duration-300 ${
+              stat.highlighted
+                ? 'bg-gradient-to-br from-green-50 to-emerald-100 border-green-200 shadow-lg hover:shadow-xl hover:scale-[1.02] ring-2 ring-green-200/50'
+                : 'bg-white border-gray-200 hover:shadow-md'
+            }`}
+          >
+            <div className="flex items-center">
+              <div className={`p-2 rounded-lg flex-shrink-0 ${getColorClasses(stat.color)} ${stat.highlighted ? 'shadow-md' : ''}`}>
+                {stat.icon}
+              </div>
+              <div className="ml-3 sm:ml-4 min-w-0 flex-1">
+                <p className={`text-xs sm:text-sm font-medium truncate ${stat.highlighted ? 'text-green-800' : 'text-gray-600'}`}>
+                  {stat.title}
+                </p>
+                <p className={`text-xl sm:text-2xl font-bold ${stat.highlighted ? 'text-green-900' : 'text-gray-900'}`}>
+                  {stat.value}
+                </p>
+                <p className={`text-xs truncate ${stat.highlighted ? 'text-green-700' : 'text-gray-500'}`}>
+                  {stat.subtitle}
+                </p>
+              </div>
             </div>
-            <div className="ml-3 sm:ml-4 min-w-0 flex-1">
-              <p className={`text-xs sm:text-sm font-medium truncate ${stat.highlighted ? 'text-green-800' : 'text-gray-600'}`}>
-                {stat.title}
-              </p>
-              <p className={`text-xl sm:text-2xl font-bold ${stat.highlighted ? 'text-green-900' : 'text-gray-900'}`}>
-                {stat.value}
-              </p>
-              <p className={`text-xs truncate ${stat.highlighted ? 'text-green-700' : 'text-gray-500'}`}>
-                {stat.subtitle}
-              </p>
-            </div>
+            {stat.highlighted && (
+              <div className="mt-3 pt-3 border-t border-green-200">
+                <p className="text-xs text-green-600 font-medium">
+                  ⚡ Keep generating summaries to save more time!
+                </p>
+              </div>
+            )}
           </div>
-          {stat.highlighted && (
-            <div className="mt-3 pt-3 border-t border-green-200">
-              <p className="text-xs text-green-600 font-medium">
-                ⚡ Keep generating summaries to save more time!
-              </p>
-            </div>
-          )}
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

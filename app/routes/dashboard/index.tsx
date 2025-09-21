@@ -1,14 +1,16 @@
 import { StatsCards } from "~/components/dashboard/stats-cards";
 import { RecentSummaries } from "~/components/dashboard/recent-summaries";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import { useQuery } from "convex/react";
 import { useAuth } from "@clerk/react-router";
 import { api } from "../../../convex/_generated/api";
 import type { Route } from "./+types/index";
 import { Button } from "~/components/ui/button";
 import { Banner } from "~/components/ui/banner";
+import { HoverButton } from "~/components/ui/hover-button";
+import { QuickLinksCard } from "~/components/ui/card-2";
 import { useState, useCallback } from "react";
-import { Rocket } from "lucide-react";
+import { Rocket, Plus, FileText, Settings } from "lucide-react";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -130,15 +132,15 @@ export default function Page() {
                 <p className="text-sm sm:text-base text-gray-600">Your podcast listening and summary activity</p>
               </div>
               <div className="flex gap-3">
-                <Button
+                <HoverButton
                   onClick={handleNewSummaryClick}
-                  className="inline-flex items-center px-3 sm:px-4 py-2 text-sm font-medium"
+                  className="inline-flex items-center text-sm font-medium px-4 py-2 sm:px-8 sm:py-3"
                 >
                   <svg className="w-4 h-4 sm:mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
-                  <span className="sm:inline">Browse Podcasts</span>
-                </Button>
+                  <span className="ml-2">Browse Podcasts</span>
+                </HoverButton>
               </div>
             </div>
           </div>
@@ -155,56 +157,27 @@ export default function Page() {
 
           {/* Quick Actions */}
           <div className="px-4 lg:px-6">
-            <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-              <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 sm:gap-4">
-                <Link
-                  to="/dashboard/new-summary"
-                  className="flex items-center p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
-                >
-                  <div className="p-2 bg-gray-50 rounded-lg mr-3">
-                    <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">Generate Summary</p>
-                    <p className="text-sm text-gray-500">Create AI summary</p>
-                  </div>
-                </Link>
-
-                <Link
-                  to="/dashboard/all-summaries"
-                  className="flex items-center p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
-                >
-                  <div className="p-2 bg-green-50 rounded-lg mr-3">
-                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">View Summaries</p>
-                    <p className="text-sm text-gray-500">Browse all summaries</p>
-                  </div>
-                </Link>
-
-                <Link
-                  to="/dashboard/settings"
-                  className="flex items-center p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow"
-                >
-                  <div className="p-2 bg-purple-50 rounded-lg mr-3">
-                    <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">Settings</p>
-                    <p className="text-sm text-gray-500">Manage preferences</p>
-                  </div>
-                </Link>
-              </div>
-            </div>
+            <QuickLinksCard
+              title="Quick Actions"
+              className="bg-[#26282B] border-gray-600 text-white max-w-none"
+              actions={[
+                {
+                  icon: <Plus className="h-full w-full" />,
+                  label: "Generate Summary",
+                  onClick: () => navigate("/dashboard/new-summary"),
+                },
+                {
+                  icon: <FileText className="h-full w-full" />,
+                  label: "View Summaries",
+                  onClick: () => navigate("/dashboard/all-summaries"),
+                },
+                {
+                  icon: <Settings className="h-full w-full" />,
+                  label: "Settings",
+                  onClick: () => navigate("/dashboard/settings"),
+                },
+              ]}
+            />
           </div>
         </div>
       </div>

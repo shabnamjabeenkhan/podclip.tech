@@ -41,6 +41,27 @@
     --radius-md: 10px;
     --radius-lg: 12px;
     --radius-xl: 20px;
+  @keyframes moveDot {
+  0%,
+  100% {
+    top: 10%;
+    right: 10%;
+        }
+  25% {
+    top: 10%;
+    right: calc(100% - 35px);
+        }
+  50% {
+    top: calc(100% - 30px);
+    right: calc(100% - 35px);
+        }
+  75% {
+    top: calc(100% - 30px);
+    right: 10%;
+        }
+    }
+  --color-destructive-foreground: oklch(1 0 0);
+  --color-color-destructive-foreground: var(----color-destructive-foreground)
 }
 
 :root {
@@ -141,6 +162,7 @@
     --sidebar-accent-foreground: #f8fafc;
     --sidebar-border: #475569;
     --sidebar-ring: hsl(158, 62%, 33%);
+    --destructive-foreground: oklch(1 0 0);
 }
 
 @layer base {
@@ -227,7 +249,6 @@
   }
 }
 
-
 /* --- CPU Architecture Animation --- */
 .cpu-architecture {
   offset-anchor: 10px 0px;
@@ -305,5 +326,146 @@
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* Glowing Card Styles */
+.outer {
+  background: radial-gradient(circle at 50% 50%, hsl(158, 62%, 20%) 0%, transparent 50%);
+  height: 160px;
+  width: 100%;
+  min-width: 250px;
+  position: relative;
+  z-index: 1;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.dot {
+  position: absolute;
+  top: 10%;
+  right: 10%;
+  height: 8px;
+  width: 8px;
+  background: hsl(158, 62%, 50%);
+  border-radius: 50%;
+  animation: moveDot 3s infinite;
+  filter: blur(1px);
+  z-index: 2;
+}
+
+.card {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(135deg, rgba(11, 18, 21, 0.95) 0%, rgba(24, 24, 27, 0.95) 100%);
+  border: 1px solid hsl(158, 62%, 33%);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+}
+
+.ray {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg,
+    transparent 0%,
+    hsla(158, 62%, 50%, 0.1) 30%,
+    hsla(158, 62%, 50%, 0.2) 50%,
+    hsla(158, 62%, 50%, 0.1) 70%,
+    transparent 100%);
+  opacity: 0.6;
+  animation: shimmer 2s infinite;
+}
+
+.text {
+  font-size: 3rem;
+  font-weight: 800;
+  color: hsl(158, 62%, 50%);
+  text-shadow: 0 0 20px hsla(158, 62%, 50%, 0.5);
+  margin-bottom: 0.5rem;
+  z-index: 3;
+  position: relative;
+}
+
+.card > div:nth-child(3) {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 500;
+  z-index: 3;
+  position: relative;
+}
+
+.subtitle {
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 400;
+  margin-top: 0.25rem;
+  text-align: center;
+  z-index: 3;
+  position: relative;
+}
+
+.line {
+  position: absolute;
+  background: linear-gradient(90deg, transparent, hsl(158, 62%, 50%), transparent);
+  animation: borderGlow 2s infinite;
+}
+
+.topl {
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+}
+
+.leftl {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 1px;
+  background: linear-gradient(180deg, transparent, hsl(158, 62%, 50%), transparent);
+}
+
+.bottoml {
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+}
+
+.rightl {
+  top: 0;
+  bottom: 0;
+  right: 0;
+  width: 1px;
+  background: linear-gradient(180deg, transparent, hsl(158, 62%, 50%), transparent);
+}
+
+@keyframes shimmer {
+  0%, 100% {
+    opacity: 0.3;
+    transform: translateX(-100%);
+  }
+  50% {
+    opacity: 0.8;
+    transform: translateX(100%);
+  }
+}
+
+@keyframes borderGlow {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 20px hsl(158, 62%, 50%);
   }
 }

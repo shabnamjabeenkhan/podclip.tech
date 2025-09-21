@@ -176,6 +176,7 @@ export default function Chat() {
                       displayValue={(summary: any) => summary?.episode_title || ''}
                       onChange={(event) => setQuery(event.target.value)}
                       placeholder="Choose an episode from your summaries..."
+                    
                     />
                     <ComboboxButton className="group absolute inset-y-0 right-0 px-2.5">
                       <ChevronDownIcon

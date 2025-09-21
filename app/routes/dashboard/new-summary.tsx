@@ -6,6 +6,7 @@ import { useAuth } from "@clerk/react-router";
 import { toast } from "sonner";
 import { useAudio } from "~/contexts/app-context";
 import { SimplePagination, Pagination } from "~/components/ui/pagination";
+import { HoverButton } from "~/components/ui/hover-button";
 import type { Route } from "./+types/new-summary";
 
 // Utility function to break summary text into readable paragraphs
@@ -727,19 +728,19 @@ export default function NewSummary() {
             <label className="block text-sm font-medium text-gray-700 mb-3">
               Search for podcasts
             </label>
-            <div className="flex gap-3">
-              <input 
-                type="text" 
+            <div className="flex flex-col sm:flex-row gap-3">
+              <input
+                type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Enter podcast name (e.g., The Daily, Joe Rogan Experience)"
-                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                placeholder="Type a name or podcast title"
+                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 w-full"
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch(1, true)}
               />
-              <button 
+              <button
                 onClick={() => handleSearch(1, true)}
                 disabled={isLoading || !searchQuery.trim()}
-                className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                className="px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors w-full sm:w-auto whitespace-nowrap"
               >
                 {isLoading ? "Searching..." : "Search"}
               </button>
@@ -866,7 +867,7 @@ export default function NewSummary() {
                 ) : episodes?.episodes ? (
                   <>
                     {episodes?.episodes?.map((episode: any, index: number) => (
-                  <div key={index} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow">
+                  <div key={index} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow" style={{padding: 0}}>
                     <div className="space-y-4">
                       {/* Episode Info */}
                       <div className="flex items-start justify-between gap-6">
@@ -1031,9 +1032,9 @@ export default function NewSummary() {
 
                       {/* Existing Summary Display */}
                       {existingSummaries[episode.id] && (
-                        <div className="bg-blue-50 rounded-xl p-6 border border-blue-100 shadow-sm">
-                          <div className="flex items-center justify-between mb-6">
-                            <div className="flex items-center gap-2">
+                        <div className="bg-blue-50 rounded-xl p-0 border border-blue-100 shadow-sm">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-2 mb-6 px-6 pt-6">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                               </svg>
@@ -1042,7 +1043,7 @@ export default function NewSummary() {
                                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
-                                Timestamps
+Timestamps
                               </span>
                             </div>
                             <button
@@ -1066,29 +1067,46 @@ export default function NewSummary() {
                             </button>
                           </div>
                           
-                          {/* Summary Section */}
-                          <div className="bg-white rounded-lg p-4 mb-6">
+                          {/* Summary Section - Preview with Fade */}
+                          <div className="bg-white rounded-lg p-4 mx-6 mb-6">
                             <div className="flex items-center gap-2 mb-4">
                               <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                               </svg>
                               <h5 className="font-medium text-gray-900">Summary</h5>
                             </div>
-                            <div className="text-gray-900 leading-relaxed text-lg font-medium">
-                              {(() => {
-                                const paragraphs = formatSummaryIntoParagraphs(existingSummaries[episode.id].content);
-                                return paragraphs.map((paragraph, index) => (
-                                  <div key={index} className={index > 0 ? "mt-4" : ""}>
-                                    <p>{paragraph}</p>
-                                  </div>
-                                ));
-                              })()}
+                            <div className="relative">
+                              <div className="text-gray-900 leading-relaxed text-lg font-medium">
+                                {(() => {
+                                  const paragraphs = formatSummaryIntoParagraphs(existingSummaries[episode.id].content);
+                                  // Show only the first paragraph
+                                  if (paragraphs.length > 0) {
+                                    return <p>{paragraphs[0]}</p>;
+                                  }
+                                  return null;
+                                })()}
+                              </div>
+                              {/* Fade out effect */}
+                              <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white to-transparent pointer-events-none"></div>
+                            </div>
+                            {/* View Full Summary Button */}
+                            <div className="mt-4 pt-4 border-t border-gray-100">
+                              <HoverButton
+                                onClick={() => window.location.href = "/dashboard/all-summaries"}
+                                className="inline-flex items-center gap-2"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                                View Full Summary
+                              </HoverButton>
                             </div>
                           </div>
                           
                           {/* Key Takeaways Section */}
                           {existingSummaries[episode.id].takeaways && existingSummaries[episode.id].takeaways.length > 0 && (
-                            <div className="bg-white rounded-lg p-4 mb-6">
+                            <div className="bg-white rounded-lg p-4 mx-6 mb-6">
                               <div className="flex items-center gap-2 mb-4">
                                 <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -1174,9 +1192,9 @@ export default function NewSummary() {
 
                       {/* Generated Summary Display - Clean Design */}
                       {summaries[episode.id] && (
-                        <div className="bg-blue-50 rounded-xl p-6 border border-blue-100 shadow-sm animate-in slide-in-from-top-4 duration-500">
-                          <div className="flex items-center justify-between mb-6">
-                            <div className="flex items-center gap-2">
+                        <div className="bg-blue-50 rounded-xl p-0 border border-blue-100 shadow-sm animate-in slide-in-from-top-4 duration-500">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-2 mb-6 px-6 pt-6">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                               </svg>
@@ -1188,21 +1206,21 @@ export default function NewSummary() {
                                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                       </svg>
-                                      Timestamps
+Timestamps
                                     </span>
                                   ) : summaries[episode.id].deepgramError ? (
                                     <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded-full" title={summaries[episode.id].deepgramError}>
                                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                       </svg>
-                                      No Timestamps
+No Timestamps
                                     </span>
                                   ) : (
                                     <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-600 text-xs font-medium rounded-full">
                                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                       </svg>
-                                      Basic
+Basic
                                     </span>
                                   )}
                                 </div>
@@ -1229,29 +1247,46 @@ export default function NewSummary() {
                             </button>
                           </div>
                           
-                          {/* Summary Section */}
-                          <div className="bg-white rounded-lg p-4 mb-6">
+                          {/* Summary Section - Preview with Fade */}
+                          <div className="bg-white rounded-lg p-4 mx-6 mb-6">
                             <div className="flex items-center gap-2 mb-4">
                               <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                               </svg>
                               <h5 className="font-medium text-gray-900">Summary</h5>
                             </div>
-                            <div className="text-gray-900 leading-relaxed text-lg font-medium">
-                              {(() => {
-                                const paragraphs = formatSummaryIntoParagraphs(summaries[episode.id].summary);
-                                return paragraphs.map((paragraph, index) => (
-                                  <div key={index} className={index > 0 ? "mt-4" : ""}>
-                                    <p>{paragraph}</p>
-                                  </div>
-                                ));
-                              })()}
+                            <div className="relative">
+                              <div className="text-gray-900 leading-relaxed text-lg font-medium">
+                                {(() => {
+                                  const paragraphs = formatSummaryIntoParagraphs(summaries[episode.id].summary);
+                                  // Show only the first paragraph
+                                  if (paragraphs.length > 0) {
+                                    return <p>{paragraphs[0]}</p>;
+                                  }
+                                  return null;
+                                })()}
+                              </div>
+                              {/* Fade out effect */}
+                              <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white to-transparent pointer-events-none"></div>
+                            </div>
+                            {/* View Full Summary Button */}
+                            <div className="mt-4 pt-4 border-t border-gray-100">
+                              <HoverButton
+                                onClick={() => window.location.href = "/dashboard/all-summaries"}
+                                className="inline-flex items-center gap-2"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                                View Full Summary
+                              </HoverButton>
                             </div>
                           </div>
                           
                           {/* Key Takeaways Section */}
                           {summaries[episode.id].takeaways && summaries[episode.id].takeaways.length > 0 && (
-                            <div className="bg-white rounded-lg p-4 mb-6">
+                            <div className="bg-white rounded-lg p-4 mx-6 mb-6">
                               <div className="flex items-center gap-2 mb-4">
                                 <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -1264,8 +1299,6 @@ export default function NewSummary() {
                                   let text = '';
                                   let timestamp = null;
                                   let formattedTime = null;
-                                  let confidence = null;
-
                                   if (typeof takeaway === 'string') {
                                     // Simple string format
                                     text = takeaway;
@@ -1274,7 +1307,6 @@ export default function NewSummary() {
                                     text = takeaway.text || takeaway.content || String(takeaway);
                                     timestamp = takeaway.timestamp || null;
                                     formattedTime = takeaway.formatted_time || null;
-                                    confidence = takeaway.confidence || null;
                                   } else {
                                     // Fallback for any other format
                                     text = String(takeaway || '');
@@ -1330,7 +1362,7 @@ export default function NewSummary() {
 
                           {/* Actionable Insights Section */}
                           {summaries[episode.id].actionable_insights && summaries[episode.id].actionable_insights.length > 0 && (
-                            <div className="bg-white rounded-lg p-4 mb-6">
+                            <div className="bg-white rounded-lg p-4 mx-6 mb-6">
                               <div className="flex items-center gap-2 mb-4">
                                 <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -1371,7 +1403,7 @@ export default function NewSummary() {
 
                           {/* Growth Strategy Section */}
                           {summaries[episode.id].growthStrategy && (
-                            <div className="bg-white rounded-lg p-4 mb-6">
+                            <div className="bg-white rounded-lg p-4 mx-6 mb-6">
                               <div className="flex items-center gap-2 mb-4">
                                 <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
@@ -1386,7 +1418,7 @@ export default function NewSummary() {
 
                           {/* Key Insight Section */}
                           {summaries[episode.id].keyInsight && (
-                            <div className="bg-white rounded-lg p-4 mb-6">
+                            <div className="bg-white rounded-lg p-4 mx-6 mb-6">
                               <div className="flex items-center gap-2 mb-4">
                                 <svg className="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
@@ -1401,7 +1433,7 @@ export default function NewSummary() {
 
                           {/* Reality Check Section */}
                           {summaries[episode.id].realityCheck && (
-                            <div className="bg-white rounded-lg p-4 mb-6">
+                            <div className="bg-white rounded-lg p-4 mx-6 mb-6">
                               <div className="flex items-center gap-2 mb-4">
                                 <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.728-.833-2.498 0L4.268 16.5c-.77.833.192 2.5 1.732 2.5z" />
