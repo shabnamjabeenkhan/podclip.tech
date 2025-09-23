@@ -3,21 +3,17 @@ import { useAuth } from "@clerk/react-router";
 import { api } from "../../../convex/_generated/api";
 import { useNavigate } from "react-router";
 import { Button } from "~/components/ui/button";
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
 
 export function RecentSummaries() {
   const { isSignedIn } = useAuth();
   const navigate = useNavigate();
-  const [createSummaryLoading, setCreateSummaryLoading] = useState(false);
-  const [viewAllLoading, setViewAllLoading] = useState(false);
 
   const handleCreateSummaryClick = useCallback(() => {
-    setCreateSummaryLoading(true);
     navigate("/dashboard/new-summary");
   }, [navigate]);
 
   const handleViewAllClick = useCallback(() => {
-    setViewAllLoading(true);
     navigate("/dashboard/all-summaries");
   }, [navigate]);
   
@@ -61,7 +57,6 @@ export function RecentSummaries() {
           <p className="mt-1 text-xs sm:text-sm text-gray-300">Generate your first AI summary</p>
           <div className="mt-4 sm:mt-6">
             <Button
-              loading={createSummaryLoading}
               onClick={handleCreateSummaryClick}
               className="inline-flex items-center px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium"
             >
@@ -79,7 +74,6 @@ export function RecentSummaries() {
         <h3 className="text-base sm:text-lg font-semibold text-white">Recent Summaries</h3>
         <Button
           variant="link"
-          loading={viewAllLoading}
           onClick={handleViewAllClick}
           className="text-xs sm:text-sm text-white hover:text-gray-200 font-medium whitespace-nowrap p-0 h-auto"
         >

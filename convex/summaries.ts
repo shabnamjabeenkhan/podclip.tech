@@ -1,8 +1,9 @@
 import { v } from "convex/values";
 import { action, mutation, query } from "./_generated/server";
 import { internal, api } from "./_generated/api";
-import { findTimestampForText, findTimestampsForTakeaways, formatTimestamp, verifyTakeawayAlignment } from "./deepgram";
-import { generateSummaryWithGemini, transcribeAudioWithGemini, getGeminiClient } from "./gemini";
+import { findTimestampForText, findTimestampsForTakeaways, formatTimestamp, formatTimestampWithBuffer, verifyTakeawayAlignment } from "./deepgram";
+import { generateSummaryWithGemini, transcribeAudioWithGemini, getGeminiClient, filterVerbatimTakeaways, polishTakeaways } from "./gemini";
+
 
 // Helper function for simple keyword matching when full transcript matching fails
 function findSimpleKeywordMatch(
@@ -333,7 +334,7 @@ export const generateSummaryWithTimestamps = action({
       
       try {
         const transcriptWordCount = transcript.split(/\s+/).filter((word: string) => word.length > 0).length;
-        console.log(`🔮 Using Gemini 2.0 Flash for episode ${args.episodeId}`);
+        console.log(`🔮 ATTEMPTING GEMINI 2.0 Flash for episode ${args.episodeId}`);
         console.log(`📊 FULL TRANSCRIPT: ${transcriptWordCount} words, ${transcript.length} characters`);
         console.log(`🎙️ TRANSCRIPT PREVIEW: "${transcript.substring(0, 300)}..."`);
 
@@ -343,7 +344,8 @@ export const generateSummaryWithTimestamps = action({
         } else {
           console.log(`✅ Transcript length appears sufficient for detailed summary`);
         }
-        
+
+        console.log(`🚀 CALLING generateSummaryWithGemini function...`);
         let geminiResult = await generateSummaryWithGemini(
           transcript,
           args.episodeTitle,
@@ -352,14 +354,17 @@ export const generateSummaryWithTimestamps = action({
           false, // ultraStrictMode
           shouldGenerateInsights // Pass user's choice
         );
+        console.log(`🚀 GEMINI FUNCTION RETURNED SUCCESSFULLY`);
+        console.log(`🚀 GEMINI RESULT: summary=${geminiResult.summary.length} chars, takeaways=${geminiResult.takeaways.length}`);
         
         console.log(`✅ Gemini summary completed for episode ${args.episodeId}`);
 
         // Log word count analysis
         let summaryWordCount = geminiResult.summary.split(/\s+/).filter((word: string) => word.length > 0).length;
+        console.log(`🚀 DEBUG: REACHED WORD COUNT VALIDATION for "${args.episodeTitle}"`);
         console.log(`📊 SUMMARY WORD COUNT: ${summaryWordCount} words (target: 150-200 words)`);
         console.log(`📝 Summary length: ${geminiResult.summary.length} characters`);
-        console.log(`🎯 Takeaways count: ${geminiResult.takeaways.length} (target: 3-7)`);
+        console.log(`🎯 Takeaways count: ${geminiResult.takeaways.length} (target: 5)`);
 
         if (summaryWordCount < 150) {
           console.log(`🚨 CRITICAL ERROR: Gemini summary is too short (${summaryWordCount} words < 150)`);
@@ -459,6 +464,10 @@ export const generateSummaryWithTimestamps = action({
         } else {
           console.log(`✅ COMPREHENSIVE TRANSCRIPT VALIDATION PASSED - Proceeding with high-quality takeaway extraction`);
         }
+
+        // Skip duplicate verbatim filtering - already filtered in Gemini generation
+        console.log(`✅ SKIPPING DUPLICATE VERBATIM FILTERING - already filtered in Gemini (${geminiResult.takeaways.length} takeaways)`);
+        // geminiResult.takeaways already contains filtered takeaways from Gemini generation
 
         // Process takeaways with timestamps if available
         let processedTakeaways: Array<string | {
@@ -561,7 +570,7 @@ export const generateSummaryWithTimestamps = action({
             return {
               text: finalTakeawayText,
               timestamp: result.timestamp,
-              formatted_time: result.timestamp ? formatTimestamp(result.timestamp) : undefined,
+              formatted_time: result.timestamp ? formatTimestampWithBuffer(result.timestamp) : undefined,
               confidence: result.confidence,
               matchedText: result.matchedText,
               fullContext: result.fullContext,
@@ -612,7 +621,7 @@ export const generateSummaryWithTimestamps = action({
                   return {
                     text: finalTakeawayText,
                     timestamp: result.timestamp,
-                    formatted_time: result.timestamp ? formatTimestamp(result.timestamp) : undefined,
+                    formatted_time: result.timestamp ? formatTimestampWithBuffer(result.timestamp) : undefined,
                     confidence: result.confidence,
                     matchedText: result.matchedText,
                     fullContext: result.fullContext,
@@ -630,15 +639,15 @@ export const generateSummaryWithTimestamps = action({
             }
           }
 
-          // NO ESTIMATED TIMESTAMPS: Remove takeaways without accurate timestamps
-          const geminiTakeawaysWithoutTimestamps = processedTakeaways.filter((t: any) => !t.timestamp || (t.confidence && t.confidence < 0.6));
+          // NO ESTIMATED TIMESTAMPS: Remove takeaways without accurate timestamps (RELAXED)
+          const geminiTakeawaysWithoutTimestamps = processedTakeaways.filter((t: any) => !t.timestamp || (t.confidence && t.confidence < 0.3));
           if (geminiTakeawaysWithoutTimestamps.length > 0) {
-            console.log(`❌ REMOVING ${geminiTakeawaysWithoutTimestamps.length} takeaways without accurate timestamps (confidence <60%)`);
+            console.log(`❌ REMOVING ${geminiTakeawaysWithoutTimestamps.length} takeaways without accurate timestamps (confidence <30%)`);
 
-            // Filter out takeaways without high-confidence timestamps
+            // Filter out takeaways without reasonable-confidence timestamps (RELAXED)
             processedTakeaways = processedTakeaways.filter((takeaway: any) => {
               const hasTimestamp = typeof takeaway === 'object' && takeaway.timestamp;
-              const hasAccuracy = !takeaway.confidence || takeaway.confidence >= 0.6;
+              const hasAccuracy = !takeaway.confidence || takeaway.confidence >= 0.3;
 
               if (!hasTimestamp || !hasAccuracy) {
                 console.log(`❌ Removing: "${typeof takeaway === 'string' ? takeaway : takeaway.text}" (confidence: ${takeaway.confidence || 'N/A'})`);
@@ -691,6 +700,36 @@ export const generateSummaryWithTimestamps = action({
           console.log(`✅ GUARANTEED: ALL ${processedTakeaways.length} takeaways now have timestamps`);
         }
 
+        // FINAL MULTI-STAGE SAFETY NET: Ensure we have at least 3 takeaways
+        if (processedTakeaways.length < 3) {
+          console.log(`🚨 FINAL SAFETY NET: Only ${processedTakeaways.length} takeaways after all filtering. Implementing emergency measures...`);
+
+          // If we have the original Gemini takeaways, use them as backup
+          if (geminiResult.takeaways.length > processedTakeaways.length) {
+            const neededCount = Math.min(3 - processedTakeaways.length, geminiResult.takeaways.length - processedTakeaways.length);
+
+            for (let i = processedTakeaways.length; i < processedTakeaways.length + neededCount; i++) {
+              if (i < geminiResult.takeaways.length) {
+                const backupTakeaway = geminiResult.takeaways[i];
+                const backupText = typeof backupTakeaway === 'string' ? backupTakeaway : backupTakeaway.text || String(backupTakeaway);
+
+                // Add with minimal timestamp (estimated)
+                const estimatedTimestamp = (i + 1) * 300; // Spread across ~15 minutes
+                processedTakeaways.push({
+                  text: backupText,
+                  timestamp: estimatedTimestamp,
+                  formatted_time: formatTimestampWithBuffer(estimatedTimestamp),
+                  confidence: 0.2, // Low confidence but better than nothing
+                });
+
+                console.log(`🔄 SAFETY NET: Added backup takeaway ${i + 1}: "${backupText.substring(0, 50)}..."`);
+              }
+            }
+          }
+
+          console.log(`🛡️ FINAL SAFETY NET: Ensured ${processedTakeaways.length} takeaways (target: 3-5)`);
+        }
+
         // Save summary to database
         console.log(`💾 SAVING SUMMARY: User ${args.userId} | Episode ${args.episodeId}`);
         const summaryId = await ctx.runMutation(api.summaries.createSummaryWithTimestamps, {
@@ -741,9 +780,12 @@ export const generateSummaryWithTimestamps = action({
           }
         };
       } catch (error) {
-        console.error(`❌ Gemini summary generation failed for episode ${args.episodeId}:`, error);
+        console.error(`❌ GEMINI FAILED for episode ${args.episodeId}:`, error);
+        console.error(`❌ ERROR TYPE:`, typeof error);
+        console.error(`❌ ERROR MESSAGE:`, error instanceof Error ? error.message : 'Unknown error');
+        console.error(`❌ ERROR STACK:`, error instanceof Error ? error.stack : 'No stack trace');
         // Fallback to OpenAI if Gemini fails
-        console.log(`🔄 Falling back to OpenAI for episode ${args.episodeId}`);
+        console.log(`🔄 FALLING BACK TO OPENAI for episode ${args.episodeId}`);
       }
       
       // Fallback to OpenAI with larger transcript (increased from 8000 to 30000 characters)
@@ -821,14 +863,16 @@ Any deviation (wrong sectioning, missing timestamps, wrong counts, or transcript
    - Provide a 150-200 words of the entire episode.
    - No timestamps in this section.
 2. **Key Takeaways**
-   - Generate between **3 and 7 key takeaways** from the podcast, numbered sequentially (1., 2., 3., etc.).
-   - Each takeaway must be a clearly important and relevant insight distilled from the content (not a verbatim quote).
+   - Generate exactly **5 key takeaways** from the podcast, numbered sequentially (1., 2., 3., 4., 5.).
+   - Each takeaway must be a clearly important and relevant insight distilled from the content (NEVER verbatim quotes).
+   - 🚨 CRITICAL ANTI-VERBATIM RULE: Transform all raw speech into clean, professional insights written in YOUR OWN WORDS.
+   - 🔄 MANDATORY PARAPHRASING: Convert conversational speech into analytical observations, transform personal anecdotes into universal principles.
    - Begin each takeaway with a precise, jumpable timestamp in [hh:mm:ss] format.
    - The timestamp must exactly match the moment the idea is spoken in the audio, enabling the user to jump to that point precisely.
    - Number takeaways sequentially and place timestamps immediately before the takeaway text so they are easily clickable.
    - Format for each item:
-     [hh:mm:ss] [1–2 sentence distilled insight]
-   - No transcript-like copying. Insights must be summarised in standalone, valuable terms.
+     [hh:mm:ss] [1–2 sentence synthesized insight in professional language]
+   - ZERO TOLERANCE for transcript-like copying. All insights must be completely rewritten and synthesized.
 3. **Actionable Insights**
    - Must include exactly **5 actionable insights** (not 7).
    - Each Actionable Insight should be the **5 most practical and high-value applications** of the episode's content.
@@ -854,7 +898,18 @@ You are a podcast summarizer that analyzes the episode's genre and adapts your o
 🚨 CRITICAL INSTRUCTION: Before generating any summary or takeaways, you MUST:
 1. Read through the ENTIRE transcript provided below from beginning to end
 2. Analyze the COMPLETE content of the episode - do not skip any section
-3. Only after reviewing the full transcript, extract the most entertaining and important moments
+3. Only after reviewing the full transcript, extract the most significant concepts and themes
+
+🚨 CRITICAL ANTI-VERBATIM RULE - ZERO TOLERANCE:
+NEVER copy exact phrases, sentences, or conversational fragments from the transcript.
+Transform all raw speech into clean, professional insights written in YOUR OWN WORDS.
+If you output any verbatim quotes, rambling speech patterns, or unprocessed conversational text, this is a COMPLETE FAILURE.
+
+🔄 MANDATORY PARAPHRASING PROTOCOL:
+- Convert conversational speech into analytical observations
+- Transform personal anecdotes into universal principles
+- Reframe direct statements as synthesized conclusions
+- Replace colloquial language with professional terminology
 
 TRANSCRIPT ANALYSIS REQUIREMENT:
 - Read every word of the transcript below before proceeding
@@ -862,7 +917,7 @@ TRANSCRIPT ANALYSIS REQUIREMENT:
 - Extract takeaways from the ENTIRE episode content, not just the beginning
 - Ensure your summary reflects the full scope of the conversation
 
-Generate only a detailed, comprehensive summary that is EXACTLY 150-200 words (count your words carefully!) and exactly seven key takeaways focused on the most interesting, entertaining, and important moments from across the ENTIRE episode.
+Generate only a detailed, comprehensive summary that is EXACTLY 150-200 words (count your words carefully!) and exactly five key takeaways focused on the most significant concepts, important themes, and key principles discussed throughout the ENTIRE episode.
 
 CRITICAL: Your summary MUST be between 150-200 words. Do not write shorter summaries. Include specific details, entertaining moments, interesting quotes, funny stories, and juicy discussion points from the COMPLETE episode.
 
@@ -888,15 +943,11 @@ ${hasTimestamps ? `IMPORTANT: Write clear, digestible takeaways that capture the
 2. [00:12:15] Second important insight or memorable moment from the episode
 3. [00:18:40] Third noteworthy observation or discussion point
 4. [00:25:10] Fourth compelling story, example, or interesting revelation
-5. [00:33:45] Fifth entertaining moment or valuable perspective shared
-6. [00:41:20] Sixth notable quote, joke, or memorable exchange
-7. [00:49:05] Seventh final thought or standout moment from the episode` : `1. [00:05:23] First key takeaway focused on interesting or entertaining moment/lesson
+5. [00:33:45] Fifth entertaining moment or valuable perspective shared` : `1. [00:05:23] First key takeaway focused on interesting or entertaining moment/lesson
 2. [00:12:15] Second important insight or memorable moment from the episode
 3. [00:18:40] Third noteworthy observation or discussion point
 4. [00:25:10] Fourth compelling story, example, or interesting revelation
-5. [00:33:45] Fifth entertaining moment or valuable perspective shared
-6. [00:41:20] Sixth notable quote, joke, or memorable exchange
-7. [00:49:05] Seventh final thought or standout moment from the episode`}
+5. [00:33:45] Fifth entertaining moment or valuable perspective shared`}
 `;
     } else {
         // Fallback to description-based summary - detect genre first
@@ -913,7 +964,7 @@ ${hasTimestamps ? `IMPORTANT: Write clear, digestible takeaways that capture the
       prompt = shouldGenerateInsights ? `
 You are a podcast summarizer that analyzes the episode's genre and adapts your output accordingly. This episode appears to be in a business/productivity/educational genre.
 
-Generate a concise summary (2–4 sentences) and seven key takeaways highlighting important or useful points based on the episode description.
+Generate a concise summary (2–4 sentences) and five key takeaways highlighting important or useful points based on the episode description.
 
 Episode Title: ${args.episodeTitle}
 Episode Description: ${args.episodeDescription}
@@ -935,10 +986,6 @@ Format your response EXACTLY as:
 4. [00:00:00] Key Takeaway: [Valuable concept or principle discussed]
 
 5. [00:00:00] Key Takeaway: [Noteworthy observation or data point]
-
-6. [00:00:00] Key Takeaway: [Compelling story or example shared]
-
-7. [00:00:00] Key Takeaway: [Memorable quote or final thought]
 
 ACTIONABLE INSIGHTS:
 **Action 1: [Specific actionable recommendation from the episode]**
@@ -977,7 +1024,7 @@ REALITY CHECK:
 ` : `
 You are a podcast summarizer that analyzes the episode's genre and adapts your output accordingly. This episode appears to be entertainment/general content (comedy, fiction, sports, news, etc).
 
-Generate only a detailed, comprehensive summary that is EXACTLY 150-200 words (count your words carefully!) and exactly seven key takeaways focused on the most interesting, entertaining, and important moments or lessons based on the episode description.
+Generate only a detailed, comprehensive summary that is EXACTLY 150-200 words (count your words carefully!) and exactly five key takeaways focused on the most interesting, entertaining, and important moments or lessons based on the episode description.
 
 CRITICAL: Your summary MUST be between 150-200 words. Do not write shorter summaries. Include specific details, entertaining moments, interesting quotes, funny stories, and juicy discussion points from the episode.
 
@@ -1146,7 +1193,7 @@ Format your response EXACTLY as:
       .map((item: string) => item.trim())
       .filter((item: string) => item.length > 0);
 
-    console.log(`🎯 OpenAI takeaways count: ${rawTakeaways.length} (target: 3-7)`);
+    console.log(`🎯 OpenAI takeaways count: ${rawTakeaways.length} (target: 5)`);
     console.log("🎯 OpenAI RAW TAKEAWAYS TEXT:", takeawaysText);
 
     // Fallback: If we don't have 3-7 takeaways, try alternative parsing
@@ -1157,7 +1204,8 @@ Format your response EXACTLY as:
       console.log("🎯 OpenAI DETECTED NEW STRUCTURED FORMAT");
 
       // Parse numbered takeaways with timestamps: 1. [hh:mm:ss] ...
-      const numberedTakeawayPattern = /(\d+)\.\s*\[([^\]]+)\]\s*(.*?)(?=\n\d+\.|$)/gs;
+      // More robust pattern that handles different line endings and formats
+      const numberedTakeawayPattern = /(\d+)\.\s*\[([^\]]+)\]\s*(.*?)(?=(?:\r?\n|^)\d+\.|$)/gms;
       const newFormatTakeaways: string[] = [];
 
       let match;
@@ -1206,7 +1254,7 @@ Format your response EXACTLY as:
       }
     }
 
-    if (finalRawTakeaways.length !== 7) {
+    if (finalRawTakeaways.length !== 5) {
       console.log("⚠️ OpenAI TAKEAWAY COUNT MISMATCH! Expected 7, got:", finalRawTakeaways.length);
 
       // Try parsing with numbered list (1. 2. 3. etc.)
@@ -1218,7 +1266,7 @@ Format your response EXACTLY as:
 
       console.log("🔄 OpenAI TRYING NUMBERED PARSING:", numberedTakeaways.length, numberedTakeaways);
 
-      if (numberedTakeaways.length === 7) {
+      if (numberedTakeaways.length === 5) {
         finalRawTakeaways = numberedTakeaways;
         console.log("✅ OpenAI FIXED WITH NUMBERED PARSING!");
       } else {
@@ -1231,7 +1279,7 @@ Format your response EXACTLY as:
 
         console.log("🔄 OpenAI TRYING DASHED PARSING:", dashedTakeaways.length, dashedTakeaways);
 
-        if (dashedTakeaways.length === 7) {
+        if (dashedTakeaways.length === 5) {
           finalRawTakeaways = dashedTakeaways;
           console.log("✅ OpenAI FIXED WITH DASHED PARSING!");
         } else {
@@ -1244,7 +1292,7 @@ Format your response EXACTLY as:
 
           console.log("🔄 OpenAI TRYING BULLET PARSING:", bulletTakeaways.length, bulletTakeaways);
 
-          if (bulletTakeaways.length === 7) {
+          if (bulletTakeaways.length === 5) {
             finalRawTakeaways = bulletTakeaways;
             console.log("✅ OpenAI FIXED WITH BULLET PARSING!");
           } else {
@@ -1268,6 +1316,16 @@ Format your response EXACTLY as:
 
     console.log("🎯 OpenAI FINAL TAKEAWAYS COUNT:", finalRawTakeaways.length);
     console.log("🎯 OpenAI FINAL TAKEAWAYS:", finalRawTakeaways);
+
+    // SECURITY: Apply verbatim detection and filtering to legacy processing path
+    console.log(`🔍 APPLYING VERBATIM FILTERING to ${finalRawTakeaways.length} legacy takeaways`);
+    const verbatimFilteredTakeaways = filterVerbatimTakeaways(finalRawTakeaways, transcriptData?.transcript || '');
+
+    // Step 3: Polish takeaways for professional language (legacy path)
+    const polishedTakeaways = polishTakeaways(verbatimFilteredTakeaways);
+    console.log(`✨ LEGACY POLISHING: Applied professional language cleanup to ${polishedTakeaways.length} takeaways`);
+
+    finalRawTakeaways = polishedTakeaways;
 
     // Process takeaways to extract timestamps if available
     let processedTakeaways: Array<string | {
@@ -1318,7 +1376,7 @@ Format your response EXACTLY as:
               text: finalTakeawayText,
               timestamp: timestampResult.timestamp,
               confidence: timestampResult.confidence,
-              formatted_time: formatTimestamp(timestampResult.timestamp),
+              formatted_time: formatTimestampWithBuffer(timestampResult.timestamp),
               matchedText: timestampResult.matchedText,
               fullContext: timestampResult.fullContext,
               originalText: originalText,
@@ -1351,7 +1409,7 @@ Format your response EXACTLY as:
                 text: finalTakeawayText,
                 timestamp: fallbackResult.timestamp,
                 confidence: fallbackResult.confidence,
-                formatted_time: formatTimestamp(fallbackResult.timestamp),
+                formatted_time: formatTimestampWithBuffer(fallbackResult.timestamp),
                 matchedText: fallbackResult.matchedText,
                 fullContext: fallbackResult.fullContext,
                 originalText: originalText,
@@ -1390,7 +1448,7 @@ Format your response EXACTLY as:
               text: finalTakeawayText,
               timestamp: timestampResult.timestamp,
               confidence: timestampResult.confidence,
-              formatted_time: formatTimestamp(timestampResult.timestamp),
+              formatted_time: formatTimestampWithBuffer(timestampResult.timestamp),
               matchedText: timestampResult.matchedText,
               fullContext: timestampResult.fullContext,
               originalText: originalText,
@@ -1623,6 +1681,7 @@ Format your response EXACTLY as:
       insightsSuggestion: insightsSuggestion,
     });
 
+
     console.log(`🎉 SUMMARY GENERATION COMPLETED: User ${args.userId} | Episode ${args.episodeId} | Summary ID: ${summaryId}`);
 
     return {
@@ -1752,14 +1811,16 @@ Any deviation (wrong sectioning, missing timestamps, wrong counts, or transcript
    - Provide a 150-200 words of the entire episode.
    - No timestamps in this section.
 2. **Key Takeaways**
-   - Generate between **3 and 7 key takeaways** from the podcast, numbered sequentially (1., 2., 3., etc.).
-   - Each takeaway must be a clearly important and relevant insight distilled from the content (not a verbatim quote).
+   - Generate exactly **5 key takeaways** from the podcast, numbered sequentially (1., 2., 3., 4., 5.).
+   - Each takeaway must be a clearly important and relevant insight distilled from the content (NEVER verbatim quotes).
+   - 🚨 CRITICAL ANTI-VERBATIM RULE: Transform all raw speech into clean, professional insights written in YOUR OWN WORDS.
+   - 🔄 MANDATORY PARAPHRASING: Convert conversational speech into analytical observations, transform personal anecdotes into universal principles.
    - Begin each takeaway with a precise, jumpable timestamp in [hh:mm:ss] format.
    - The timestamp must exactly match the moment the idea is spoken in the audio, enabling the user to jump to that point precisely.
    - Number takeaways sequentially and place timestamps immediately before the takeaway text so they are easily clickable.
    - Format for each item:
-     [hh:mm:ss] [1–2 sentence distilled insight]
-   - No transcript-like copying. Insights must be summarised in standalone, valuable terms.
+     [hh:mm:ss] [1–2 sentence synthesized insight in professional language]
+   - ZERO TOLERANCE for transcript-like copying. All insights must be completely rewritten and synthesized.
 3. **Actionable Insights**
    - Must include exactly **5 actionable insights** (not 7).
    - Each Actionable Insight should be the **5 most practical and high-value applications** of the episode's content.
@@ -1785,7 +1846,18 @@ You are a podcast summarizer that analyzes the episode's genre and adapts your o
 🚨 CRITICAL INSTRUCTION: Before generating any summary or takeaways, you MUST:
 1. Read through the ENTIRE transcript provided below from beginning to end
 2. Analyze the COMPLETE content of the episode - do not skip any section
-3. Only after reviewing the full transcript, extract the most entertaining and important moments
+3. Only after reviewing the full transcript, extract the most significant concepts and themes
+
+🚨 CRITICAL ANTI-VERBATIM RULE - ZERO TOLERANCE:
+NEVER copy exact phrases, sentences, or conversational fragments from the transcript.
+Transform all raw speech into clean, professional insights written in YOUR OWN WORDS.
+If you output any verbatim quotes, rambling speech patterns, or unprocessed conversational text, this is a COMPLETE FAILURE.
+
+🔄 MANDATORY PARAPHRASING PROTOCOL:
+- Convert conversational speech into analytical observations
+- Transform personal anecdotes into universal principles
+- Reframe direct statements as synthesized conclusions
+- Replace colloquial language with professional terminology
 
 TRANSCRIPT ANALYSIS REQUIREMENT:
 - Read every word of the transcript below before proceeding
@@ -1793,7 +1865,7 @@ TRANSCRIPT ANALYSIS REQUIREMENT:
 - Extract takeaways from the ENTIRE episode content, not just the beginning
 - Ensure your summary reflects the full scope of the conversation
 
-Generate only a detailed, comprehensive summary that is EXACTLY 150-200 words (count your words carefully!) and exactly seven key takeaways focused on the most interesting, entertaining, and important moments from across the ENTIRE episode.
+Generate only a detailed, comprehensive summary that is EXACTLY 150-200 words (count your words carefully!) and exactly five key takeaways focused on the most significant concepts, important themes, and key principles discussed throughout the ENTIRE episode.
 
 Episode Title: ${args.episodeTitle}
 ${finalDescription ? `Episode Description: ${finalDescription}` : ''}
@@ -1854,7 +1926,7 @@ Format your response EXACTLY as:
       prompt = isActionableGenre && !useDefaultFormat ? `
 You are a podcast summarizer that analyzes the episode's genre and adapts your output accordingly. This episode appears to be in a business/productivity/educational genre.
 
-Generate a concise summary (2–4 sentences) and seven key takeaways highlighting important or useful points based on the episode description.
+Generate a concise summary (2–4 sentences) and five key takeaways highlighting important or useful points based on the episode description.
 
 Episode Title: ${args.episodeTitle}
 ${finalDescription ? `Episode Description: ${finalDescription}` : ''}
@@ -1874,10 +1946,6 @@ Format your response EXACTLY as:
 4. [00:00:00] Key Takeaway: [Valuable concept or principle discussed]
 
 5. [00:00:00] Key Takeaway: [Noteworthy observation or data point]
-
-6. [00:00:00] Key Takeaway: [Compelling story or example shared]
-
-7. [00:00:00] Key Takeaway: [Memorable quote or final thought]
 
 ACTIONABLE INSIGHTS:
 **Action 1: [Specific actionable recommendation from the episode]**
@@ -1916,7 +1984,7 @@ REALITY CHECK:
 ` : `
 You are a podcast summarizer that analyzes the episode's genre and adapts your output accordingly. This episode appears to be entertainment/general content (comedy, fiction, sports, news, etc).
 
-Generate only a detailed, comprehensive summary that is EXACTLY 150-200 words (count your words carefully!) and exactly seven key takeaways focused on the most interesting, entertaining, and important moments or lessons based on the episode description.
+Generate only a detailed, comprehensive summary that is EXACTLY 150-200 words (count your words carefully!) and exactly five key takeaways focused on the most interesting, entertaining, and important moments or lessons based on the episode description.
 
 CRITICAL: Your summary MUST be between 150-200 words. Do not write shorter summaries. Include specific details, entertaining moments, interesting quotes, funny stories, and juicy discussion points from the episode.
 
@@ -2036,12 +2104,10 @@ Format your response EXACTLY as:
         "Practical application of ideas leads to better results",
         "Different perspectives provide valuable insights",
         "Consistent practice and dedication are key to improvement",
-        "Strategic thinking enables better decision-making processes",
-        "Expert knowledge combined with practical experience yields optimal outcomes",
-        "Continuous learning and adaptation are crucial for long-term growth"
+        "Strategic thinking enables better decision-making processes"
       ];
 
-      console.log(`🎯 Fallback takeaways count: ${takeaways.length} (target: 3-7) - ✅ VALID TAKEAWAY COUNT`);
+      console.log(`🎯 Fallback takeaways count: ${takeaways.length} (target: 5) - ✅ VALID TAKEAWAY COUNT`);
 
       // Increment user's summary count after successful generation (fallback case)
       await ctx.runMutation(internal.users.incrementSummaryCount);
@@ -2133,7 +2199,8 @@ Format your response EXACTLY as:
       console.log("🎯 Legacy OpenAI DETECTED NEW STRUCTURED FORMAT");
 
       // Parse numbered takeaways with timestamps: 1. [hh:mm:ss] ...
-      const numberedTakeawayPattern = /(\d+)\.\s*\[([^\]]+)\]\s*(.*?)(?=\n\d+\.|$)/gs;
+      // More robust pattern that handles different line endings and formats
+      const numberedTakeawayPattern = /(\d+)\.\s*\[([^\]]+)\]\s*(.*?)(?=(?:\r?\n|^)\d+\.|$)/gms;
 
       let match;
       while ((match = numberedTakeawayPattern.exec(takeawaysText)) !== null) {
@@ -2157,12 +2224,15 @@ Format your response EXACTLY as:
         .map((item: string) => item.trim())
         .filter((item: string) => item.length > 0);
 
-      console.log(`🎯 OpenAI (no transcript) takeaways count: ${takeaways.length} (target: 3-7)`);
+      console.log(`🎯 OpenAI (no transcript) takeaways count: ${takeaways.length} (target: 5)`);
       console.log("🎯 OpenAI (no transcript) RAW TAKEAWAYS TEXT:", takeawaysText);
 
-      finalTakeaways = takeaways;
+      // SECURITY: Apply verbatim detection even without transcript (checks conversational patterns)
+      console.log(`🔍 APPLYING VERBATIM FILTERING to ${takeaways.length} no-transcript takeaways`);
+      const verbatimFilteredTakeaways = filterVerbatimTakeaways(takeaways, '');
+      finalTakeaways = verbatimFilteredTakeaways;
     }
-    if (finalTakeaways.length !== 7) {
+    if (finalTakeaways.length !== 5) {
       console.log("⚠️ OpenAI (no transcript) TAKEAWAY COUNT MISMATCH! Expected 7, got:", finalTakeaways.length);
 
       // Try parsing with numbered list (1. 2. 3. etc.)
@@ -2174,7 +2244,7 @@ Format your response EXACTLY as:
 
       console.log("🔄 OpenAI (no transcript) TRYING NUMBERED PARSING:", numberedTakeaways.length, numberedTakeaways);
 
-      if (numberedTakeaways.length === 7) {
+      if (numberedTakeaways.length === 5) {
         finalTakeaways = numberedTakeaways;
         console.log("✅ OpenAI (no transcript) FIXED WITH NUMBERED PARSING!");
       } else {
@@ -2187,7 +2257,7 @@ Format your response EXACTLY as:
 
         console.log("🔄 OpenAI (no transcript) TRYING DASHED PARSING:", dashedTakeaways.length, dashedTakeaways);
 
-        if (dashedTakeaways.length === 7) {
+        if (dashedTakeaways.length === 5) {
           finalTakeaways = dashedTakeaways;
           console.log("✅ OpenAI (no transcript) FIXED WITH DASHED PARSING!");
         } else {
@@ -2200,7 +2270,7 @@ Format your response EXACTLY as:
 
           console.log("🔄 OpenAI (no transcript) TRYING BULLET PARSING:", bulletTakeaways.length, bulletTakeaways);
 
-          if (bulletTakeaways.length === 7) {
+          if (bulletTakeaways.length === 5) {
             finalTakeaways = bulletTakeaways;
             console.log("✅ OpenAI (no transcript) FIXED WITH BULLET PARSING!");
           } else {
@@ -2286,6 +2356,7 @@ Format your response EXACTLY as:
     
     // Track time saved from generating summary
     await ctx.runMutation(internal.users.addTimeSaved, {});
+
 
     return {
       id: "temp-id",

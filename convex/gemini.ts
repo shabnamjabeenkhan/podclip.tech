@@ -1,5 +1,231 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
+// Utility function to detect verbatim quotes in AI-generated takeaways
+function detectVerbatimQuotes(takeaway: string, transcript: string): {
+  isVerbatim: boolean;
+  confidence: number;
+  reason: string;
+} {
+  console.log(`🔍 DETECTING VERBATIM for: "${takeaway.substring(0, 50)}..."`);
+  // Clean and normalize both texts for comparison
+  const cleanTakeaway = takeaway.toLowerCase()
+    .replace(/^\d+\.\s*/, '') // Remove numbering
+    .replace(/\[timestamp\]|\[\d+:\d+:\d+\]/gi, '') // Remove timestamp placeholders
+    .replace(/[^\w\s]/g, ' ') // Remove punctuation
+    .replace(/\s+/g, ' ') // Normalize whitespace
+    .trim();
+
+  const cleanTranscript = transcript.toLowerCase()
+    .replace(/[^\w\s]/g, ' ')
+    .replace(/\s+/g, ' ');
+
+  // Skip very short takeaways (less than 8 words)
+  const takeawayWords = cleanTakeaway.split(/\s+/).filter(w => w.length > 0);
+  if (takeawayWords.length < 8) {
+    return { isVerbatim: false, confidence: 0, reason: "Too short to evaluate" };
+  }
+
+  // Method 1: Check for long consecutive word matches (10+ words, raised from 8 to be less aggressive)
+  for (let i = 0; i <= takeawayWords.length - 10; i++) {
+    const phrase = takeawayWords.slice(i, i + 10).join(' ');
+    if (cleanTranscript.includes(phrase)) {
+      return {
+        isVerbatim: true,
+        confidence: 0.9,
+        reason: `Contains 10+ consecutive words from transcript: "${phrase}"`
+      };
+    }
+  }
+
+  // Method 2: STRICT verbatim detection - only catch true transcript copying
+  const conversationalPatterns = [
+    // Multiple filler words clustered together (true verbatim speech)
+    /\b(um|uh|like|you know)\s+(um|uh|like|you know)\s+(um|uh|like|you know)/gi, // 3+ fillers
+
+    // Obvious stuttering and repetition
+    /\b(\w+)\s+\1\s+\1\b/gi,                   // Triple repetition: "the the the"
+    /\b(it's it's|is is|the the|and and)\b/gi, // Common repeated words
+
+    // Incomplete/broken sentences (true transcript artifacts)
+    /\b\w+\s+-\s*$/gi,                         // Ends with dash: "word -"
+    /\s+and\s*$/gi,                            // Ends mid-sentence: "word and"
+    /\.\.\.\s*$/gi,                            // Ends with trailing dots
+
+    // Extreme rambling with multiple fillers
+    /(um|uh|like|you know)\s+\w+\s+(um|uh|like|you know)\s+\w+\s+(um|uh|like|you know)/gi,
+
+    // Repeated conversational phrases
+    /\b(you know)\s+.*\s+(you know)\b/gi,
+    /\b(i mean)\s+.*\s+(i mean)\b/gi,
+
+    // Incoherent patterns typical of raw speech
+    /\b(and|but|so)\s+(and|but|so)\s+(and|but|so)/gi, // Triple conjunctions
+  ];
+
+  for (const pattern of conversationalPatterns) {
+    if (pattern.test(takeaway)) {
+      return {
+        isVerbatim: true,
+        confidence: 0.8,
+        reason: `Contains conversational fragments: ${takeaway.match(pattern)?.join(', ')}`
+      };
+    }
+  }
+
+  // Method 3: Check overall word overlap percentage
+  const uniqueTakeawayWords = [...new Set(takeawayWords.filter(w => w.length > 3))];
+  const transcriptWords = cleanTranscript.split(/\s+/);
+
+  let overlapCount = 0;
+  for (const word of uniqueTakeawayWords) {
+    if (transcriptWords.includes(word)) {
+      overlapCount++;
+    }
+  }
+
+  const overlapRatio = overlapCount / uniqueTakeawayWords.length;
+
+  // Very high overlap (99%+) suggests verbatim copying - more relaxed threshold
+  if (overlapRatio > 0.99 && uniqueTakeawayWords.length > 15) {
+    return {
+      isVerbatim: true,
+      confidence: 0.8,
+      reason: `Extremely high word overlap: ${(overlapRatio * 100).toFixed(1)}% (${overlapCount}/${uniqueTakeawayWords.length} words)`
+    };
+  }
+
+  // Method 4: Check for incoherent sentence structure (typical of verbatim speech)
+  const incoherentPatterns = [
+    /\b\w+\s+\w+\s+\w+\s+\w+\s+\w+\s+which\s+(is|are)\s+(is|are)/gi, // Rambling patterns
+    /\bthat's\s+that's\b/gi,
+    /\bit\s+you\s+know\b/gi,
+  ];
+
+  for (const pattern of incoherentPatterns) {
+    if (pattern.test(takeaway)) {
+      return {
+        isVerbatim: true,
+        confidence: 0.75,
+        reason: `Contains incoherent speech patterns: ${takeaway.match(pattern)?.join(', ')}`
+      };
+    }
+  }
+
+  return { isVerbatim: false, confidence: 0, reason: "Appears to be properly paraphrased" };
+}
+
+// Step 3: Polish takeaways to ensure professional language
+export function polishTakeaways(takeaways: any[]): any[] {
+  console.log(`🎯 POLISHING: Processing ${takeaways.length} takeaways for professional language`);
+
+  return takeaways.map((takeaway, index) => {
+    // Handle both string and object formats
+    const originalText = typeof takeaway === 'string' ? takeaway :
+                        (takeaway?.text || takeaway?.content || String(takeaway));
+
+    // Apply professional language cleaning
+    let polishedText = originalText;
+
+    // Remove casual conversation starters at the beginning
+    polishedText = polishedText.replace(/^(so,?\s+|well,?\s+|like,?\s+|you know,?\s+)/gi, '');
+
+    // Remove filler words throughout
+    polishedText = polishedText.replace(/\b(um|uh|you know|i mean)\b/gi, '');
+
+    // Clean up punctuation and spacing issues
+    polishedText = polishedText.replace(/,\s*,/g, ','); // Fix double commas
+    polishedText = polishedText.replace(/\s+/g, ' ').trim(); // Multiple spaces
+    polishedText = polishedText.replace(/,\s+,/g, ','); // Comma spacing issues
+
+    // Ensure first letter is capitalized
+    polishedText = polishedText.charAt(0).toUpperCase() + polishedText.slice(1);
+
+    // Log transformation if changes were made
+    if (polishedText !== originalText) {
+      console.log(`✨ POLISHED TAKEAWAY ${index + 1}:`);
+      console.log(`   Before: "${originalText}"`);
+      console.log(`   After:  "${polishedText}"`);
+    }
+
+    // Return in the same format as input
+    if (typeof takeaway === 'string') {
+      return polishedText;
+    } else {
+      return {
+        ...takeaway,
+        text: polishedText
+      };
+    }
+  });
+}
+
+// Function to filter out verbatim takeaways and log issues
+export function filterVerbatimTakeaways(takeaways: any[], transcript: string): any[] {
+  console.log(`🔍 VERBATIM DETECTION: Checking ${takeaways.length} takeaways`);
+  console.log(`🔍 VERBATIM DETECTION DEBUG: Takeaway types:`, takeaways.map((t, i) => `${i+1}: ${typeof t}`));
+  console.log(`🔍 VERBATIM DETECTION DEBUG: First takeaway:`, takeaways[0]);
+
+  // Store detection results with scores
+  const takeawayScores = takeaways.map((takeaway, index) => {
+    // Handle both string and object formats
+    const takeawayText = typeof takeaway === 'string' ? takeaway :
+                        (takeaway?.text || takeaway?.content || String(takeaway));
+    console.log(`🔍 VERBATIM DETECTION: Processing takeaway ${index + 1}: "${takeawayText.substring(0, 50)}..."`);
+
+    const detection = detectVerbatimQuotes(takeawayText, transcript);
+
+    if (detection.isVerbatim) {
+      console.log(`❌ VERBATIM DETECTED [${index + 1}]: ${detection.reason}`);
+      console.log(`📝 Flagged takeaway: "${takeawayText.substring(0, 100)}..."`);
+      console.log(`🎯 Confidence: ${(detection.confidence * 100).toFixed(1)}%`);
+    } else {
+      console.log(`✅ Clean takeaway [${index + 1}]: ${detection.reason}`);
+    }
+
+    return {
+      takeaway,
+      index,
+      isVerbatim: detection.isVerbatim,
+      confidence: detection.confidence,
+      reason: detection.reason
+    };
+  });
+
+  // Filter out verbatim takeaways, but ensure we keep at least 3
+  let filteredTakeaways = takeawayScores
+    .filter(item => !item.isVerbatim)
+    .map(item => item.takeaway);
+
+  const filteredCount = takeaways.length - filteredTakeaways.length;
+
+  // Safety net: If we filtered out too many takeaways, keep the best ones
+  if (filteredTakeaways.length < 3 && takeaways.length >= 3) {
+    console.log(`🚨 SAFETY NET: Only ${filteredTakeaways.length} takeaways left after filtering. Applying safety measures...`);
+
+    // Sort by confidence (lower confidence = less likely to be verbatim)
+    const sortedByConfidence = takeawayScores
+      .filter(item => item.isVerbatim)
+      .sort((a, b) => a.confidence - b.confidence);
+
+    // Add back the least verbatim ones to reach at least 3 total
+    const neededCount = Math.min(3 - filteredTakeaways.length, sortedByConfidence.length);
+    for (let i = 0; i < neededCount; i++) {
+      filteredTakeaways.push(sortedByConfidence[i].takeaway);
+      console.log(`🔄 SAFETY NET: Restored takeaway with confidence ${(sortedByConfidence[i].confidence * 100).toFixed(1)}%`);
+    }
+
+    console.log(`🛡️ SAFETY NET: Ensured minimum of ${filteredTakeaways.length} takeaways`);
+  }
+
+  if (filteredCount > 0) {
+    console.log(`🚨 FILTERED ${filteredCount} verbatim takeaways. Remaining: ${filteredTakeaways.length}`);
+  } else {
+    console.log(`✅ All ${takeaways.length} takeaways passed verbatim check`);
+  }
+
+  return filteredTakeaways;
+}
+
 // Initialize Gemini client
 export function getGeminiClient() {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -145,6 +371,10 @@ export async function generateSummaryWithGemini(
   ultraStrictMode: boolean = false,
   shouldGenerateInsights: boolean = false
 ) {
+  console.log(`🚀 DEBUG: generateSummaryWithGemini called for "${episodeTitle}"`);
+  console.log(`🚀 DEBUG: ultraStrictMode=${ultraStrictMode}, shouldGenerateInsights=${shouldGenerateInsights}`);
+  console.log(`🚀 DEBUG: transcript length=${transcript.length} chars`);
+
   const genAI = getGeminiClient();
 
   // Use Gemini 2.0 Flash model - supports up to 1M tokens
@@ -224,16 +454,35 @@ You are an expert podcast summariser.
 Your output is valid ONLY if it follows the enforced structure below.
 Any deviation (wrong sectioning, missing timestamps, wrong counts, or transcript-like copying) is INVALID and must be regenerated.
 
+🚨 CRITICAL ANTI-VERBATIM RULE:
+NEVER copy exact phrases, sentences, or conversational fragments from the transcript.
+If you output any verbatim quotes, rambling speech, or unprocessed conversational text, this is a COMPLETE FAILURE.
+Each takeaway must be a clean, professional insight written in YOUR OWN WORDS that summarizes the key point.
+
+🎯 PROFESSIONAL LANGUAGE REQUIREMENT:
+- Remove all casual conversational starters: "So,", "Well,", "Like,", "You know,"
+- Eliminate filler words: "um", "uh", "like", "you know", "I mean"
+- Start each takeaway with a strong, direct statement
+- Use professional business language throughout
+- Transform: "So, focus is important" → "Focus is essential for productivity"
+- Transform: "Well, meditation helps" → "Meditation enhances concentration"
+
 ### Required Sections (with headings):
 1. **Main Summary**
-   - Provide a 150-200 words of the entire episode.
+   - Write EXACTLY 150-200 words covering the entire episode. COUNT YOUR WORDS!
+   - Must be at least 150 words minimum. If you write fewer than 150 words, this is INVALID.
    - No timestamps in this section.
 2. **Key Takeaways**
-   - Must include exactly **7 numbered takeaways**, in chronological order.
+   - Generate 3 to 5 original key takeaways as concise statements
    - Each takeaway must begin with a placeholder timestamp [TIMESTAMP] - DO NOT guess timestamps
+   - Each takeaway should:
+     • Highlight a new, actionable, or memorable insight from the episode
+     • Be expressed in clear, context-aware language in your own words
+     • Avoid direct excerpts or verbatim text from the transcript
+     • Focus on main lessons, practical advice, or surprising points relevant to the audience
    - Format for each item:
-     1. [TIMESTAMP] [1–2 sentence distilled insight]
-   - No transcript-like copying. Insights must be summarised in standalone, valuable terms.
+     1. [TIMESTAMP] [Clear, concise statement highlighting a valuable insight from the episode]
+   - Each takeaway must be a standalone, valuable insight that provides genuine value to the reader
 3. **Actionable Insights**
    - Must include exactly **5 actionable insights** (not 7).
    - Derive each insight directly from the content and themes of the chosen episode.
@@ -248,9 +497,10 @@ Any deviation (wrong sectioning, missing timestamps, wrong counts, or transcript
 
 ### Debugging Self-Check (before final output):
 - Did I structure the response into **3 sections with headings**: Main Summary, Key Takeaways, Actionable Insights?
-- Are there exactly **7 Key Takeaways**, each starting with a **jumpable timestamp** in [hh:mm:ss] format?
+- Are there exactly **5 Key Takeaways**, each starting with a **jumpable timestamp** in [hh:mm:ss] format?
 - Are there exactly **5 Actionable Insights**, practical and useful, not vague?
-- Did I avoid transcript-like copying?
+- 🚨 VERBATIM CHECK: Did I avoid copying ANY conversational fragments, filler words, or rambling speech from the transcript? Each takeaway must be a clean, professional insight in my own words.
+- 🚨 QUALITY CHECK: Does each takeaway read like a polished insight rather than raw conversational speech?
 If ANY condition is not met, regenerate until fully compliant.
 
 Episode Title: ${episodeTitle}
@@ -268,15 +518,35 @@ You are a podcast summarizer that analyzes the episode's genre and adapts your o
 4. ENSURE each takeaway accurately represents what was ACTUALLY SAID in the transcript
 5. Only generate takeaways based on DIRECT CONTENT from the transcript - no assumptions
 
+🚨 CRITICAL ANTI-VERBATIM RULE - ZERO TOLERANCE:
+NEVER copy exact phrases, sentences, or conversational fragments from the transcript.
+Transform all raw speech into clean, professional insights written in YOUR OWN WORDS.
+If you output any verbatim quotes, rambling speech patterns, or unprocessed conversational text, this is a COMPLETE FAILURE.
+
+🔄 MANDATORY PARAPHRASING PROTOCOL:
+- Convert conversational speech into analytical observations
+- Transform personal anecdotes into universal principles
+- Reframe direct statements as synthesized conclusions
+- Replace colloquial language with professional terminology
+
+🎯 PROFESSIONAL LANGUAGE REQUIREMENT:
+- Remove all casual conversational starters: "So,", "Well,", "Like,", "You know,"
+- Eliminate filler words: "um", "uh", "like", "you know", "I mean"
+- Start each takeaway with a strong, direct statement
+- Use professional business language throughout
+
 TRANSCRIPT ANALYSIS REQUIREMENT:
 - Read every word of the transcript below before proceeding
 - The transcript contains the COMPLETE episode content
 - Extract takeaways from the ENTIRE episode, not just the beginning
 - Ensure your summary reflects the full scope of the conversation
 
-Generate only a detailed, comprehensive summary that is EXACTLY 150-200 words (count your words carefully!) and exactly seven key takeaways focused on the most interesting, entertaining, and important moments from across the ENTIRE episode.
+Generate only a detailed, comprehensive summary that is EXACTLY 150-200 words (count your words carefully!) and exactly five key takeaways focused on the most significant concepts, important themes, and key principles discussed throughout the ENTIRE episode.
 
-CRITICAL: Your summary MUST be between 150-200 words. Do not write shorter summaries. Include specific details, entertaining moments, interesting quotes, funny stories, and juicy discussion points from the COMPLETE episode.
+🚨 CRITICAL WORD COUNT REQUIREMENT: Your summary MUST be between 150-200 words.
+- If you write fewer than 150 words, this is INVALID and MUST be regenerated
+- Count every single word to ensure compliance
+- Focus on meaningful themes, conceptual insights, and analytical observations derived from the COMPLETE episode content.
 
 Episode Title: ${episodeTitle}
 ${finalDescription ? `Episode Description: ${finalDescription}` : ''}
@@ -292,16 +562,24 @@ CRITICAL REQUIREMENTS:
 Format your response EXACTLY as:
 
 **Main Summary**
-[Write EXACTLY 150-200 words - count them! Focus on the most interesting moments, entertainment value, funny stories, key discussions, memorable quotes, and noteworthy content. Include specific details and juicy discussion points. Make it engaging and informative without focusing on actionable advice.]
+[Write EXACTLY 150-200 words - COUNT THEM CAREFULLY! Must be at least 150 words minimum. Focus on the most significant concepts, important themes, key principles, and analytical insights. Synthesize the discussion into professional observations without using conversational language or direct quotes. Make it engaging and informative without focusing on actionable advice. VERIFY your word count before submitting.]
 
 **Key Takeaways**
-1. [TIMESTAMP] First key takeaway focused on interesting or entertaining moment/lesson
-2. [TIMESTAMP] Second important insight or memorable moment from the episode
-3. [TIMESTAMP] Third noteworthy observation or discussion point
-4. [TIMESTAMP] Fourth compelling story, example, or interesting revelation
-5. [TIMESTAMP] Fifth entertaining moment or valuable perspective shared
-6. [TIMESTAMP] Sixth notable quote, joke, or memorable exchange
-7. [TIMESTAMP] Seventh final thought or standout moment from the episode
+Generate 3 to 5 original key takeaways as concise statements. Each takeaway should:
+
+• Highlight a new, actionable, or memorable insight from the episode
+• Be expressed in clear, context-aware language in your own words
+• Avoid direct excerpts or verbatim text from the transcript
+• Focus on main lessons, practical advice, or surprising points relevant to the audience
+
+**Output Format:**
+Provide only a numbered list (3-5) of the key takeaways with timestamps:
+
+1. [TIMESTAMP] [Clear, concise statement highlighting a valuable insight from the episode]
+2. [TIMESTAMP] [Clear, concise statement highlighting a valuable insight from the episode]
+3. [TIMESTAMP] [Clear, concise statement highlighting a valuable insight from the episode]
+4. [TIMESTAMP] [Clear, concise statement highlighting a valuable insight from the episode]
+5. [TIMESTAMP] [Clear, concise statement highlighting a valuable insight from the episode]
 `;
 
   try {
@@ -310,16 +588,29 @@ Format your response EXACTLY as:
     const text = response.text();
 
     console.log("🤖 GEMINI RAW RESPONSE (first 500 chars):", text.substring(0, 500));
+    console.log("🔍 INSIGHTS ENABLED:", shouldGenerateInsights);
+    console.log("🔍 FULL RESPONSE LENGTH:", text.length);
 
-    // Parse the response to extract the structured format - support both ** and ### formats
-    const mainSummaryMatch = text.match(/(?:\*\*Main Summary\*\*|### Main Summary)\s*([\s\S]*?)(?=(?:\*\*Key Takeaways\*\*|### Key Takeaways)|$)/);
-    const keyTakeawaysMatch = text.match(/(?:\*\*Key Takeaways\*\*|### Key Takeaways)\s*([\s\S]*?)(?=(?:\*\*Actionable Insights\*\*|### Actionable Insights)|$)/);
-    const actionableInsightsMatch = text.match(/(?:\*\*Actionable Insights\*\*|### Actionable Insights)\s*([\s\S]*?)(?=$)/);
+    // Debug: Save full response for troubleshooting
+    if (text.length > 500) {
+      console.log("📄 GEMINI FULL RESPONSE:", text);
+    }
+
+    // Parse the response to extract the structured format - support ALL possible formats
+    const mainSummaryMatch = text.match(/(?:\*\*Main Summary\*\*|### Main Summary|###\s*1\.\s*Main Summary|##\s*1\.\s*Main Summary|#\s*1\.\s*Main Summary|1\.\s*Main Summary)\s*([\s\S]*?)(?=(?:\*\*Key Takeaways\*\*|### Key Takeaways|###\s*2\.\s*Key Takeaways|##\s*2\.\s*Key Takeaways|#\s*2\.\s*Key Takeaways|2\.\s*Key Takeaways)|$)/i);
+    const keyTakeawaysMatch = text.match(/(?:\*\*Key Takeaways\*\*|### Key Takeaways|###\s*2\.\s*Key Takeaways|##\s*2\.\s*Key Takeaways|#\s*2\.\s*Key Takeaways|2\.\s*Key Takeaways)\s*([\s\S]*?)(?=(?:\*\*Actionable Insights\*\*|### Actionable Insights|###\s*3\.\s*Actionable Insights|##\s*3\.\s*Actionable Insights|#\s*3\.\s*Actionable Insights|3\.\s*Actionable Insights)|$)/i);
+    const actionableInsightsMatch = text.match(/(?:\*\*Actionable Insights\*\*|### Actionable Insights|###\s*3\.\s*Actionable Insights|##\s*3\.\s*Actionable Insights|#\s*3\.\s*Actionable Insights|3\.\s*Actionable Insights)\s*([\s\S]*?)(?=$)/i);
 
     const summary = mainSummaryMatch?.[1]?.trim() || text;
     const takeawaysText = keyTakeawaysMatch?.[1]?.trim() || '';
     const actionableInsightsText = actionableInsightsMatch?.[1]?.trim() || '';
 
+    console.log("🔍 PARSING RESULTS:");
+    console.log("  - Summary matched:", !!mainSummaryMatch);
+    console.log("  - Takeaways matched:", !!keyTakeawaysMatch);
+    console.log("  - Insights matched:", !!actionableInsightsMatch);
+    console.log("  - Summary length:", summary.length);
+    console.log("  - Summary preview:", summary.substring(0, 100) + "...");
     console.log("🎯 NEW FORMAT TAKEAWAYS RAW TEXT:", takeawaysText);
     console.log("🎯 NEW FORMAT ACTIONABLE INSIGHTS RAW TEXT:", actionableInsightsText);
     console.log("🎯 ACTIONABLE INSIGHTS LENGTH:", actionableInsightsText.length);
@@ -327,22 +618,90 @@ Format your response EXACTLY as:
 
     // Parse numbered takeaways with timestamps: 1. [hh:mm:ss] ...
     const takeaways: string[] = [];
-    const numberedTakeawayPattern = /(\d+)\.\s*\[([^\]]+)\]\s*(.*?)(?=\n\d+\.|$)/gs;
 
-    console.log("🔍 REGEX PATTERN:", numberedTakeawayPattern.source);
     console.log("🔍 TAKEAWAYS TEXT LENGTH:", takeawaysText.length);
     console.log("🔍 TAKEAWAYS PREVIEW:", takeawaysText.substring(0, 200));
 
-    let match;
-    while ((match = numberedTakeawayPattern.exec(takeawaysText)) !== null) {
-      const [, number, timestamp, keyTakeaway] = match;
+    // Enhanced parsing with multiple pattern attempts
+    const parsePatterns = [
+      // Pattern 1: 1. [timestamp] text
+      {
+        name: "numbered_with_brackets",
+        regex: /(\d+)\.\s*\[([^\]]+)\]\s*(.*?)(?=(?:\r?\n|^)\d+\.|$)/gms,
+        handler: (match: RegExpExecArray) => {
+          const [, , timestamp, text] = match;
+          return `[${timestamp}] ${text.trim()}`;
+        }
+      },
+      // Pattern 2: [timestamp] text (without numbering)
+      {
+        name: "brackets_only",
+        regex: /\[([^\]]+)\]\s*(.*?)(?=(?:\r?\n|^)\[|$)/gms,
+        handler: (match: RegExpExecArray) => {
+          const [, timestamp, text] = match;
+          return text.trim().length > 10 ? `[${timestamp}] ${text.trim()}` : null;
+        }
+      },
+      // Pattern 3: 1. text (numbered without timestamps)
+      {
+        name: "numbered_only",
+        regex: /(\d+)\.\s*([^0-9].*?)(?=(?:\r?\n|^)\d+\.|$)/gms,
+        handler: (match: RegExpExecArray) => {
+          const [, , text] = match;
+          return text.trim().length > 10 ? `[TIMESTAMP] ${text.trim()}` : null;
+        }
+      },
+      // Pattern 4: - text or • text (bullet points)
+      {
+        name: "bullet_points",
+        regex: /(?:^|\n)\s*[-•]\s*([^-•\n]+?)(?=(?:\r?\n\s*[-•])|$)/gms,
+        handler: (match: RegExpExecArray) => {
+          const [, text] = match;
+          return text.trim().length > 10 ? `[TIMESTAMP] ${text.trim()}` : null;
+        }
+      }
+    ];
 
-      console.log(`🎯 PARSING TAKEAWAY ${number}: ${timestamp}`);
-      console.log(`🎯 KEY TAKEAWAY: ${keyTakeaway.trim()}`);
+    // Try each pattern until we get results
+    for (const pattern of parsePatterns) {
+      console.log(`🔍 TRYING PATTERN: ${pattern.name}`);
 
-      // Store takeaway with timestamp
-      const takeawayWithTimestamp = `[${timestamp}] ${keyTakeaway.trim()}`;
-      takeaways.push(takeawayWithTimestamp);
+      let match;
+      const patternTakeaways: string[] = [];
+
+      while ((match = pattern.regex.exec(takeawaysText)) !== null) {
+        const result = pattern.handler(match);
+        if (result) {
+          patternTakeaways.push(result);
+          console.log(`✅ PARSED with ${pattern.name}: ${result.substring(0, 50)}...`);
+        }
+      }
+
+      if (patternTakeaways.length > 0) {
+        takeaways.push(...patternTakeaways);
+        console.log(`🎯 SUCCESS: Found ${patternTakeaways.length} takeaways with pattern ${pattern.name}`);
+        break;
+      }
+    }
+
+    // Ultimate fallback: try to extract any meaningful lines
+    if (takeaways.length === 0) {
+      console.log("🚨 ALL PATTERNS FAILED - Using line-by-line fallback");
+      const lines = takeawaysText.split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(line => {
+          // Filter out empty lines, section headers, and very short lines
+          return line.length > 15 &&
+                 !line.match(/^(key\s+takeaways?|takeaways?|insights?):?$/i) &&
+                 !line.match(/^\*+\s*/) &&
+                 !line.match(/^#+\s*/);
+        });
+
+      for (let i = 0; i < Math.min(lines.length, 5); i++) {
+        const line = lines[i];
+        takeaways.push(`[TIMESTAMP] ${line}`);
+        console.log(`🔄 FALLBACK LINE ${i + 1}: ${line.substring(0, 50)}...`);
+      }
     }
 
     // Parse actionable insights with structured format: Action, Why this matters, Real-life example
@@ -396,12 +755,40 @@ Format your response EXACTLY as:
     console.log("🎯 PARSED TAKEAWAYS:", takeaways);
     console.log("🎯 PARSED ACTIONABLE INSIGHTS COUNT:", actionableInsights.length);
 
-    // Use the parsed takeaways and actionable insights from new format
-    const finalTakeaways = takeaways;
+    // Log detailed parsing results
+    if (takeaways.length === 0) {
+      console.log("🚨 NO TAKEAWAYS PARSED! Debug info:");
+      console.log("📄 Full takeaways text:", takeawaysText);
+      console.log("📄 Text length:", takeawaysText.length);
+      console.log("📄 First 500 chars:", takeawaysText.substring(0, 500));
+    } else if (takeaways.length < 3) {
+      console.log("⚠️ LOW TAKEAWAY COUNT! Debug info:");
+      console.log("📄 Raw takeaways text:", takeawaysText);
+    }
+
+    // Apply verbatim detection and filtering
+    const verbatimFilteredTakeaways = filterVerbatimTakeaways(takeaways, finalTranscript);
+
+    console.log(`🔍 VERBATIM FILTERING RESULTS: ${takeaways.length} → ${verbatimFilteredTakeaways.length} takeaways`);
+    if (verbatimFilteredTakeaways.length < takeaways.length) {
+      const removedCount = takeaways.length - verbatimFilteredTakeaways.length;
+      console.log(`🚨 VERBATIM FILTER REMOVED ${removedCount} takeaways!`);
+      console.log("📋 Original takeaways:", takeaways);
+      console.log("📋 Remaining takeaways:", verbatimFilteredTakeaways);
+    }
+
+    // Step 3: Polish takeaways for professional language
+    const polishedTakeaways = polishTakeaways(verbatimFilteredTakeaways);
+
+    console.log(`✨ POLISHING RESULTS: ${verbatimFilteredTakeaways.length} takeaways polished for professional language`);
+
+    // Use the polished takeaways and actionable insights from new format
+    const finalTakeaways = polishedTakeaways;
     const finalActionableInsights = actionableInsights;
 
-    if (finalTakeaways.length !== 7) {
-      console.log("⚠️ TAKEAWAY COUNT MISMATCH! Expected 7, got:", finalTakeaways.length);
+
+    if (finalTakeaways.length !== 5) {
+      console.log("⚠️ TAKEAWAY COUNT MISMATCH! Expected 5, got:", finalTakeaways.length);
       console.log("✅ Using new format with quality over quantity approach");
     }
 

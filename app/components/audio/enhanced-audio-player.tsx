@@ -75,9 +75,9 @@ export function EnhancedAudioPlayer({ episode, className = '' }: EnhancedAudioPl
 
   return (
     <div className={`bg-black/90 backdrop-blur-sm rounded-2xl shadow-2xl border border-white/10 ${className}`}>
-      <div className="p-4 sm:p-6">
+      <div className="p-3 sm:p-4">
         {/* Track Info Section */}
-        <div className="flex items-center gap-4 mb-4">
+        <div className="flex items-center gap-3 mb-3">
           {/* Album Art */}
           <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-gradient-to-br from-pink-400 to-orange-400 flex-shrink-0 overflow-hidden">
             {episode.thumbnail ? (
@@ -103,13 +103,13 @@ export function EnhancedAudioPlayer({ episode, className = '' }: EnhancedAudioPl
         </div>
 
         {/* Time Display */}
-        <div className="flex items-center justify-between text-gray-300 text-sm mb-3 font-mono">
+        <div className="flex items-center justify-between text-gray-300 text-sm mb-2 font-mono">
           <span>{formatTime(currentTime)}</span>
           <span>{formatTime(duration)}</span>
         </div>
 
         {/* Progress Bar */}
-        <div className="mb-6">
+        <div className="mb-4">
           <div className="relative h-1 bg-gray-600 rounded-full cursor-pointer">
             <div
               className="absolute top-0 left-0 h-full bg-blue-500 rounded-full transition-all duration-150"

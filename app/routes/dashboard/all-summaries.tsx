@@ -286,25 +286,25 @@ export default function AllSummaries() {
           {userSummaries && userSummaries.length > 0 && filteredAndSortedSummaries.length > 0 && (
             <div className="space-y-6 sm:space-y-8">
               {filteredAndSortedSummaries.map((summary: any, index: number) => (
-                <div key={summary._id || index} className="bg-blue-50 rounded-lg sm:rounded-xl p-4 sm:p-6 border border-blue-200">
+                <div key={summary._id || index} className="bg-[#26282B] rounded-lg sm:rounded-xl p-4 sm:p-6 border border-gray-600">
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 mb-3 sm:mb-4">
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-base sm:text-lg font-semibold text-blue-900 leading-tight">
+                      <h3 className="text-base sm:text-lg font-semibold text-white leading-tight">
                         {summary.episode_title || `Episode Summary #${index + 1}`}
                       </h3>
-                      <p className="text-xs sm:text-sm text-blue-600 mt-1">
+                      <p className="text-xs sm:text-sm text-white mt-1">
                         Generated on {new Date(summary.created_at || Date.now()).toLocaleDateString()}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       <button
                         onClick={() => handleCopy(
-                          typeof summary.content === 'string' ? summary.content : 
-                          typeof summary.content === 'object' ? JSON.stringify(summary.content) : 
-                          String(summary.content || ''), 
+                          typeof summary.content === 'string' ? summary.content :
+                          typeof summary.content === 'object' ? JSON.stringify(summary.content) :
+                          String(summary.content || ''),
                           summary._id
                         )}
-                        className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-lg transition-colors touch-manipulation"
+                        className="p-2 text-white hover:text-gray-300 hover:bg-gray-700 rounded-lg transition-colors touch-manipulation"
                         title="Copy summary"
                       >
                         {copiedId === summary._id ? (
@@ -319,7 +319,7 @@ export default function AllSummaries() {
                       </button>
                       <Link
                         to={`/dashboard/chat?episodeId=${summary.episode_id}&summaryId=${summary._id}`}
-                        className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded-lg transition-colors touch-manipulation"
+                        className="p-2 text-white hover:text-gray-300 hover:bg-gray-700 rounded-lg transition-colors touch-manipulation"
                         title="Chat with AI about this episode"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -332,16 +332,19 @@ export default function AllSummaries() {
                     </div>
                   </div>
 
-                  <div className="space-y-4 sm:space-y-6">
-                    <div>
-                      <div className="flex items-center gap-2 mb-4">
-                        <svg className="w-5 h-5 text-blue-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        <h4 className="font-bold text-gray-900 text-base sm:text-lg">Summary</h4>
+                  <div className="space-y-6 sm:space-y-8">
+                    {/* Summary Section */}
+                    <div className="bg-gray-800 rounded-lg border border-gray-600 overflow-hidden">
+                      <div className="bg-gray-700 px-4 sm:px-6 py-3">
+                        <div className="flex items-center gap-2">
+                          <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          <h4 className="font-bold text-white text-base sm:text-lg">Summary</h4>
+                        </div>
                       </div>
-                      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 sm:p-6 border border-blue-200">
-                        <div className="text-gray-900 text-xl font-medium leading-relaxed">
+                      <div className="p-4 sm:p-6">
+                        <div className="text-white text-base sm:text-lg leading-relaxed">
                           {(() => {
                             const content = typeof summary.content === 'string' ? summary.content :
                                            typeof summary.content === 'object' ? JSON.stringify(summary.content) :
@@ -351,8 +354,8 @@ export default function AllSummaries() {
                             const paragraphs = formatSummaryIntoParagraphs(content);
 
                             return paragraphs.map((paragraph, index) => (
-                              <div key={index} className={index > 0 ? "mt-6" : ""}>
-                                <p className="leading-relaxed text-gray-800 text-xl">
+                              <div key={index} className={index > 0 ? "mt-4" : ""}>
+                                <p className="leading-relaxed text-white">
                                   {paragraph}
                                 </p>
                               </div>
@@ -362,15 +365,19 @@ export default function AllSummaries() {
                       </div>
                     </div>
                     
+                    {/* Key Takeaways Section */}
                     {summary.takeaways && summary.takeaways.length > 0 && (
-                      <div>
-                        <div className="flex items-center gap-2 mb-4">
-                          <svg className="w-5 h-5 text-blue-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          <h4 className="font-bold text-gray-900 text-base sm:text-lg">Key Takeaways</h4>
+                      <div className="bg-gray-800 rounded-lg border border-gray-600 overflow-hidden">
+                        <div className="bg-gray-700 px-4 sm:px-6 py-3">
+                          <div className="flex items-center gap-2">
+                            <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <h4 className="font-bold text-white text-base sm:text-lg">Key Takeaways</h4>
+                          </div>
                         </div>
-                        <ul className="space-y-3 sm:space-y-4">
+                        <div className="p-4 sm:p-6">
+                          <div className="space-y-6">
                           {summary.takeaways.map((takeaway: any, idx: number) => {
                             // Robust handling of different takeaway formats
                             let text = '';
@@ -420,14 +427,14 @@ export default function AllSummaries() {
                             }
                             
                             return (
-                              <li key={idx} className="flex items-start gap-3">
-                                <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-medium mt-0.5">
-                                  {idx + 1}
-                                </span>
-                                <div className="flex-1 min-w-0">
-                                  <span className="text-blue-700 text-sm sm:text-base leading-relaxed">{text}</span>
-                                  {timestamp && formattedTime && (
-                                    <div className="mt-2">
+                              <div key={idx} className="bg-gray-700 rounded-lg p-5 border border-gray-600">
+                                <div className="flex items-start gap-4">
+                                  <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-lg font-bold flex-shrink-0">
+                                    {idx + 1}
+                                  </div>
+                                  <div className="flex-1">
+                                    <p className="text-white text-lg leading-relaxed mb-4">{text}</p>
+                                    {timestamp && formattedTime && (
                                       <button
                                         onClick={() => {
                                           console.log('🎬 CLICKING TIMESTAMP BUTTON');
@@ -440,95 +447,93 @@ export default function AllSummaries() {
                                           }
                                           handleTimestampSeek(timestamp, summary);
                                         }}
-                                        className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800"
+                                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold text-sm hover:bg-blue-700 transition-colors"
                                         title={`Jump to ${formattedTime}`}
                                       >
                                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                                           <path d="M8 5v14l11-7z"/>
                                         </svg>
-                                        <span className="font-bold">Jump to {formattedTime || `${Math.floor(timestamp / 60)}:${(timestamp % 60).toString().padStart(2, '0')}`}</span>
+                                        Jump to {formattedTime || `${Math.floor(timestamp / 60)}:${(timestamp % 60).toString().padStart(2, '0')}`}
                                       </button>
-                                      {confidence && (
-                                        <div className="flex items-center gap-2 mt-1">
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
+                                    )}
+                                  </div>
                                 </div>
-                              </li>
+                              </div>
                             );
-                          })}
-                        </ul>
+                            })}
+                          </div>
+                        </div>
                       </div>
                     )}
 
+                    {/* Actionable Insights Section */}
                     {summary.actionable_insights && summary.actionable_insights.length > 0 && (
-                      <div>
-                        <div className="flex items-center gap-2 mb-6">
-                          <svg className="w-6 h-6 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          <h4 className="font-bold text-gray-900 text-lg sm:text-xl">Actionable Insights</h4>
+                      <div className="bg-gray-800 rounded-lg border border-gray-600 overflow-hidden">
+                        <div className="bg-gray-700 px-4 sm:px-6 py-3">
+                          <div className="flex items-center gap-2">
+                            <svg className="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <h4 className="font-bold text-white text-base sm:text-lg">Actionable Insights</h4>
+                          </div>
                         </div>
-                        <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200">
+                        <div className="p-4 sm:p-6">
                           <div className="space-y-6">
                             {summary.actionable_insights.map((insight: any, idx: number) => (
-                              <div key={idx} className="bg-white rounded-lg p-5 shadow-sm border border-green-100 hover:shadow-md transition-shadow">
-                                <div className="flex items-start gap-4">
-                                  <div className="w-8 h-8 bg-gradient-to-br from-green-600 to-green-700 text-white rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 shadow-sm">
-                                    {idx + 1}
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    {/* Action Title */}
-                                    <div className="mb-4">
-                                      <h5 className="text-lg font-bold text-gray-900 leading-tight">
+                              <div key={idx} className="bg-gray-800 rounded-lg border-2 border-green-400 overflow-hidden">
+                                <div className="p-6">
+                                  <div className="flex items-start gap-4">
+                                    <div className="w-10 h-10 bg-green-500 text-white rounded-full flex items-center justify-center text-lg font-bold flex-shrink-0">
+                                      {idx + 1}
+                                    </div>
+                                    <div className="flex-1">
+                                      <h5 className="text-xl font-bold text-white mb-6">
                                         {insight.action || 'No action specified'}
                                       </h5>
-                                    </div>
-                                    
-                                    {/* Structured Information */}
-                                    <div className="space-y-3">
-                                      {insight.context && (
-                                        <div className="bg-blue-50 rounded-lg p-3 border-l-4 border-blue-400">
-                                          <div className="flex items-start gap-2">
-                                            <svg className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                            </svg>
-                                            <div>
-                                              <span className="font-semibold text-blue-800 text-sm">Why this matters:</span>
-                                              <p className="text-blue-700 text-sm mt-1">{insight.context}</p>
+
+                                      <div className="space-y-4">
+                                        {insight.context && (
+                                          <div className="bg-gray-700 rounded-lg p-4 border-l-4 border-blue-400">
+                                            <div className="flex items-start gap-3">
+                                              <svg className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                              </svg>
+                                              <div>
+                                                <span className="font-bold text-blue-400 text-base">Why this matters:</span>
+                                                <p className="text-gray-200 text-base mt-2 leading-relaxed">{insight.context}</p>
+                                              </div>
                                             </div>
                                           </div>
-                                        </div>
-                                      )}
-                                      
-                                      {insight.application && (
-                                        <div className="bg-purple-50 rounded-lg p-3 border-l-4 border-purple-400">
-                                          <div className="flex items-start gap-2">
-                                            <svg className="w-4 h-4 text-purple-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                                            </svg>
-                                            <div>
-                                              <span className="font-semibold text-purple-800 text-sm">Real-life example:</span>
-                                              <p className="text-purple-700 text-sm mt-1">{insight.application}</p>
+                                        )}
+
+                                        {insight.application && (
+                                          <div className="bg-gray-700 rounded-lg p-4 border-l-4 border-purple-400">
+                                            <div className="flex items-start gap-3">
+                                              <svg className="w-5 h-5 text-purple-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                                              </svg>
+                                              <div>
+                                                <span className="font-bold text-purple-400 text-base">Real-life example:</span>
+                                                <p className="text-gray-200 text-base mt-2 leading-relaxed">{insight.application}</p>
+                                              </div>
                                             </div>
                                           </div>
-                                        </div>
-                                      )}
-                                      
-                                      {insight.resources && (
-                                        <div className="bg-orange-50 rounded-lg p-3 border-l-4 border-orange-400">
-                                          <div className="flex items-start gap-2">
-                                            <svg className="w-4 h-4 text-orange-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                                            </svg>
-                                            <div>
-                                              <span className="font-semibold text-orange-800 text-sm">Resources mentioned:</span>
-                                              <p className="text-orange-700 text-sm mt-1">{insight.resources}</p>
+                                        )}
+
+                                        {insight.resources && (
+                                          <div className="bg-orange-100 rounded-lg p-4 border-l-4 border-orange-400">
+                                            <div className="flex items-start gap-3">
+                                              <svg className="w-5 h-5 text-orange-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                              </svg>
+                                              <div>
+                                                <span className="font-bold text-orange-700 text-base">Resources mentioned:</span>
+                                                <p className="text-orange-800 text-base mt-2 leading-relaxed">{insight.resources}</p>
+                                              </div>
                                             </div>
                                           </div>
-                                        </div>
-                                      )}
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
@@ -546,10 +551,10 @@ export default function AllSummaries() {
                           <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                           </svg>
-                          <h4 className="font-bold text-gray-900 text-lg sm:text-xl">Growth Strategy</h4>
+                          <h4 className="font-bold text-white text-lg sm:text-xl">Growth Strategy</h4>
                         </div>
-                        <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl p-6 border border-purple-200">
-                          <div className="text-purple-700 leading-relaxed text-base sm:text-lg font-medium">
+                        <div className="p-6">
+                          <div className="text-white leading-relaxed text-base sm:text-lg font-medium">
                             {summary.growth_strategy}
                           </div>
                         </div>
@@ -563,10 +568,10 @@ export default function AllSummaries() {
                           <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                           </svg>
-                          <h4 className="font-bold text-gray-900 text-lg sm:text-xl">Key Insight</h4>
+                          <h4 className="font-bold text-white text-lg sm:text-xl">Key Insight</h4>
                         </div>
-                        <div className="bg-gradient-to-br from-yellow-50 to-amber-50 rounded-xl p-6 border border-yellow-200">
-                          <div className="text-yellow-700 leading-relaxed text-base sm:text-lg font-medium">
+                        <div className="p-6">
+                          <div className="text-white leading-relaxed text-base sm:text-lg font-medium">
                             {summary.key_insight}
                           </div>
                         </div>
@@ -580,10 +585,10 @@ export default function AllSummaries() {
                           <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.728-.833-2.498 0L4.268 16.5c-.77.833.192 2.5 1.732 2.5z" />
                           </svg>
-                          <h4 className="font-bold text-gray-900 text-lg sm:text-xl">Reality Check</h4>
+                          <h4 className="font-bold text-white text-lg sm:text-xl">Reality Check</h4>
                         </div>
-                        <div className="bg-gradient-to-br from-red-50 to-rose-50 rounded-xl p-6 border border-red-200">
-                          <div className="text-red-700 leading-relaxed text-base sm:text-lg font-medium">
+                        <div className="p-6">
+                          <div className="text-white leading-relaxed text-base sm:text-lg font-medium">
                             {summary.reality_check}
                           </div>
                         </div>

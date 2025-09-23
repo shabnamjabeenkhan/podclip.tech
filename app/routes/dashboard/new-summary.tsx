@@ -6,7 +6,8 @@ import { useAuth } from "@clerk/react-router";
 import { toast } from "sonner";
 import { useAudio } from "~/contexts/app-context";
 import { SimplePagination, Pagination } from "~/components/ui/pagination";
-import { HoverButton } from "~/components/ui/hover-button";
+import { Button as NeonButton } from "~/components/ui/neon-button";
+import { CategoryList, type Category } from "~/components/ui/category-list";
 import type { Route } from "./+types/new-summary";
 
 // Utility function to break summary text into readable paragraphs
@@ -750,51 +751,54 @@ export default function NewSummary() {
           {/* Podcast Results */}
           {podcastResults && !selectedPodcast && (
             <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900">
+              <div className="space-y-3">
+                <h2 className="text-xl font-semibold text-gray-900 mb-6">
                   Found {podcastResults.pagination?.total || podcastResults.results?.length || 0} podcasts
                 </h2>
-              </div>
-              <div className="grid gap-4">
                 {podcastResults.results?.map((podcast: any, index: number) => (
-                  <div 
-                    key={index} 
-                    className="group border border-gray-200 rounded-xl p-6 cursor-pointer hover:border-blue-300 hover:shadow-md transition-all duration-200"
+                  <div
+                    key={index}
+                    className="relative group border border-gray-200 bg-white rounded-lg hover:border-blue-500 hover:shadow-lg transition-all duration-300 cursor-pointer"
                     onClick={() => handlePodcastSelect(podcast)}
                   >
-                    <div className="flex items-start gap-4">
-                      <img 
-                        src={podcast.image} 
-                        alt={podcast.title_original}
-                        className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-lg text-gray-900 group-hover:text-blue-600 transition-colors">
-                          {podcast.title_original}
-                        </h3>
-                        <p className="text-gray-600 text-sm mt-2 leading-relaxed">
-                          {(() => {
-                            const cleanText = podcast.description_original?.replace(/<[^>]*>/g, '') || '';
-                            return cleanText.length > 150 ? `${cleanText.substring(0, 150)}...` : cleanText;
-                          })()}
-                        </p>
-                        <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
-                          <span className="bg-gray-100 px-2 py-1 rounded-full">
-                            {podcast.total_episodes} episodes
-                          </span>
-                          <span>Publisher: {podcast.publisher_original}</span>
+                    <div className="flex items-center justify-between h-20 px-6">
+                      <div className="flex items-center gap-4 flex-1">
+                        <img
+                          src={podcast.image}
+                          alt={podcast.title_original}
+                          className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors duration-300">
+                            {podcast.title_original}
+                          </h3>
+                          <p className="text-sm text-gray-600 mt-1">
+                            {podcast.total_episodes} episodes • Publisher: {podcast.publisher_original}
+                          </p>
                         </div>
                       </div>
-                      <div className="flex-shrink-0">
-                        <svg className="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+
+                      {/* Arrow icon that appears on hover */}
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
                       </div>
                     </div>
+
+                    {/* Corner brackets that appear on hover */}
+                    <div className="absolute top-3 left-3 w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <div className="absolute top-0 left-0 w-4 h-0.5 bg-blue-500" />
+                      <div className="absolute top-0 left-0 w-0.5 h-4 bg-blue-500" />
+                    </div>
+                    <div className="absolute bottom-3 right-3 w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <div className="absolute bottom-0 right-0 w-4 h-0.5 bg-blue-500" />
+                      <div className="absolute bottom-0 right-0 w-0.5 h-4 bg-blue-500" />
+                    </div>
                   </div>
                 ))}
               </div>
-              
+
               {/* Pagination */}
               {podcastResults.pagination && podcastResults.pagination.totalPages > 1 && (
                 <div className="mt-8">
@@ -853,7 +857,7 @@ export default function NewSummary() {
                 </div>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {isLoading ? (
                   <div className="flex items-center justify-center py-12">
                     <div className="text-center">
@@ -867,76 +871,52 @@ export default function NewSummary() {
                 ) : episodes?.episodes ? (
                   <>
                     {episodes?.episodes?.map((episode: any, index: number) => (
-                  <div key={index} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow" style={{padding: 0}}>
+                  <div key={index} className="bg-card text-card-foreground p-4 rounded-lg border shadow-sm">
                     <div className="space-y-4">
                       {/* Episode Info */}
-                      <div className="flex items-start justify-between gap-6">
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-lg text-gray-900 leading-tight">
-                            {episode.title}
-                          </h3>
-                          <p className="text-gray-600 text-sm mt-3 leading-relaxed">
-                            {(() => {
-                              const cleanText = episode.description?.replace(/<[^>]*>/g, '') || '';
-                              return cleanText.length > 200 ? `${cleanText.substring(0, 200)}...` : cleanText;
-                            })()}
-                          </p>
-                          <div className="flex items-center gap-4 mt-4 text-sm text-gray-500">
-                            <span className="flex items-center gap-1">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                              {Math.floor(episode.audio_length_sec / 60)} minutes
-                            </span>
-                            <span>Published: {new Date(episode.pub_date_ms).toLocaleDateString()}</span>
-                          </div>
+                      <div>
+                        <h3 className="text-lg font-medium leading-none">
+                          {episode.title}
+                        </h3>
+                        <p className="text-sm text-muted-foreground mt-2">
+                          {(() => {
+                            const cleanText = episode.description?.replace(/<[^>]*>/g, '') || '';
+                            return cleanText.length > 200 ? `${cleanText.substring(0, 200)}...` : cleanText;
+                          })()}
+                        </p>
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          <span className="bg-secondary text-secondary-foreground text-xs px-2.5 py-0.5 rounded-full font-medium">
+                            {Math.floor(episode.audio_length_sec / 60)} min
+                          </span>
+                          <span className="bg-secondary text-secondary-foreground text-xs px-2.5 py-0.5 rounded-full font-medium">
+                            {new Date(episode.pub_date_ms).toLocaleDateString()}
+                          </span>
                         </div>
                       </div>
 
-                      {/* Actionable Insights Toggle - Only show for episodes without existing summaries */}
-                      {!existingSummaries[episode.id] && (
-                        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3">
-                                <div className="flex items-center">
-                                  <input
-                                    type="checkbox"
-                                    id={`insights-${episode.id}`}
-                                    checked={insightsEnabled[episode.id] || false}
-                                    onChange={(e) => setInsightsEnabled(prev => ({
-                                      ...prev,
-                                      [episode.id]: e.target.checked
-                                    }))}
-                                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                                  />
-                                  <label htmlFor={`insights-${episode.id}`} className="ml-2 text-sm font-medium text-gray-900">
-                                    Generate Actionable Insights
-                                  </label>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
+                      {/* Actionable Insights Toggle - Always show */}
+                      <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 mt-4">
+                        <div className="flex items-center">
+                          <input
+                            type="checkbox"
+                            id={`insights-${episode.id}`}
+                            checked={insightsEnabled[episode.id] || false}
+                            onChange={(e) => setInsightsEnabled(prev => ({
+                              ...prev,
+                              [episode.id]: e.target.checked
+                            }))}
+                            className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                          />
+                          <label htmlFor={`insights-${episode.id}`} className="ml-2 text-sm font-medium text-gray-900">
+                            Generate Actionable Insights
+                          </label>
                         </div>
-                      )}
+                      </div>
 
                       <div className="flex items-start justify-between gap-6">
                         <div className="flex-1 min-w-0"></div>
                         <div className="flex-shrink-0">
-                          {existingSummaries[episode.id] ? (
-                            <a
-                              href="/dashboard/all-summaries"
-                              className="px-4 sm:px-6 py-2 sm:py-3 font-medium rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transition-all text-sm sm:text-base bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 inline-flex items-center justify-center gap-2"
-                              title="View the full summary in All Summaries page"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                              </svg>
-                              <span className="hidden sm:inline">View Full Summary</span>
-                              <span className="sm:hidden">View</span>
-                            </a>
-                          ) : (
+                          {!existingSummaries[episode.id] && (
                             <button 
                               onClick={() => handleGenerateSummary(episode)}
                               disabled={
@@ -1032,13 +1012,13 @@ export default function NewSummary() {
 
                       {/* Existing Summary Display */}
                       {existingSummaries[episode.id] && (
-                        <div className="bg-blue-50 rounded-xl p-0 border border-blue-100 shadow-sm">
-                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-2 mb-6 px-6 pt-6">
+                        <div className="bg-[#26282B] rounded-lg border border-gray-600 p-6">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-2 mb-6">
                             <div className="flex items-center gap-2 flex-wrap">
                               <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                               </svg>
-                              <h4 className="text-lg font-semibold text-gray-900">AI Generated Summary</h4>
+                              <h4 className="text-lg font-semibold text-white">AI Generated Summary</h4>
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
                                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -1068,15 +1048,15 @@ Timestamps
                           </div>
                           
                           {/* Summary Section - Preview with Fade */}
-                          <div className="bg-white rounded-lg p-4 mx-6 mb-6">
+                          <div className="mb-6">
                             <div className="flex items-center gap-2 mb-4">
                               <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                               </svg>
-                              <h5 className="font-medium text-gray-900">Summary</h5>
+                              <h5 className="font-medium text-white">Summary</h5>
                             </div>
                             <div className="relative">
-                              <div className="text-gray-900 leading-relaxed text-lg font-medium">
+                              <div className="text-white leading-relaxed text-lg font-medium">
                                 {(() => {
                                   const paragraphs = formatSummaryIntoParagraphs(existingSummaries[episode.id].content);
                                   // Show only the first paragraph
@@ -1087,31 +1067,32 @@ Timestamps
                                 })()}
                               </div>
                               {/* Fade out effect */}
-                              <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white to-transparent pointer-events-none"></div>
+                              <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#26282B] to-transparent pointer-events-none"></div>
                             </div>
                             {/* View Full Summary Button */}
-                            <div className="mt-4 pt-4 border-t border-gray-100">
-                              <HoverButton
+                            <div className="mt-4 pt-4 border-t border-gray-600 flex justify-center">
+                              <NeonButton
                                 onClick={() => window.location.href = "/dashboard/all-summaries"}
-                                className="inline-flex items-center gap-2"
+                                className="inline-flex items-center gap-2 bg-white text-black hover:bg-gray-100"
+                                neon={false}
                               >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                 </svg>
                                 View Full Summary
-                              </HoverButton>
+                              </NeonButton>
                             </div>
                           </div>
                           
-                          {/* Key Takeaways Section */}
-                          {existingSummaries[episode.id].takeaways && existingSummaries[episode.id].takeaways.length > 0 && (
-                            <div className="bg-white rounded-lg p-4 mx-6 mb-6">
+                          {/* Key Takeaways Section - Hidden in new-summary page */}
+                          {false && existingSummaries[episode.id].takeaways && existingSummaries[episode.id].takeaways.length > 0 && (
+                            <div className="mb-6">
                               <div className="flex items-center gap-2 mb-4">
                                 <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                                 </svg>
-                                <h5 className="font-medium text-gray-900">Key Takeaways</h5>
+                                <h5 className="font-medium text-white">Key Takeaways</h5>
                               </div>
                               <div className="space-y-4">
                                 {existingSummaries[episode.id].takeaways.map((takeaway: any, idx: number) => {
@@ -1150,7 +1131,7 @@ Timestamps
                                         {idx + 1}
                                       </span>
                                       <div className="flex-1 min-w-0">
-                                        <div className="text-blue-700 leading-relaxed">
+                                        <div className="text-white leading-relaxed">
                                           {displayText}
                                         </div>
                                         {timestamp && formattedTime && (
@@ -1192,13 +1173,13 @@ Timestamps
 
                       {/* Generated Summary Display - Clean Design */}
                       {summaries[episode.id] && (
-                        <div className="bg-blue-50 rounded-xl p-0 border border-blue-100 shadow-sm animate-in slide-in-from-top-4 duration-500">
-                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-2 mb-6 px-6 pt-6">
+                        <div className="bg-[#26282B] rounded-lg border border-gray-600 p-6 animate-in slide-in-from-top-4 duration-500">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-2 mb-6">
                             <div className="flex items-center gap-2 flex-wrap">
                               <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                               </svg>
-                              <h4 className="text-lg font-semibold text-gray-900">AI Generated Summary</h4>
+                              <h4 className="text-lg font-semibold text-white">AI Generated Summary</h4>
                               {summaries[episode.id].debugInfo && (
                                 <div className="flex items-center gap-2">
                                   {summaries[episode.id].hasTimestamps ? (
@@ -1248,15 +1229,15 @@ Basic
                           </div>
                           
                           {/* Summary Section - Preview with Fade */}
-                          <div className="bg-white rounded-lg p-4 mx-6 mb-6">
+                          <div className="mb-6">
                             <div className="flex items-center gap-2 mb-4">
                               <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                               </svg>
-                              <h5 className="font-medium text-gray-900">Summary</h5>
+                              <h5 className="font-medium text-white">Summary</h5>
                             </div>
                             <div className="relative">
-                              <div className="text-gray-900 leading-relaxed text-lg font-medium">
+                              <div className="text-white leading-relaxed text-lg font-medium">
                                 {(() => {
                                   const paragraphs = formatSummaryIntoParagraphs(summaries[episode.id].summary);
                                   // Show only the first paragraph
@@ -1267,31 +1248,32 @@ Basic
                                 })()}
                               </div>
                               {/* Fade out effect */}
-                              <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-white to-transparent pointer-events-none"></div>
+                              <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#26282B] to-transparent pointer-events-none"></div>
                             </div>
                             {/* View Full Summary Button */}
-                            <div className="mt-4 pt-4 border-t border-gray-100">
-                              <HoverButton
+                            <div className="mt-4 pt-4 border-t border-gray-600 flex justify-center">
+                              <NeonButton
                                 onClick={() => window.location.href = "/dashboard/all-summaries"}
-                                className="inline-flex items-center gap-2"
+                                className="inline-flex items-center gap-2 bg-white text-black hover:bg-gray-100"
+                                neon={false}
                               >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                 </svg>
                                 View Full Summary
-                              </HoverButton>
+                              </NeonButton>
                             </div>
                           </div>
                           
-                          {/* Key Takeaways Section */}
-                          {summaries[episode.id].takeaways && summaries[episode.id].takeaways.length > 0 && (
-                            <div className="bg-white rounded-lg p-4 mx-6 mb-6">
+                          {/* Key Takeaways Section - Hidden in new-summary page */}
+                          {false && summaries[episode.id].takeaways && summaries[episode.id].takeaways.length > 0 && (
+                            <div className="mb-6">
                               <div className="flex items-center gap-2 mb-4">
                                 <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                                 </svg>
-                                <h5 className="font-medium text-gray-900">Key Takeaways</h5>
+                                <h5 className="font-medium text-white">Key Takeaways</h5>
                               </div>
                               <div className="space-y-4">
                                 {summaries[episode.id].takeaways.map((takeaway: any, index: number) => {
@@ -1323,7 +1305,7 @@ Basic
                                         {index + 1}
                                       </span>
                                       <div className="flex-1">
-                                        <div className="text-blue-700 leading-relaxed">{text}</div>
+                                        <div className="text-white leading-relaxed">{text}</div>
                                         {timestamp && formattedTime && (
                                           <div className="mt-2">
                                             <button
@@ -1360,14 +1342,14 @@ Basic
                             </div>
                           )}
 
-                          {/* Actionable Insights Section */}
-                          {summaries[episode.id].actionable_insights && summaries[episode.id].actionable_insights.length > 0 && (
-                            <div className="bg-white rounded-lg p-4 mx-6 mb-6">
+                          {/* Actionable Insights Section - Hidden in new-summary page */}
+                          {false && summaries[episode.id].actionable_insights && summaries[episode.id].actionable_insights.length > 0 && (
+                            <div className="mb-6">
                               <div className="flex items-center gap-2 mb-4">
                                 <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                                 </svg>
-                                <h5 className="font-medium text-gray-900">Actionable Insights</h5>
+                                <h5 className="font-medium text-white">Actionable Insights</h5>
                               </div>
                               <div className="space-y-4">
                                 {summaries[episode.id].actionable_insights.map((insight: any, idx: number) => (
@@ -1401,14 +1383,14 @@ Basic
                             </div>
                           )}
 
-                          {/* Growth Strategy Section */}
-                          {summaries[episode.id].growthStrategy && (
-                            <div className="bg-white rounded-lg p-4 mx-6 mb-6">
+                          {/* Growth Strategy Section - Hidden in new-summary page */}
+                          {false && summaries[episode.id].growthStrategy && (
+                            <div className="mb-6">
                               <div className="flex items-center gap-2 mb-4">
                                 <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                                 </svg>
-                                <h5 className="font-medium text-gray-900">Growth Strategy</h5>
+                                <h5 className="font-medium text-white">Growth Strategy</h5>
                               </div>
                               <div className="text-purple-700 leading-relaxed bg-purple-50 rounded-lg p-3">
                                 {summaries[episode.id].growthStrategy}
@@ -1416,14 +1398,14 @@ Basic
                             </div>
                           )}
 
-                          {/* Key Insight Section */}
-                          {summaries[episode.id].keyInsight && (
-                            <div className="bg-white rounded-lg p-4 mx-6 mb-6">
+                          {/* Key Insight Section - Hidden in new-summary page */}
+                          {false && summaries[episode.id].keyInsight && (
+                            <div className="mb-6">
                               <div className="flex items-center gap-2 mb-4">
                                 <svg className="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                                 </svg>
-                                <h5 className="font-medium text-gray-900">Key Insight</h5>
+                                <h5 className="font-medium text-white">Key Insight</h5>
                               </div>
                               <div className="text-yellow-700 leading-relaxed bg-yellow-50 rounded-lg p-3">
                                 {summaries[episode.id].keyInsight}
@@ -1431,14 +1413,14 @@ Basic
                             </div>
                           )}
 
-                          {/* Reality Check Section */}
-                          {summaries[episode.id].realityCheck && (
-                            <div className="bg-white rounded-lg p-4 mx-6 mb-6">
+                          {/* Reality Check Section - Hidden in new-summary page */}
+                          {false && summaries[episode.id].realityCheck && (
+                            <div className="mb-6">
                               <div className="flex items-center gap-2 mb-4">
                                 <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.728-.833-2.498 0L4.268 16.5c-.77.833.192 2.5 1.732 2.5z" />
                                 </svg>
-                                <h5 className="font-medium text-gray-900">Reality Check</h5>
+                                <h5 className="font-medium text-white">Reality Check</h5>
                               </div>
                               <div className="text-red-700 leading-relaxed bg-red-50 rounded-lg p-3">
                                 {summaries[episode.id].realityCheck}
@@ -1446,7 +1428,7 @@ Basic
                             </div>
                           )}
 
-                          {/* Action Buttons */}
+                          {/* Action Buttons - Consistent layout for all summaries */}
                           <div className="flex flex-wrap gap-2">
                             <button
                               onClick={() => handleCopy(episode.id, summaries[episode.id].summary, 'summary')}
@@ -1461,37 +1443,19 @@ Basic
                               </svg>
                               {copiedStates[episode.id]?.summary ? 'Copied!' : 'Copy Summary'}
                             </button>
-                            {summaries[episode.id].takeaways && (
-                              <button
-                                onClick={() => handleCopy(episode.id, summaries[episode.id].takeaways.map((t: any) => typeof t === 'object' ? (t.text || JSON.stringify(t)) : String(t)).join('\n• '), 'takeaways')}
-                                className={`inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                                  copiedStates[episode.id]?.takeaways
-                                    ? 'text-green-700 bg-green-100 border border-green-200'
-                                    : 'text-green-700 bg-green-100 border border-green-200 hover:bg-green-200'
-                                }`}
-                              >
-                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={copiedStates[episode.id]?.takeaways ? "M5 13l4 4L19 7" : "M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"} />
-                                </svg>
-                                {copiedStates[episode.id]?.takeaways ? 'Copied!' : 'Copy Takeaways'}
-                              </button>
-                            )}
-                            {notionConnection?.connected && (
-                              <button
-                                onClick={() => handleExportToNotion(episode.id)}
-                                disabled={exportingStates[episode.id]}
-                                className={`inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                                  exportingStates[episode.id]
-                                    ? 'text-gray-500 bg-gray-100 border border-gray-200 cursor-not-allowed'
-                                    : 'text-gray-700 bg-gray-100 border border-gray-200 hover:bg-gray-200'
-                                }`}
-                              >
-                                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
-                                  <path d="M4.459 4.208c.746.606 1.026.56 2.428.467l13.212-.535c.467 0 .7.233.7.7 0 .233-.066.467-.233.7L18.26 7.31c-.167.3-.367.234-.6.234l-13.056.467c-.266 0-.467-.167-.467-.434 0-.2.067-.4.234-.567l.088-.8zm.7 2.8l13.212-.534c.4 0 .534.234.534.6 0 .167-.067.4-.2.534l-3.267 3.266c-.167.167-.434.234-.7.234H4.592c-.367 0-.6-.234-.6-.6 0-.167.066-.334.2-.467l.967-2.6c.133-.4.266-.433.6-.433zm-.233 3.533l13.212-.533c.4 0 .667.2.667.533 0 .134-.067.334-.2.467l-3.267 3.267c-.166.166-.433.233-.7.233H4.926c-.367 0-.6-.233-.6-.6 0-.166.067-.333.2-.466l.967-2.6c.133-.334.266-.467.6-.467z"/>
-                                </svg>
-                                {exportingStates[episode.id] ? 'Exporting...' : 'Connect Notion'}
-                              </button>
-                            )}
+                            <button
+                              onClick={() => handleCopy(episode.id, summaries[episode.id].takeaways ? summaries[episode.id].takeaways.map((t: any) => typeof t === 'object' ? (t.text || JSON.stringify(t)) : String(t)).join('\n• ') : 'No takeaways available', 'takeaways')}
+                              className={`inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                                copiedStates[episode.id]?.takeaways
+                                  ? 'text-green-700 bg-green-100 border border-green-200'
+                                  : 'text-green-700 bg-green-100 border border-green-200 hover:bg-green-200'
+                              }`}
+                            >
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={copiedStates[episode.id]?.takeaways ? "M5 13l4 4L19 7" : "M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"} />
+                              </svg>
+                              {copiedStates[episode.id]?.takeaways ? 'Copied!' : 'Copy Takeaways'}
+                            </button>
                           </div>
                         </div>
                       )}

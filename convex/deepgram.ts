@@ -663,3 +663,15 @@ export function formatTimestamp(seconds: number): string {
     return `${minutes}:${secs.toString().padStart(2, '0')}`;
   }
 }
+
+// NEW: Format timestamp with 7-second buffer for better user experience
+export function formatTimestampWithBuffer(seconds: number, bufferSeconds: number = 7): string {
+  if (!seconds || isNaN(seconds)) return "0:00";
+
+  // Apply buffer but don't go below 0
+  const bufferedSeconds = Math.max(0, seconds - bufferSeconds);
+
+  console.log(`🕒 TIMESTAMP BUFFER: Original ${seconds}s → Buffered ${bufferedSeconds}s (${bufferSeconds}s buffer)`);
+
+  return formatTimestamp(bufferedSeconds);
+}
