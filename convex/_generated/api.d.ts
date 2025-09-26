@@ -16,6 +16,7 @@ import type * as http from "../http.js";
 import type * as listening from "../listening.js";
 import type * as notion from "../notion.js";
 import type * as podcasts from "../podcasts.js";
+import type * as semanticMatcher from "../semanticMatcher.js";
 import type * as sendEmails from "../sendEmails.js";
 import type * as subscriptions from "../subscriptions.js";
 import type * as summaries from "../summaries.js";
@@ -45,6 +46,7 @@ declare const fullApi: ApiFromModules<{
   listening: typeof listening;
   notion: typeof notion;
   podcasts: typeof podcasts;
+  semanticMatcher: typeof semanticMatcher;
   sendEmails: typeof sendEmails;
   subscriptions: typeof subscriptions;
   summaries: typeof summaries;

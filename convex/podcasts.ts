@@ -3,16 +3,29 @@ import { action } from "./_generated/server";
 import { internal } from "./_generated/api";
 
 export const searchPodcasts = action({
-  args: { 
+  args: {
     query: v.string(),
     offset: v.optional(v.number()),
-    limit: v.optional(v.number())
+    limit: v.optional(v.number()),
+    isPagination: v.optional(v.boolean())
   },
   handler: async (ctx, args) => {
-    // STRICT quota and subscription check before searching
-    await ctx.runMutation(internal.users.checkUserAccessAndQuota, { 
-      featureType: "search" 
+    console.log('🔍 searchPodcasts called with:', {
+      query: args.query,
+      offset: args.offset,
+      isPagination: args.isPagination,
+      willCheckQuota: !args.isPagination
     });
+
+    // Only count quota for new searches, not pagination
+    if (!args.isPagination) {
+      console.log('💰 Running quota check for new search');
+      await ctx.runMutation(internal.users.checkUserAccessAndQuota, {
+        featureType: "search"
+      });
+    } else {
+      console.log('📄 Skipping quota check for pagination');
+    }
     const offset = args.offset || 0;
     const limit = Math.min(args.limit || 10, 10); // Cap at 10 results per page (API maximum)
     
@@ -48,9 +61,14 @@ export const searchPodcasts = action({
     if (offset > 0 && (!data.results || data.results.length === 0)) {
       console.warn(`⚠️ No results returned for offset ${offset} but total is ${data.total}. This may indicate API pagination issues.`);
     }
-    
-    // Increment search count after successful search
-    await ctx.runMutation(internal.users.incrementSearchCount);
+
+    // Only increment search count for new searches, not pagination
+    if (!args.isPagination) {
+      console.log('💰 Incrementing search count for new search');
+      await ctx.runMutation(internal.users.incrementSearchCount);
+    } else {
+      console.log('📄 Skipping search count increment for pagination');
+    }
 
     return {
         ...data,

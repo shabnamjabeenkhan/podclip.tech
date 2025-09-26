@@ -1,10 +1,9 @@
-import { useState, useEffect, useMemo, useRef } from "react";
-import { useQuery, useAction } from "convex/react";
+import { useState, useEffect, useMemo } from "react";
+import { useQuery } from "convex/react";
 import { useAuth } from "@clerk/react-router";
 import { Link } from "react-router";
 import { api } from "../../../convex/_generated/api";
-import { useAudio } from "~/contexts/app-context";
-import { toast } from "sonner";
+import { ArkPagination } from "~/components/ui/ark-pagination";
 
 // Utility function to break summary text into readable paragraphs
 function formatSummaryIntoParagraphs(content: string): string[] {
@@ -45,11 +44,10 @@ export default function AllSummaries() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"newest" | "oldest">("newest");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const summariesPerPage = 5;
   
   const { isSignedIn } = useAuth();
-  const { state: audioState, seekTo, playEpisode } = useAudio();
-  const getEpisodeDetails = useAction(api.podcasts.getEpisodeTranscript);
-  const lastSeekTimeRef = useRef<number>(0);
   
   const userQuota = useQuery(
     api.users.getUserQuota,
@@ -99,6 +97,24 @@ export default function AllSummaries() {
     return sorted;
   }, [userSummaries, searchQuery, sortBy]);
 
+  // Calculate pagination
+  const totalSummaries = filteredAndSortedSummaries.length;
+  const totalPages = Math.ceil(totalSummaries / summariesPerPage);
+  const startIndex = (currentPage - 1) * summariesPerPage;
+  const endIndex = startIndex + summariesPerPage;
+  const currentPageSummaries = filteredAndSortedSummaries.slice(startIndex, endIndex);
+
+  // Reset to page 1 when search query changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    // Scroll to top when page changes
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleCopy = async (text: string, summaryId: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -109,57 +125,6 @@ export default function AllSummaries() {
     }
   };
 
-  // Helper function to handle timestamp seeking - fetches episode data and seeks
-  const handleTimestampSeek = async (timestamp: number, summary: any) => {
-    console.log('🎯 TIMESTAMP SEEK STARTED');
-    console.log('📍 Seeking to timestamp:', timestamp, 'seconds');
-    console.log('🕒 Formatted time:', Math.floor(timestamp / 60) + ':' + Math.floor(timestamp % 60).toString().padStart(2, '0'));
-    console.log('📄 Episode:', summary.episode_title);
-    console.log('🎯 Current audio state:', audioState);
-
-    // Debounce rapid clicks (prevent multiple seeks within 1 second)
-    const now = Date.now();
-    if (now - lastSeekTimeRef.current < 1000) {
-      console.log('Timestamp seek debounced - too rapid');
-      return;
-    }
-    lastSeekTimeRef.current = now;
-
-    try {
-      // Fetch episode details including audio URL
-      const episodeDetails = await getEpisodeDetails({ episodeId: summary.episode_id });
-
-      if (!episodeDetails || !episodeDetails.episodeAudio) {
-        throw new Error('Episode audio not available');
-      }
-
-      // Create episode data for audio player
-      const episodeData = {
-        id: summary.episode_id,
-        title: episodeDetails.episodeTitle || summary.episode_title || 'Unknown Episode',
-        audio: episodeDetails.episodeAudio,
-        duration: episodeDetails.episodeDuration || 0,
-        podcastTitle: 'Podcast',
-        podcastId: '',
-        thumbnail: '',
-      };
-
-      console.log(`Loading episode and seeking to ${timestamp}s`);
-
-      // Load the episode and seek to timestamp
-      playEpisode(episodeData);
-
-      // Wait a short moment for the episode to start loading, then seek
-      setTimeout(() => {
-        console.log('Attempting to seek to timestamp after brief delay');
-        seekTo(timestamp);
-      }, 500);
-
-    } catch (error) {
-      console.error('Failed to seek to timestamp:', error);
-      toast.error('Failed to load episode for timestamp');
-    }
-  };
 
   return (
     <div className="min-h-[calc(100vh-var(--header-height))] bg-gray-50">
@@ -285,7 +250,7 @@ export default function AllSummaries() {
           {/* Summaries List */}
           {userSummaries && userSummaries.length > 0 && filteredAndSortedSummaries.length > 0 && (
             <div className="space-y-6 sm:space-y-8">
-              {filteredAndSortedSummaries.map((summary: any, index: number) => (
+              {currentPageSummaries.map((summary: any, index: number) => (
                 <div key={summary._id || index} className="bg-[#26282B] rounded-lg sm:rounded-xl p-4 sm:p-6 border border-gray-600">
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 mb-3 sm:mb-4">
                     <div className="flex-1 min-w-0">
@@ -326,7 +291,7 @@ export default function AllSummaries() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                         </svg>
                       </Link>
-                      <span className="inline-flex items-center px-2 sm:px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      <span className="inline-flex items-center px-2 sm:px-2.5 py-0.5 rounded-full text-xs font-medium text-white" style={{ backgroundColor: 'hsl(158, 62%, 50%)' }}>
                         Completed
                       </span>
                     </div>
@@ -434,28 +399,6 @@ export default function AllSummaries() {
                                   </div>
                                   <div className="flex-1 w-full">
                                     <p className="text-white text-base sm:text-lg leading-relaxed mb-3 sm:mb-4">{text}</p>
-                                    {timestamp && formattedTime && (
-                                      <button
-                                        onClick={() => {
-                                          console.log('🎬 CLICKING TIMESTAMP BUTTON');
-                                          console.log('📝 Takeaway text:', text);
-                                          console.log('⏰ Timestamp:', timestamp, 'seconds');
-                                          console.log('🎯 Formatted:', formattedTime);
-                                          console.log('📊 Confidence:', confidence);
-                                          if (takeaway.fullContext) {
-                                            console.log('📃 Transcript context:', takeaway.fullContext);
-                                          }
-                                          handleTimestampSeek(timestamp, summary);
-                                        }}
-                                        className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg font-bold text-xs sm:text-sm hover:bg-blue-700 transition-colors w-full sm:w-auto justify-center sm:justify-start"
-                                        title={`Jump to ${formattedTime}`}
-                                      >
-                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                          <path d="M8 5v14l11-7z"/>
-                                        </svg>
-                                        Jump to {formattedTime || `${Math.floor(timestamp / 60)}:${(timestamp % 60).toString().padStart(2, '0')}`}
-                                      </button>
-                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -597,6 +540,16 @@ export default function AllSummaries() {
                   </div>
                 </div>
               ))}
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <ArkPagination
+                  count={totalSummaries}
+                  pageSize={summariesPerPage}
+                  currentPage={currentPage}
+                  onPageChange={handlePageChange}
+                />
+              )}
             </div>
           )}
         </div>

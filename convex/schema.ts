@@ -122,6 +122,16 @@ export default defineSchema({
     created_at: v.number(), // When transcript was fetched
     updated_at: v.number(), // Last time transcript was checked
     source: v.optional(v.string()), // Source of transcript (e.g., "listen_notes", "deepgram")
+    // New semantic matching fields
+    chunks: v.optional(v.array(v.object({
+      id: v.string(),
+      text: v.string(),
+      startTime: v.number(),
+      endTime: v.number(),
+      embedding: v.optional(v.array(v.number())), // 768-dimensional vector from text-embedding-004
+    }))), // Chunked transcript with embeddings for semantic matching
+    embeddingVersion: v.optional(v.string()), // Track embedding model version ("text-embedding-004")
+    chunksGenerated: v.optional(v.number()), // Timestamp when chunks were created
   })
     .index("by_episode_id", ["episode_id"]),
 

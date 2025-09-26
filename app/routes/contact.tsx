@@ -79,14 +79,14 @@ export default function Contact() {
   }, [navigate]);
 
   return (
-    <div className="min-h-screen bg-gray-50 py-6">
-      <div className="container mx-auto px-4 max-w-2xl">
-        <div className="mb-6">
+    <div className="min-h-screen bg-gray-50 py-4 sm:py-6 pb-12 md:pb-6">
+      <div className="container mx-auto px-4 sm:px-6 max-w-2xl">
+        <div className="mb-4 sm:mb-6">
           <Button
             variant="ghost"
             loading={isGoingBack}
             onClick={handleGoBack}
-            className="mb-4 text-gray-700 hover:text-gray-900"
+            className="mb-2 sm:mb-4 text-gray-700 hover:text-gray-900 text-sm sm:text-base"
           >
             <svg className="w-4 h-4 mr-2 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -95,27 +95,27 @@ export default function Contact() {
           </Button>
         </div>
         
-        <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-3">Contact Us</h1>
-          <p className="text-lg text-gray-600">
+        <div className="text-center mb-4 sm:mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 sm:mb-3">Contact Us</h1>
+          <p className="text-base sm:text-lg text-gray-600 px-2">
             Have a question or feedback? We'd love to hear from you.
           </p>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <Card className="shadow-sm">
+          <CardHeader className="pb-4 sm:pb-6">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
               Send us a message
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <CardContent className="pt-0">
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="name" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                     Name *
                   </label>
                   <Input
@@ -125,12 +125,12 @@ export default function Contact() {
                     value={formData.name}
                     onChange={handleChange}
                     placeholder="Your name"
-                    className="!bg-white"
+                    className="!bg-white h-10 sm:h-11 text-sm sm:text-base"
                     required
                   />
                 </div>
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label htmlFor="email" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                     Email *
                   </label>
                   <Input
@@ -140,14 +140,14 @@ export default function Contact() {
                     value={formData.email}
                     onChange={handleChange}
                     placeholder="your.email@example.com"
-                    className="!bg-white"
+                    className="!bg-white h-10 sm:h-11 text-sm sm:text-base"
                     required
                   />
                 </div>
               </div>
 
               <div>
-                <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="subject" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                   Subject *
                 </label>
                 <Input
@@ -157,14 +157,14 @@ export default function Contact() {
                   value={formData.subject}
                   onChange={handleChange}
                   placeholder="What's this about?"
-                  className="!bg-white"
+                  className="!bg-white h-10 sm:h-11 text-sm sm:text-base"
                   autoComplete="off"
                   required
                 />
               </div>
 
               <div>
-                <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="message" className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                   Message *
                 </label>
                 <Textarea
@@ -173,16 +173,16 @@ export default function Contact() {
                   value={formData.message}
                   onChange={handleChange}
                   placeholder="Tell us more about your question or feedback..."
-                  className="!bg-white"
-                  rows={6}
+                  className="!bg-white resize-none text-sm sm:text-base min-h-[80px] sm:min-h-[100px]"
+                  rows={3}
                   required
                 />
               </div>
 
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 disabled={isSubmitting}
-                className="w-full"
+                className="w-full h-10 sm:h-11 text-sm sm:text-base"
               >
                 {isSubmitting ? (
                   <>
@@ -206,14 +206,14 @@ export default function Contact() {
         </Card>
 
         {/* Alternative contact methods */}
-        <div className="mt-6 text-center">
-          <p className="text-gray-600 mb-3">Or reach us directly:</p>
+        <div className="mt-4 sm:mt-6 mb-6 sm:mb-8 text-center">
+          <p className="text-sm sm:text-base text-gray-600 mb-2 sm:mb-3">Or reach us directly:</p>
           <div className="flex justify-center items-center gap-6">
-            <a 
+            <a
               href="mailto:admin@podclip.tech"
-              className="flex items-center gap-2 text-blue-600 hover:text-blue-700 transition-colors"
+              className="flex items-center gap-2 text-blue-600 hover:text-blue-700 transition-colors text-sm sm:text-base"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
               admin@podclip.tech

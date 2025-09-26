@@ -36,7 +36,7 @@ const defaultValues: AboutUsProps['values'] = [
   {
     title: 'Precision',
     description:
-      'Our AI captures every episode\'s core ideas and moments, condensing even the most complex podcasts into clear, concise summaries with precise timestamps for easy reference.',
+      'Our AI captures every episode\'s core ideas and moments, condensing even the most complex podcasts into clear, concise summaries for easy reference.',
     icon: 'Target',
   },
   {
@@ -48,7 +48,7 @@ const defaultValues: AboutUsProps['values'] = [
   {
     title: 'Efficiency',
     description:
-      'Save time—instantly receive digestible highlights and timestamped key points, so you spend less time listening and more time executing your next big idea.',
+      'Save time—instantly receive digestible highlights and key points, so you spend less time listening and more time executing your next big idea.',
     icon: 'Rocket',
   },
   {

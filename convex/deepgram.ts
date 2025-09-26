@@ -97,7 +97,7 @@ export async function transcribeAudio(audioUrl: string): Promise<DeepgramRespons
 
     console.log(`✅ Deepgram transcription completed: ${transcript.words?.length || 0} timestamped words, confidence: ${transcript.confidence}`);
     console.log(`📊 TRANSCRIPT ANALYSIS: ${transcriptWordCount} words, ${transcriptLength} characters`);
-    console.log(`🎙️ TRANSCRIPT SAMPLE (first 200 chars): "${transcript.transcript.substring(0, 200)}..."`);
+    console.log(`🎙️ TRANSCRIPT RECEIVED: ${transcriptLength} characters, ${transcriptWordCount} words`);
 
     if (transcriptWordCount < 1000) {
       console.log(`⚠️ WARNING: Transcript seems short for a full episode (${transcriptWordCount} words)`);
@@ -205,9 +205,9 @@ export function findTimestampForText(
   for (let i = 0; i <= words.length - searchWindow; i++) {
     const currentTimestamp = words[i].start;
 
-    // Skip if this timestamp is too close to an already used one (within 15 seconds for better distribution)
+    // Skip if this timestamp is too close to an already used one (within 8 seconds for better distribution)
     const isTimestampTooClose = usedTimestamps.some(usedTime =>
-      Math.abs(currentTimestamp - usedTime) < 15
+      Math.abs(currentTimestamp - usedTime) < 8
     );
     if (isTimestampTooClose) {
       continue;
@@ -305,13 +305,12 @@ export function findTimestampForText(
   }
 
   // Return result with high accuracy requirements - no estimates allowed
-  const minAccuracyThreshold = 0.6; // Raised threshold for accurate timestamps only
-  const hasAccurateMatch = bestMatch.accuracyScore >= minAccuracyThreshold &&
+  const hasAccurateMatch = bestMatch.accuracyScore >= 0.3 && // Lowered for timestamp visibility
                           bestMatch.startIndex >= 0 &&
-                          (bestMatch.matchCount >= Math.max(2, Math.ceil(searchTerms.length * 0.4)) || // Higher matching ratio required
-                           bestMatch.keyMatchCount >= 2 ||  // Require multiple key matches
-                           bestMatch.exactPhraseBonus >= 2 || // Higher phrase bonus requirement
-                           (bestMatch.matchCount >= 3 && bestMatch.sequentialMatches >= 2)); // Strong sequential matches
+                          (bestMatch.matchCount >= Math.max(2, Math.ceil(searchTerms.length * 0.4)) || // Reduced matching ratio
+                           bestMatch.keyMatchCount >= 2 ||  // Reduced key matches requirement
+                           bestMatch.exactPhraseBonus >= 2 || // Reduced phrase bonus requirement
+                           (bestMatch.matchCount >= 3 && bestMatch.sequentialMatches >= 2)); // Reduced sequential matches
 
   if (hasAccurateMatch) {
     // Get the context around the match for validation
@@ -326,8 +325,12 @@ export function findTimestampForText(
     console.log(`📍 Timestamp: ${formatTimestamp(words[bestMatch.startIndex].start)}`);
     console.log(`🎯 Context: "${matchedText.substring(0, 100)}..."`);
 
+    const exactTimestamp = words[bestMatch.startIndex].start;
+
+    console.log(`📍 EXACT TIMESTAMP: ${exactTimestamp}s (${formatTimestamp(exactTimestamp)})`);
+
     return {
-      timestamp: words[bestMatch.startIndex].start,
+      timestamp: exactTimestamp,
       confidence: Math.min(bestMatch.confidence, 1.0),
       matchedText,
       fullContext,
@@ -338,7 +341,8 @@ export function findTimestampForText(
     };
   }
 
-  console.log(`❌ NO HIGH-ACCURACY MATCH: accuracy=${bestMatch.accuracyScore.toFixed(3)} < 0.6 threshold, matches=${bestMatch.matchCount}/${searchTerms.length}`);
+  console.log(`❌ NO HIGH-ACCURACY MATCH: accuracy=${bestMatch.accuracyScore.toFixed(3)} < 0.3 threshold, matches=${bestMatch.matchCount}/${searchTerms.length}`);
+  console.log(`🔍 MATCH DETAILS: keyMatches=${bestMatch.keyMatchCount}, sequential=${bestMatch.sequentialMatches}, phrase=${bestMatch.exactPhraseBonus}`);
   console.log(`🎯 Quality standards enforced - skipping takeaway without accurate timestamp`);
 
   return null;
@@ -481,51 +485,20 @@ export function findTimestampsForTakeaways(
 
       console.log(`✅ Found unique timestamp for "${takeaway.substring(0, 50)}...": ${formatTimestamp(timestampResult.timestamp)} (confidence: ${(timestampResult.confidence * 100).toFixed(1)}%)`);
     } else {
-      // FALLBACK STRATEGY: Ensure every takeaway gets a timestamp
-      console.log(`🔄 No unique timestamp found for: "${takeaway.substring(0, 50)}...". Applying fallback strategy...`);
+      // QUALITY-FIRST STRATEGY: Only provide timestamps for high-confidence matches
+      console.log(`🚫 No high-quality timestamp found for: "${takeaway.substring(0, 50)}..."`);
+      console.log(`✅ QUALITY PRESERVED: Skipping timestamp rather than providing misleading match`);
 
-      // Strategy 1: Try with relaxed criteria (ignore used timestamps temporarily)
-      const relaxedResult = findTimestampForText(takeaway, words, searchWindow, []);
-
-      if (relaxedResult) {
-        console.log(`🎯 Found relaxed match: ${formatTimestamp(relaxedResult.timestamp)} (confidence: ${(relaxedResult.confidence * 100).toFixed(1)}%)`);
-        usedTimestamps.push(relaxedResult.timestamp);
-        results.push({
-          text: takeaway,
-          timestamp: relaxedResult.timestamp,
-          confidence: Math.max(0.6, relaxedResult.confidence * 0.9), // Require higher confidence for relaxed matches
-          matchedText: relaxedResult.matchedText,
-          fullContext: relaxedResult.fullContext,
-          matchCount: relaxedResult.matchCount,
-          totalSearchTerms: relaxedResult.totalSearchTerms,
-        });
-      } else {
-        // Strategy 2: Expanded keyword search across entire transcript
-        console.log(`🔍 Attempting expanded keyword search for: "${takeaway.substring(0, 50)}..."`);
-
-        const expandedResult = findBestKeywordMatch(takeaway, words, usedTimestamps);
-
-        if (expandedResult) {
-          console.log(`✅ Found keyword match: ${formatTimestamp(expandedResult.timestamp)} (confidence: ${(expandedResult.confidence * 100).toFixed(1)}%)`);
-          usedTimestamps.push(expandedResult.timestamp);
-          results.push({
-            text: takeaway,
-            timestamp: expandedResult.timestamp,
-            confidence: expandedResult.confidence,
-            matchedText: expandedResult.matchedText,
-            fullContext: expandedResult.fullContext,
-            matchCount: expandedResult.matchCount || 0,
-            totalSearchTerms: takeaway.split(' ').length,
-          });
-        } else {
-          // Strategy 3: No estimated timestamps - skip takeaways without accurate matches
-          console.log(`❌ SKIPPING takeaway without accurate timestamp: "${takeaway.substring(0, 50)}..."`);
-          console.log(`🎯 Reason: Could not find reliable word matches in transcript (minimum confidence required)`);
-
-          // Don't add this takeaway - maintain quality over quantity
-          // results.push() is omitted - takeaway is skipped entirely
-        }
-      }
+      // Return takeaway without timestamp - better than wrong timestamp
+      results.push({
+        text: takeaway,
+        timestamp: undefined, // No timestamp is better than wrong timestamp
+        confidence: 0,
+        matchedText: undefined,
+        fullContext: undefined,
+        matchCount: 0,
+        totalSearchTerms: takeaway.split(' ').length,
+      });
     }
   }
 
@@ -664,14 +637,12 @@ export function formatTimestamp(seconds: number): string {
   }
 }
 
-// NEW: Format timestamp with 7-second buffer for better user experience
-export function formatTimestampWithBuffer(seconds: number, bufferSeconds: number = 7): string {
+// Format timestamp without any buffering - exact timestamp only
+export function formatTimestampWithBuffer(seconds: number): string {
   if (!seconds || isNaN(seconds)) return "0:00";
 
-  // Apply buffer but don't go below 0
-  const bufferedSeconds = Math.max(0, seconds - bufferSeconds);
+  // Return exact timestamp without any buffering
+  console.log(`🕒 EXACT TIMESTAMP: ${seconds}s (no buffering applied)`);
 
-  console.log(`🕒 TIMESTAMP BUFFER: Original ${seconds}s → Buffered ${bufferedSeconds}s (${bufferSeconds}s buffer)`);
-
-  return formatTimestamp(bufferedSeconds);
+  return formatTimestamp(seconds);
 }

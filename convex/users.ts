@@ -294,14 +294,34 @@ export const verifyActiveSubscription = query({
         .first();
 
       if (cancelledSubscription) {
-        return { 
-          hasActiveSubscription: true, 
+        return {
+          hasActiveSubscription: true,
           plan: user.plan,
           subscriptionId: cancelledSubscription.polarId,
           currentPeriodEnd: cancelledSubscription.currentPeriodEnd,
           reason: "Cancelled subscription in grace period",
           isCancelled: true,
           accessEndsAt: cancelledSubscription.currentPeriodEnd
+        };
+      }
+
+      // Check for past_due subscriptions that haven't expired yet
+      const pastDueSubscription = await ctx.db
+        .query("subscriptions")
+        .withIndex("userId", (q) => q.eq("userId", tokenIdentifier))
+        .filter((q) => q.eq(q.field("status"), "past_due"))
+        .filter((q) => q.gt(q.field("currentPeriodEnd"), now)) // Still valid by date
+        .first();
+
+      if (pastDueSubscription) {
+        return {
+          hasActiveSubscription: true,
+          plan: user.plan,
+          subscriptionId: pastDueSubscription.polarId,
+          currentPeriodEnd: pastDueSubscription.currentPeriodEnd,
+          reason: "Past due subscription still in valid period",
+          isPastDue: true,
+          accessEndsAt: pastDueSubscription.currentPeriodEnd
         };
       }
 

@@ -2,6 +2,8 @@ import { v } from "convex/values";
 import { action, mutation, query, internalMutation } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { transcribeAudio, formatTimestamp, type DeepgramWord } from "./deepgram";
+import { chunkTranscriptWithTimestamps, type TranscriptChunk } from "./semanticMatcher";
+import { generateEmbeddings } from "./gemini";
 
 // Get transcript from database (cached) or fetch from API if not available
 export const getEpisodeTranscription = action({
@@ -228,6 +230,44 @@ export const transcribeEpisodeWithDeepgram = action({
 
       console.log(`✅ Deepgram transcription completed for episode ${args.episodeId}: ${deepgramResult.transcript.words.length} original words, ${optimizedWords.length} stored`);
 
+      // NEW: Generate semantic chunks and embeddings for improved timestamp matching
+      try {
+        console.log(`🧠 GENERATING SEMANTIC CHUNKS AND EMBEDDINGS for episode ${args.episodeId}`);
+
+        // Create semantic chunks from the transcript
+        const chunks = chunkTranscriptWithTimestamps(
+          deepgramResult.transcript.transcript,
+          optimizedWords
+        );
+
+        // Generate embeddings for all chunks
+        const chunkTexts = chunks.map(chunk => chunk.text);
+        const embeddings = await generateEmbeddings(chunkTexts);
+
+        // Combine chunks with their embeddings
+        const chunksWithEmbeddings = chunks.map((chunk, index) => ({
+          id: chunk.id,
+          text: chunk.text,
+          startTime: chunk.startTime,
+          endTime: chunk.endTime,
+          embedding: embeddings[index],
+        }));
+
+        // Update the stored transcription with semantic chunks
+        await ctx.runMutation(internal.transcriptions.updateTranscriptionChunks, {
+          episodeId: args.episodeId,
+          chunks: chunksWithEmbeddings,
+          embeddingVersion: "text-embedding-004",
+          chunksGenerated: Date.now(),
+        });
+
+        console.log(`🎯 EMBEDDINGS COMPLETE: Generated ${chunksWithEmbeddings.length} semantic chunks with embeddings`);
+
+      } catch (embeddingError) {
+        console.error(`⚠️ EMBEDDING GENERATION FAILED for episode ${args.episodeId}:`, embeddingError);
+        // Continue without embeddings - semantic matching will fall back to lexical
+      }
+
       return {
         success: true,
         transcript: deepgramResult.transcript.transcript,
@@ -246,6 +286,46 @@ export const transcribeEpisodeWithDeepgram = action({
         error: error.message || "Unknown transcription error",
       };
     }
+  },
+});
+
+// Internal mutation to update transcription with semantic chunks
+export const updateTranscriptionChunks = internalMutation({
+  args: {
+    episodeId: v.string(),
+    chunks: v.array(v.object({
+      id: v.string(),
+      text: v.string(),
+      startTime: v.number(),
+      endTime: v.number(),
+      embedding: v.array(v.number()),
+    })),
+    embeddingVersion: v.string(),
+    chunksGenerated: v.number(),
+  },
+  handler: async (ctx, args) => {
+    console.log(`📝 UPDATING TRANSCRIPTION CHUNKS for episode ${args.episodeId}: ${args.chunks.length} chunks`);
+
+    // Find the existing transcription record
+    const existingTranscription = await ctx.db
+      .query("transcriptions")
+      .withIndex("by_episode_id", (q) => q.eq("episode_id", args.episodeId))
+      .first();
+
+    if (!existingTranscription) {
+      console.error(`❌ No transcription found for episode ${args.episodeId}`);
+      throw new Error(`No transcription found for episode ${args.episodeId}`);
+    }
+
+    // Update with semantic chunks
+    await ctx.db.patch(existingTranscription._id, {
+      chunks: args.chunks,
+      embeddingVersion: args.embeddingVersion,
+      chunksGenerated: args.chunksGenerated,
+      updated_at: Date.now(),
+    });
+
+    console.log(`✅ SEMANTIC CHUNKS STORED for episode ${args.episodeId}`);
   },
 });
 

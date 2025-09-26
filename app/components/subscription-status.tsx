@@ -139,13 +139,13 @@ export default function SubscriptionStatus() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="flex items-center gap-2">
-                Subscription Status
-                <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">
+              <CardTitle className="flex flex-col sm:flex-row sm:items-center gap-2">
+                <span className="text-base sm:text-lg">Subscription Status</span>
+                <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200 w-fit">
                   Lifetime Plan
                 </Badge>
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-sm sm:text-base">
                 You have lifetime access with premium features
               </CardDescription>
             </div>
@@ -200,14 +200,14 @@ export default function SubscriptionStatus() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="flex items-center gap-2">
-                Subscription Status
-                <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">
+              <CardTitle className="flex flex-col sm:flex-row sm:items-center gap-2">
+                <span className="text-base sm:text-lg">Subscription Status</span>
+                <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200 w-fit">
                   Free Plan
                 </Badge>
               </CardTitle>
-              <CardDescription>
-                {hasSubscriptionButFreePlan 
+              <CardDescription className="text-sm sm:text-base">
+                {hasSubscriptionButFreePlan
                   ? "Your payment was processed but your plan needs to be updated"
                   : "You're using the free plan with limited features"
                 }
@@ -217,19 +217,19 @@ export default function SubscriptionStatus() {
         </CardHeader>
         <CardContent className="space-y-4">
           {userQuota && (
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
               <div className="flex items-center gap-3">
-                <User className="h-4 w-4 text-muted-foreground" />
+                <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 <div>
-                  <p className="text-sm font-medium">Plan</p>
-                  <p className="text-sm text-muted-foreground">Free Plan</p>
+                  <p className="text-xs sm:text-sm font-medium">Plan</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">Free Plan</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <Zap className="h-4 w-4 text-muted-foreground" />
+                <Zap className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                 <div>
-                  <p className="text-sm font-medium">Usage</p>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs sm:text-sm font-medium">Usage</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground">
                     {userQuota.summaries?.used || 0}/{userQuota.summaries?.limit === -1 ? '∞' : userQuota.summaries?.limit || 0} summaries used
                   </p>
                 </div>
@@ -287,32 +287,32 @@ export default function SubscriptionStatus() {
   }
 
   return (
-    <Card>
+    <Card className="shadow-sm">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="flex items-center gap-2">
-              Subscription Status
+            <CardTitle className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <span className="text-base sm:text-lg lg:text-xl">Subscription Status</span>
               <Badge
                 variant="outline"
-                className={getStatusColor(subscription.status || "unknown")}
+                className={`${getStatusColor(subscription.status || "unknown")} w-fit text-xs sm:text-sm`}
               >
                 {subscription.status || "unknown"}
               </Badge>
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-sm sm:text-base">
               Manage your subscription and billing
             </CardDescription>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-4 md:grid-cols-2">
+      <CardContent className="space-y-4 sm:space-y-6">
+        <div className="grid gap-3 sm:gap-4 lg:gap-6 sm:grid-cols-2">
           <div className="flex items-center gap-3">
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
+            <CreditCard className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             <div>
-              <p className="text-sm font-medium">Amount</p>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs sm:text-sm font-medium">Amount</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 $
                 {subscription.amount
                   ? (subscription.amount / 100).toFixed(2)
@@ -324,10 +324,10 @@ export default function SubscriptionStatus() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <Calendar className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             <div>
-              <p className="text-sm font-medium">Next Billing</p>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs sm:text-sm font-medium">Next Billing</p>
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 {subscription.currentPeriodEnd
                   ? new Date(subscription.currentPeriodEnd).toLocaleDateString()
                   : "N/A"}
@@ -363,15 +363,14 @@ export default function SubscriptionStatus() {
             </div>
           </div>
         )}
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <Button
-            variant="outline"
             onClick={handleManageSubscription}
             loading={loadingDashboard}
             disabled={!subscription.customerId}
-            className="flex-1"
+            className="w-full sm:flex-1 bg-gray-900 hover:bg-gray-800 text-white border-gray-900 text-sm sm:text-base"
           >
-            <ExternalLink className="mr-2 h-4 w-4" />
+            <ExternalLink className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
             Manage Subscription
           </Button>
         </div>

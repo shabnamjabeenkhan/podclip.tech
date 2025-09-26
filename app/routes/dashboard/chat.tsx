@@ -148,7 +148,7 @@ export default function Chat() {
         `
       }} />
 
-      <div className="flex flex-col w-full py-4 md:py-8 relative z-10">
+      <div className="flex flex-col w-full py-4 md:py-8 pb-8 md:pb-12 relative z-10">
         <div className="w-full max-w-none sm:max-w-2xl md:max-w-3xl lg:max-w-4xl space-y-4 lg:space-y-6 px-4 sm:px-6 lg:px-8 mx-auto">
 
         {/* Episode Selection Dropdown */}
@@ -160,7 +160,11 @@ export default function Chat() {
             <div className="relative w-full">
                 <Combobox
                   value={userSummaries?.find((s: any) => s._id === selectedSummaryId) || null}
-                  onChange={(value) => value && handleEpisodeSelect(value._id)}
+                  onChange={(value: any) => {
+                    if (value?._id) {
+                      handleEpisodeSelect(value._id);
+                    }
+                  }}
                   onClose={() => setQuery('')}
                 >
                   <div className="relative">
@@ -171,7 +175,8 @@ export default function Chat() {
                       className={clsx(
                         'w-full min-w-0 h-16 lg:h-20 border border-black/[0.05] hover:border-black/20 focus:border-black/30 bg-white shadow-sm py-3 lg:py-4 px-3 lg:px-4 pr-10 text-left overflow-hidden rounded-lg',
                         'focus:outline-none focus:ring-2 focus:ring-black/10 placeholder:text-black/60',
-                        '[&>*]:!text-black [&]:!text-black combobox-input-black'
+                        '[&>*]:!text-black [&]:!text-black combobox-input-black',
+                        'placeholder:text-sm sm:placeholder:text-base'
                       )}
                       displayValue={(summary: any) => summary?.episode_title || ''}
                       onChange={(event) => setQuery(event.target.value)}
@@ -187,12 +192,7 @@ export default function Chat() {
                   </div>
 
                   <ComboboxOptions
-                    anchor="bottom"
-                    transition
-                    className={clsx(
-                      'w-[--input-width] rounded-lg border border-black/[0.05] bg-white/90 backdrop-blur-xl p-1 [--anchor-gap:--spacing(1)] empty:invisible max-h-72 overflow-y-auto',
-                      'transition duration-100 ease-in data-leave:data-closed:opacity-0'
-                    )}
+                    className="absolute top-full left-0 right-0 mt-1 rounded-lg border border-black/[0.05] bg-white shadow-lg p-1 empty:invisible z-50 max-h-[30vh] sm:max-h-[50vh] md:max-h-72 overflow-y-auto"
                   >
                     {userSummaries
                       ?.filter((summary: any) =>
@@ -204,11 +204,11 @@ export default function Chat() {
                         <ComboboxOption
                           key={summary._id}
                           value={summary}
-                          className="group flex cursor-default items-start gap-2 rounded-lg px-3 py-3 select-none data-focus:bg-black/[0.05] min-h-[3rem]"
+                          className="group flex cursor-pointer items-start gap-2 rounded-lg px-3 py-3 select-none data-[focus]:bg-black/[0.05] hover:bg-black/[0.03] min-h-[4rem]"
                         >
-                          <CheckIcon className="invisible size-4 fill-black mt-1 group-data-selected:visible flex-shrink-0" />
+                          <CheckIcon className="invisible size-4 fill-black mt-1 group-data-[selected]:visible flex-shrink-0" />
                           <div className="flex flex-col items-start w-full space-y-1">
-                            <div className="font-semibold text-sm text-black w-full leading-relaxed">
+                            <div className="font-semibold text-sm text-black w-full leading-relaxed break-words">
                               {summary.episode_title || `Episode Summary`}
                             </div>
                             {summary.podcast_title && (
@@ -365,6 +365,7 @@ export default function Chat() {
                     disabled={status !== 'ready'}
                     isLoading={status === 'streaming'}
                     episodeTitle={summary?.episode_title}
+                    showTitle={false}
                   />
                 </div>
               </>

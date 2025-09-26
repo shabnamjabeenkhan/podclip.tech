@@ -65,10 +65,10 @@ const defaultTimelineData: TimelineItem[] = [
   },
   {
     id: 5,
-    title: "Jump to the Exact Moment",
+    title: "Smart Organization",
     date: "Step 5",
-    content: "Click on any insight or takeaway to jump directly to that moment in the original audio. No more scrubbing through episodes.",
-    category: "navigation",
+    content: "All your insights and takeaways are intelligently organized and searchable, making it easy to find and reference key information when you need it.",
+    category: "organization",
     icon: Link,
     relatedIds: [1, 4],
     status: "pending",

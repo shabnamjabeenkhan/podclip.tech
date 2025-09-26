@@ -1,11 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { EnhancedAudioPlayer } from "~/components/audio/enhanced-audio-player";
 import { useAuth } from "@clerk/react-router";
 import { toast } from "sonner";
-import { useAudio } from "~/contexts/app-context";
-import { SimplePagination, Pagination } from "~/components/ui/pagination";
+import { ArkPagination } from "~/components/ui/ark-pagination";
 import { Button as NeonButton } from "~/components/ui/neon-button";
 import { CategoryList, type Category } from "~/components/ui/category-list";
 import type { Route } from "./+types/new-summary";
@@ -70,12 +69,10 @@ export default function NewSummary() {
   const [exportingStates, setExportingStates] = useState<{[key: string]: boolean}>({});
   const [existingSummaries, setExistingSummaries] = useState<{[key: string]: any}>({});
   const [userReady, setUserReady] = useState(false);
-  const [seekingTimestamp, setSeekingTimestamp] = useState<number | null>(null);
   const [insightsEnabled, setInsightsEnabled] = useState<{[key: string]: boolean}>({});
   const [genreDetections, setGenreDetections] = useState<{[key: string]: any}>({});
   
   const { userId, isSignedIn } = useAuth();
-  const { state: audioState, seekTo, playEpisode } = useAudio();
   const searchPodcasts = useAction(api.podcasts.searchPodcasts);
   const getPodcastEpisodes = useAction(api.podcasts.getPodcastEpisodes);
   const generateSummaryWithTimestamps = useAction(api.summaries.generateSummaryWithTimestamps);
@@ -260,108 +257,30 @@ export default function NewSummary() {
     }
   };
 
-  // Debounce timestamp seeking to prevent rapid clicks
-  const lastSeekTimeRef = useRef<number>(0);
-  
-  // Helper function to handle timestamp seeking in audio player
-  const handleTimestampSeek = async (timestamp: number, episodeId: string) => {
-    // Debounce rapid clicks (prevent multiple seeks within 1 second)
-    const now = Date.now();
-    if (now - lastSeekTimeRef.current < 1000) {
-      console.log('Timestamp seek debounced - too rapid');
-      return;
-    }
-    lastSeekTimeRef.current = now;
-    
-    // Prevent multiple simultaneous seeks
-    if (seekingTimestamp !== null) {
-      console.log('Already seeking to another timestamp');
-      return;
-    }
-    
-    // Find the current episode data
-    const episode = episodes?.episodes?.find((ep: any) => ep.id === episodeId);
-    
-    if (!episode) {
-      console.error('Episode not found for timestamp seek');
-      toast.error('Episode not found for timestamp seek');
-      return;
-    }
-
-    try {
-      setSeekingTimestamp(timestamp);
-      // If this episode is not currently playing, load it first
-      if (!audioState.currentEpisode || audioState.currentEpisode.id !== episodeId) {
-        const episodeData = {
-          id: episode.id,
-          title: episode.title,
-          audio: episode.audio,
-          duration: episode.audio_length_sec || 0,
-          podcastTitle: selectedPodcast?.title_original || '',
-          podcastId: selectedPodcast?.id || '',
-          thumbnail: selectedPodcast?.image || '',
-        };
-        
-        console.log(`Loading episode and seeking to ${timestamp}s`);
-        
-        // Load the episode
-        playEpisode(episodeData);
-        
-        // Wait for audio to load metadata, then seek
-        const waitForLoad = () => {
-          return new Promise<void>((resolve) => {
-            const checkAudio = () => {
-              if (audioState.currentEpisode?.id === episodeId && audioState.duration > 0) {
-                resolve();
-              } else {
-                setTimeout(checkAudio, 100);
-              }
-            };
-            checkAudio();
-            
-            // Fallback timeout
-            setTimeout(() => resolve(), 3000);
-          });
-        };
-        
-        await waitForLoad();
-        
-        // Now seek to the timestamp
-        seekTo(timestamp);
-        
-      } else {
-        // Episode is already loaded, just seek to the timestamp
-        console.log(`Seeking to ${timestamp}s in current episode`);
-        seekTo(timestamp);
-      }
-      
-      // Audio position change provides immediate feedback - no toast needed
-      
-    } catch (error) {
-      console.error('Timestamp seek failed:', error);
-      toast.error('Failed to seek to timestamp. Please try again.');
-    } finally {
-      setSeekingTimestamp(null);
-    }
-  };
 
   const handleSearch = async (page: number = 1, isNewSearch: boolean = true) => {
     if (!searchQuery.trim()) return;
-    
+
+    console.log('🔍 handleSearch called:', { page, isNewSearch, isPagination: !isNewSearch });
+
     if (isNewSearch) {
       setIsLoading(true);
       setCurrentPage(1);
     } else {
       setIsLoading(true);
     }
-    
+
     try {
       const offset = (page - 1) * 10; // 10 results per page
-      const results = await searchPodcasts({ 
-        query: searchQuery, 
+      const searchParams = {
+        query: searchQuery,
         offset: offset,
-        limit: 10 
-      });
+        limit: 10,
+        isPagination: !isNewSearch
+      };
+      console.log('📡 Calling searchPodcasts with:', searchParams);
+
+      const results = await searchPodcasts(searchParams);
       
       if (isNewSearch) {
         setPodcastResults(results);
@@ -750,9 +669,9 @@ export default function NewSummary() {
 
           {/* Podcast Results */}
           {podcastResults && !selectedPodcast && (
-            <div className="space-y-6">
-              <div className="space-y-3">
-                <h2 className="text-xl font-semibold text-gray-900 mb-6">
+            <div className="space-y-4 sm:space-y-6">
+              <div className="space-y-2 sm:space-y-3">
+                <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-4 sm:mb-6">
                   Found {podcastResults.pagination?.total || podcastResults.results?.length || 0} podcasts
                 </h2>
                 {podcastResults.results?.map((podcast: any, index: number) => (
@@ -761,39 +680,39 @@ export default function NewSummary() {
                     className="relative group border border-gray-200 bg-white rounded-lg hover:border-blue-500 hover:shadow-lg transition-all duration-300 cursor-pointer"
                     onClick={() => handlePodcastSelect(podcast)}
                   >
-                    <div className="flex items-center justify-between h-20 px-6">
-                      <div className="flex items-center gap-4 flex-1">
+                    <div className="flex items-center justify-between min-h-20 p-3 sm:px-6 sm:h-20">
+                      <div className="flex items-start sm:items-center gap-3 sm:gap-4 flex-1 min-w-0">
                         <img
                           src={podcast.image}
                           alt={podcast.title_original}
-                          className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+                          className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg object-cover flex-shrink-0"
                         />
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors duration-300">
+                          <h3 className="text-sm sm:text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors duration-300 line-clamp-2">
                             {podcast.title_original}
                           </h3>
-                          <p className="text-sm text-gray-600 mt-1">
+                          <p className="text-xs sm:text-sm text-gray-600 mt-1 line-clamp-1">
                             {podcast.total_episodes} episodes • Publisher: {podcast.publisher_original}
                           </p>
                         </div>
                       </div>
 
                       {/* Arrow icon that appears on hover */}
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                        <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden sm:block">
+                        <svg className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
                       </div>
                     </div>
 
-                    {/* Corner brackets that appear on hover */}
-                    <div className="absolute top-3 left-3 w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                      <div className="absolute top-0 left-0 w-4 h-0.5 bg-blue-500" />
-                      <div className="absolute top-0 left-0 w-0.5 h-4 bg-blue-500" />
+                    {/* Corner brackets that appear on hover - hidden on mobile */}
+                    <div className="absolute top-2 left-2 sm:top-3 sm:left-3 w-4 h-4 sm:w-6 sm:h-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden sm:block">
+                      <div className="absolute top-0 left-0 w-3 sm:w-4 h-0.5 bg-blue-500" />
+                      <div className="absolute top-0 left-0 w-0.5 h-3 sm:h-4 bg-blue-500" />
                     </div>
-                    <div className="absolute bottom-3 right-3 w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                      <div className="absolute bottom-0 right-0 w-4 h-0.5 bg-blue-500" />
-                      <div className="absolute bottom-0 right-0 w-0.5 h-4 bg-blue-500" />
+                    <div className="absolute bottom-2 right-2 sm:bottom-3 sm:right-3 w-4 h-4 sm:w-6 sm:h-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300 hidden sm:block">
+                      <div className="absolute bottom-0 right-0 w-3 sm:w-4 h-0.5 bg-blue-500" />
+                      <div className="absolute bottom-0 right-0 w-0.5 h-3 sm:h-4 bg-blue-500" />
                     </div>
                   </div>
                 ))}
@@ -801,17 +720,17 @@ export default function NewSummary() {
 
               {/* Pagination */}
               {podcastResults.pagination && podcastResults.pagination.totalPages > 1 && (
-                <div className="mt-8">
-                  <Pagination
-                    currentPage={currentPage}
-                    totalPages={podcastResults.pagination.totalPages}
-                    onPageChange={(page) => {
-                      setCurrentPage(page);
-                      handleSearch(page, false);
-                    }}
-                    maxVisiblePages={7}
-                  />
-                </div>
+                <ArkPagination
+                  count={podcastResults.pagination.total || 0}
+                  pageSize={10}
+                  currentPage={currentPage}
+                  onPageChange={(page) => {
+                    setCurrentPage(page);
+                    handleSearch(page, false);
+                    // Scroll to top to show first result of new page
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                />
               )}
             </div>
           )}
@@ -1019,7 +938,7 @@ export default function NewSummary() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                               </svg>
                               <h4 className="text-lg font-semibold text-white">AI Generated Summary</h4>
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-white text-xs font-medium rounded-full" style={{ backgroundColor: 'hsl(158, 62%, 50%)' }}>
                                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
@@ -1134,33 +1053,6 @@ Timestamps
                                         <div className="text-white leading-relaxed">
                                           {displayText}
                                         </div>
-                                        {timestamp && formattedTime && (
-                                          <div className="mt-2">
-                                            <button
-                                              onClick={() => {
-                                                handleTimestampSeek(timestamp, episode.id);
-                                              }}
-                                              disabled={seekingTimestamp === timestamp}
-                                              className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold transition-colors shadow-lg ${
-                                                seekingTimestamp === timestamp
-                                                  ? 'bg-blue-400 text-white cursor-not-allowed'
-                                                  : 'bg-blue-600 text-white hover:bg-blue-700'
-                                              }`}
-                                            >
-                                              {seekingTimestamp === timestamp ? (
-                                                <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                  <path className="opacity-75" fill="currentColor" d="m12 2 1 9-1 9a10 10 0 0 1 0-18Z"></path>
-                                                </svg>
-                                              ) : (
-                                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                                  <path d="M8 5v14l11-7z"/>
-                                                </svg>
-                                              )}
-                                              Jump to {formattedTime}
-                                            </button>
-                                          </div>
-                                        )}
                                       </div>
                                     </div>
                                   );
@@ -1183,7 +1075,7 @@ Timestamps
                               {summaries[episode.id].debugInfo && (
                                 <div className="flex items-center gap-2">
                                   {summaries[episode.id].hasTimestamps ? (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-white text-xs font-medium rounded-full" style={{ backgroundColor: 'hsl(158, 62%, 50%)' }}>
                                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                       </svg>
@@ -1306,34 +1198,6 @@ Basic
                                       </span>
                                       <div className="flex-1">
                                         <div className="text-white leading-relaxed">{text}</div>
-                                        {timestamp && formattedTime && (
-                                          <div className="mt-2">
-                                            <button
-                                              onClick={() => {
-                                                handleTimestampSeek(timestamp, episode.id);
-                                              }}
-                                              disabled={seekingTimestamp === timestamp}
-                                              className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold transition-colors shadow-lg ${
-                                                seekingTimestamp === timestamp
-                                                  ? 'bg-blue-400 text-white cursor-not-allowed'
-                                                  : 'bg-blue-600 text-white hover:bg-blue-700'
-                                              }`}
-                                              title={seekingTimestamp === timestamp ? 'Seeking...' : `Jump to ${formattedTime}`}
-                                            >
-                                              {seekingTimestamp === timestamp ? (
-                                                <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                                  <path className="opacity-75" fill="currentColor" d="m12 2 1 9-1 9a10 10 0 0 1 0-18Z"></path>
-                                                </svg>
-                                              ) : (
-                                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                                  <path d="M8 5v14l11-7z"/>
-                                                </svg>
-                                              )}
-                                              Jump to {formattedTime}
-                                            </button>
-                                          </div>
-                                        )}
                                       </div>
                                     </div>
                                   );
@@ -1447,9 +1311,10 @@ Basic
                               onClick={() => handleCopy(episode.id, summaries[episode.id].takeaways ? summaries[episode.id].takeaways.map((t: any) => typeof t === 'object' ? (t.text || JSON.stringify(t)) : String(t)).join('\n• ') : 'No takeaways available', 'takeaways')}
                               className={`inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
                                 copiedStates[episode.id]?.takeaways
-                                  ? 'text-green-700 bg-green-100 border border-green-200'
-                                  : 'text-green-700 bg-green-100 border border-green-200 hover:bg-green-200'
+                                  ? 'text-white border border-transparent'
+                                  : 'text-white border border-transparent hover:opacity-90'
                               }`}
+                              style={{ backgroundColor: 'rgb(48, 207, 149)' }}
                             >
                               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={copiedStates[episode.id]?.takeaways ? "M5 13l4 4L19 7" : "M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"} />
@@ -1465,21 +1330,24 @@ Basic
                 
                 {/* Episodes Pagination */}
                 {episodes?.pagination && (episodes.pagination.hasNext || episodes.pagination.hasPrev) && (
-                  <div className="mt-8">
-                    <Pagination
-                      currentPage={episodePage}
-                      totalPages={Math.ceil((episodes.pagination.total || 0) / (episodes.pagination.currentCount || 10))}
-                      onPageChange={(page) => {
-                        // Only allow navigation to adjacent pages due to API limitations
-                        if (page === episodePage + 1 && episodes.pagination.hasNext) {
-                          handleEpisodeNavigation('next');
-                        } else if (page === episodePage - 1 && episodes.pagination.hasPrev) {
-                          handleEpisodeNavigation('prev');
-                        }
-                        // For non-adjacent pages, we can't navigate directly due to date-based API pagination
-                      }}
-                    />
-                  </div>
+                  <ArkPagination
+                    count={episodes.pagination.total || 0}
+                    pageSize={episodes.pagination.currentCount || 10}
+                    currentPage={episodePage}
+                    onPageChange={(page) => {
+                      // Only allow navigation to adjacent pages due to API limitations
+                      if (page === episodePage + 1 && episodes.pagination.hasNext) {
+                        handleEpisodeNavigation('next');
+                        // Scroll to top to show first result of new page
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      } else if (page === episodePage - 1 && episodes.pagination.hasPrev) {
+                        handleEpisodeNavigation('prev');
+                        // Scroll to top to show first result of new page
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }
+                      // For non-adjacent pages, we can't navigate directly due to date-based API pagination
+                    }}
+                  />
                 )}
                     </>
                   ) : (
@@ -1496,6 +1364,25 @@ Basic
             </div>
           )}
         </div>
+
+        {/* Listen Notes Attribution Footer */}
+        <footer className="mt-12 pt-6 border-t border-gray-200">
+          <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+            <span>Podcast data</span>
+            <a
+              href="https://www.listennotes.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:opacity-100 transition-opacity duration-200"
+            >
+              <img
+                src="/listennotes.webp"
+                alt="Listen Notes"
+                className="h-4 opacity-70 hover:opacity-100 transition-opacity duration-200"
+              />
+            </a>
+          </div>
+        </footer>
       </div>
     </div>
   );
