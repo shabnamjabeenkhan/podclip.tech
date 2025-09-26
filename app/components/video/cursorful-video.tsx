@@ -22,8 +22,8 @@ export function CursorfulVideo({
   const [isMuted, setIsMuted] = useState(false);
   const [showVideo, setShowVideo] = useState(false);
 
-  const videoUrl = "/videos/cursorful-video-1755212276512.mp4";
-  const thumbnailUrl = "/videos/cursorful-video-1755212276512.mp4";
+  const videoUrl = "/videos/cursorful-two.mp4";
+  const thumbnailUrl = "/videos/cursorful-two.mp4";
 
   const handlePlayClick = () => {
     setShowVideo(true);
