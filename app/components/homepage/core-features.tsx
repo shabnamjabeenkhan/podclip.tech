@@ -28,7 +28,7 @@ export default function CoreFeaturesSection() {
     {
       title: "Share & Collaborate",
       description: [
-        "Connect insights with your team,",
+        "Get summaries delivered to your inbox,",
         "share discoveries across platforms,",
         "build collective knowledge together,",
         "and amplify your research impact."
