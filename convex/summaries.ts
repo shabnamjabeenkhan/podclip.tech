@@ -783,6 +783,16 @@ export const generateSummaryWithTimestamps = action({
         });
         console.log(`✅ SUMMARY SAVED: User ${args.userId} | Summary ID: ${summaryId}`);
 
+        // Send email directly after summary generation (if user has email notifications enabled)
+        await ctx.runMutation(internal.sendEmails.checkAndSendSummaryEmail, {
+          userId: args.userId,
+          episodeTitle: args.episodeTitle,
+          summary: geminiResult.summary,
+          takeaways: processedTakeaways.slice(0, 5), // Limit to top 5 for email
+          actionableInsights: shouldGenerateInsights ? geminiResult.actionableInsights?.slice(0, 5) : undefined, // Limit to top 5 for email
+          summaryId: summaryId
+        });
+
         // Increment user's summary count after successful generation
         console.log(`🚀 ABOUT TO INCREMENT: User ${args.userId} summary count`);
         await ctx.runMutation(internal.users.incrementSummaryCount);

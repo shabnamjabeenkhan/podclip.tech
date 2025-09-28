@@ -1380,6 +1380,74 @@ export const canUserAccessChat = query({
   },
 });
 
+export const getUserEmailPreference = query({
+  handler: async (ctx): Promise<{ email_notifications: boolean }> => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return { email_notifications: true }; // Default to enabled
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.subject))
+      .unique();
+
+    if (!user) {
+      return { email_notifications: true }; // Default to enabled
+    }
+
+    const preferences = await ctx.db
+      .query("user_preferences")
+      .withIndex("by_user", (q) => q.eq("user_id", user.tokenIdentifier))
+      .unique();
+
+    return {
+      email_notifications: preferences?.email_notifications ?? true // Default to enabled
+    };
+  },
+});
+
+export const updateEmailNotifications = mutation({
+  args: { enabled: v.boolean() },
+  handler: async (ctx, { enabled }) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.subject))
+      .unique();
+
+    if (!user) throw new Error("User not found");
+
+    // Check if user preferences exist
+    const existingPrefs = await ctx.db
+      .query("user_preferences")
+      .withIndex("by_user", (q) => q.eq("user_id", user.tokenIdentifier))
+      .unique();
+
+    const now = Date.now();
+
+    if (existingPrefs) {
+      // Update existing preferences
+      await ctx.db.patch(existingPrefs._id, {
+        email_notifications: enabled,
+        updated_at: now,
+      });
+    } else {
+      // Create new preferences record
+      await ctx.db.insert("user_preferences", {
+        user_id: user.tokenIdentifier,
+        email_notifications: enabled,
+        created_at: now,
+        updated_at: now,
+      });
+    }
+
+    return { success: true, enabled };
+  },
+});
+
 // System status check - comprehensive quota and subscription debugging
 export const getSystemStatus = query({
   handler: async (ctx): Promise<any> => {
