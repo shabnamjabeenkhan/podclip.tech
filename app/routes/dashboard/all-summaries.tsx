@@ -372,6 +372,7 @@ export default function AllSummaries() {
                             // Clean the text by removing timestamps and numbering patterns
                             text = text
                               .replace(/^\d+\.\s*/, '') // Remove leading numbers like "1. "
+                              .replace(/^\[TIMESTAMP\]\s*/, '') // Remove TIMESTAMP placeholder
                               .replace(/^\[\d{1,2}:\d{2}:\d{2}\]\s*/, '') // Remove timestamps like "[00:02:20] " or "[0:02:20] "
                               .replace(/^\[\d{1,2}:\d{2}\]\s*/, '') // Remove timestamps like "[00:02] " or "[0:02] "
                               .replace(/^\(\d{1,2}:\d{2}:\d{2}\)\s*/, '') // Remove timestamps like "(00:02:20) "

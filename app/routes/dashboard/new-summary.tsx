@@ -1038,6 +1038,13 @@ Timestamps
                                     text = `Key insight ${idx + 1} from this episode`;
                                   }
                                   
+                                  // Clean timestamp placeholders from text
+                                  text = text
+                                    .replace(/^\d+\.\s*/, '') // Remove leading numbers
+                                    .replace(/^\[TIMESTAMP\]\s*/, '') // Remove TIMESTAMP placeholder
+                                    .replace(/^\[\d{1,2}:\d{2}:\d{2}\]\s*/, '') // Remove actual timestamps
+                                    .trim();
+
                                   // Check if this is a placeholder and replace it
                                   const isPlaceholder = text && text.match(/^\[Takeaway \d+\]$/);
                                   const rawDisplayText = isPlaceholder ? generateFixedTakeaways(episode.title)[idx] || text : text;
@@ -1190,6 +1197,13 @@ Basic
                                   if (!text || text.trim() === '' || text.startsWith('{"')) {
                                     text = `Key insight ${index + 1} from this episode`;
                                   }
+
+                                  // Clean timestamp placeholders from text
+                                  text = text
+                                    .replace(/^\d+\.\s*/, '') // Remove leading numbers
+                                    .replace(/^\[TIMESTAMP\]\s*/, '') // Remove TIMESTAMP placeholder
+                                    .replace(/^\[\d{1,2}:\d{2}:\d{2}\]\s*/, '') // Remove actual timestamps
+                                    .trim();
                                   
                                   return (
                                     <div key={index} className="flex items-start gap-3 animate-in fade-in slide-in-from-left-4 duration-300" style={{animationDelay: `${index * 100}ms`}}>

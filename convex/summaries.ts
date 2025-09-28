@@ -1187,12 +1187,16 @@ CRITICAL REQUIREMENTS:
     const data = await response!.json();
     const aiResponse = data.choices[0].message.content;
 
-    // Parse the AI response using structured format - support both ** and ### formats
-    const mainSummaryMatch = aiResponse.match(/(?:\*\*Main Summary\*\*|### Main Summary)\s*([\s\S]*?)(?=(?:\*\*Key Takeaways\*\*|### Key Takeaways)|$)/);
-    const keyTakeawaysMatch = aiResponse.match(/(?:\*\*Key Takeaways\*\*|### Key Takeaways)\s*([\s\S]*?)(?=(?:\*\*Actionable Insights\*\*|### Actionable Insights)|$)/);
-    const actionableInsightsMatch = aiResponse.match(/(?:\*\*Actionable Insights\*\*|### Actionable Insights)\s*([\s\S]*?)(?=$)/);
+    // Parse the AI response using structured format - support **, ###, and ## formats
+    const mainSummaryMatch = aiResponse.match(/(?:\*\*Main Summary\*\*|### Main Summary|## Main Summary)\s*([\s\S]*?)(?=(?:\*\*Key Takeaways\*\*|### Key Takeaways|## Key Takeaways)|$)/);
+    const keyTakeawaysMatch = aiResponse.match(/(?:\*\*Key Takeaways\*\*|### Key Takeaways|## Key Takeaways)\s*([\s\S]*?)(?=(?:\*\*Actionable Insights\*\*|### Actionable Insights|## Actionable Insights)|$)/);
+    const actionableInsightsMatch = aiResponse.match(/(?:\*\*Actionable Insights\*\*|### Actionable Insights|## Actionable Insights)\s*([\s\S]*?)(?=$)/);
 
     let summary = mainSummaryMatch ? mainSummaryMatch[1].trim() : aiResponse;
+
+    // Remove word count annotations that AI might add
+    summary = summary.replace(/\s*\(\d+\s+words?\)\s*$/i, '').trim();
+    summary = summary.replace(/\s*\(Word Count:?\s*\d+\)\s*$/i, '').trim();
     const takeawaysText = keyTakeawaysMatch ? keyTakeawaysMatch[1].trim() : "";
     let actionableInsightsText = actionableInsightsMatch ? actionableInsightsMatch[1].trim() : "";
     // Removed growth strategy, key insight, and reality check from new format
@@ -2273,12 +2277,16 @@ CRITICAL REQUIREMENTS:
     const data = await response!.json();
     const aiResponse = data.choices[0].message.content;
 
-    // Parse the AI response using structured format - support both ** and ### formats
-    const mainSummaryMatch = aiResponse.match(/(?:\*\*Main Summary\*\*|### Main Summary)\s*([\s\S]*?)(?=(?:\*\*Key Takeaways\*\*|### Key Takeaways)|$)/);
-    const keyTakeawaysMatch = aiResponse.match(/(?:\*\*Key Takeaways\*\*|### Key Takeaways)\s*([\s\S]*?)(?=(?:\*\*Actionable Insights\*\*|### Actionable Insights)|$)/);
-    const actionableInsightsMatch = aiResponse.match(/(?:\*\*Actionable Insights\*\*|### Actionable Insights)\s*([\s\S]*?)(?=$)/);
+    // Parse the AI response using structured format - support **, ###, and ## formats
+    const mainSummaryMatch = aiResponse.match(/(?:\*\*Main Summary\*\*|### Main Summary|## Main Summary)\s*([\s\S]*?)(?=(?:\*\*Key Takeaways\*\*|### Key Takeaways|## Key Takeaways)|$)/);
+    const keyTakeawaysMatch = aiResponse.match(/(?:\*\*Key Takeaways\*\*|### Key Takeaways|## Key Takeaways)\s*([\s\S]*?)(?=(?:\*\*Actionable Insights\*\*|### Actionable Insights|## Actionable Insights)|$)/);
+    const actionableInsightsMatch = aiResponse.match(/(?:\*\*Actionable Insights\*\*|### Actionable Insights|## Actionable Insights)\s*([\s\S]*?)(?=$)/);
 
     let summary = mainSummaryMatch ? mainSummaryMatch[1].trim() : aiResponse;
+
+    // Remove word count annotations that AI might add
+    summary = summary.replace(/\s*\(\d+\s+words?\)\s*$/i, '').trim();
+    summary = summary.replace(/\s*\(Word Count:?\s*\d+\)\s*$/i, '').trim();
     const takeawaysText = keyTakeawaysMatch ? keyTakeawaysMatch[1].trim() : "";
     let actionableInsightsText = actionableInsightsMatch ? actionableInsightsMatch[1].trim() : "";
     // Removed growth strategy, key insight, and reality check from new format

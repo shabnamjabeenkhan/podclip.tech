@@ -107,9 +107,16 @@ export function RecentSummaries() {
                       // Handle both old string format and new timestamp format
                       const rawText = typeof takeaway === 'object' ? takeaway.text : takeaway;
                       // Ensure text is always a string to prevent React rendering errors
-                      const text = typeof rawText === 'string' ? rawText :
+                      let text = typeof rawText === 'string' ? rawText :
                                  typeof rawText === 'object' ? JSON.stringify(rawText) :
                                  String(rawText || '');
+
+                      // Clean timestamp placeholders
+                      text = text
+                        .replace(/^\d+\.\s*/, '') // Remove leading numbers
+                        .replace(/^\[TIMESTAMP\]\s*/, '') // Remove TIMESTAMP placeholder
+                        .replace(/^\[\d{1,2}:\d{2}:\d{2}\]\s*/, '') // Remove actual timestamps
+                        .trim();
                       return (
                         <span key={i} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[hsl(158,62%,50%)]/20 text-[hsl(158,62%,50%)]">
                           {text.length > 15 ? `${text.substring(0, 15)}...` : text}

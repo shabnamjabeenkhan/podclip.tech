@@ -721,14 +721,15 @@ Provide only a numbered list (3-5) of the key takeaways with timestamps:
     }
 
     // Parse the response to extract the structured format - support ALL possible formats
-    const mainSummaryMatch = text.match(/(?:\*\*Main Summary\*\*|### Main Summary|###\s*1\.\s*Main Summary|##\s*1\.\s*Main Summary|#\s*1\.\s*Main Summary|1\.\s*Main Summary)\s*([\s\S]*?)(?=(?:\*\*Key Takeaways\*\*|### Key Takeaways|###\s*2\.\s*Key Takeaways|##\s*2\.\s*Key Takeaways|#\s*2\.\s*Key Takeaways|2\.\s*Key Takeaways)|$)/i);
-    const keyTakeawaysMatch = text.match(/(?:\*\*Key Takeaways\*\*|### Key Takeaways|###\s*2\.\s*Key Takeaways|##\s*2\.\s*Key Takeaways|#\s*2\.\s*Key Takeaways|2\.\s*Key Takeaways)\s*([\s\S]*?)(?=(?:\*\*Actionable Insights\*\*|### Actionable Insights|###\s*3\.\s*Actionable Insights|##\s*3\.\s*Actionable Insights|#\s*3\.\s*Actionable Insights|3\.\s*Actionable Insights)|$)/i);
-    const actionableInsightsMatch = text.match(/(?:\*\*Actionable Insights\*\*|### Actionable Insights|###\s*3\.\s*Actionable Insights|##\s*3\.\s*Actionable Insights|#\s*3\.\s*Actionable Insights|3\.\s*Actionable Insights)\s*([\s\S]*?)(?=$)/i);
+    const mainSummaryMatch = text.match(/(?:\*\*Main Summary\*\*|### Main Summary|## Main Summary|###\s*1\.\s*Main Summary|##\s*1\.\s*Main Summary|#\s*1\.\s*Main Summary|1\.\s*Main Summary)\s*([\s\S]*?)(?=(?:\*\*Key Takeaways\*\*|### Key Takeaways|## Key Takeaways|###\s*2\.\s*Key Takeaways|##\s*2\.\s*Key Takeaways|#\s*2\.\s*Key Takeaways|2\.\s*Key Takeaways)|$)/i);
+    const keyTakeawaysMatch = text.match(/(?:\*\*Key Takeaways\*\*|### Key Takeaways|## Key Takeaways|###\s*2\.\s*Key Takeaways|##\s*2\.\s*Key Takeaways|#\s*2\.\s*Key Takeaways|2\.\s*Key Takeaways)\s*([\s\S]*?)(?=(?:\*\*Actionable Insights?\*\*|### Actionable Insights?|## Actionable Insights?|###\s*3\.\s*Actionable Insights?|##\s*3\.\s*Actionable Insights?|#\s*3\.\s*Actionable Insights?|3\.\s*Actionable Insights?)|$)/i);
+    const actionableInsightsMatch = text.match(/(?:\*\*Actionable Insights?\*\*|### Actionable Insights?|## Actionable Insights?|###\s*3\.\s*Actionable Insights?|##\s*3\.\s*Actionable Insights?|#\s*3\.\s*Actionable Insights?|3\.\s*Actionable Insights?)\s*([\s\S]*?)(?=$)/i);
 
     let summary = mainSummaryMatch?.[1]?.trim() || text;
 
     // Remove word count annotations that Gemini might add
     summary = summary.replace(/\s*\(\d+\s+words?\)\s*$/i, '').trim();
+    summary = summary.replace(/\s*\(Word Count:?\s*\d+\)\s*$/i, '').trim();
     const takeawaysText = keyTakeawaysMatch?.[1]?.trim() || '';
     const actionableInsightsText = actionableInsightsMatch?.[1]?.trim() || '';
 
