@@ -33,7 +33,7 @@ export default function IntegrationsSection({
               <span className="block">Business Breakthroughs</span>
             </h1>
             <p className="mx-auto mb-4 sm:mb-6 md:mb-8 mt-3 sm:mt-4 md:mt-6 max-w-lg sm:max-w-xl text-sm sm:text-base md:text-lg text-muted-foreground px-4 sm:px-2 md:px-0">
-              Turn podcasts into clear summaries with key takeaways and business actionable insights—delivered instantly.
+              Turn podcasts into clear actionable insights delivered instantly.
             </p>
             
             {/* CTA Button with enhanced styling */}

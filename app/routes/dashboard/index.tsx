@@ -42,12 +42,12 @@ export default function Page() {
   );
   
   // Show upgrade prompt for free users who are close to or at their limit
-  const showUpgradePrompt = userQuota && !subscriptionStatus?.hasActiveSubscription && 
-    (userQuota.summaries.limit === 5) && (userQuota.summaries.remaining <= 1 || !userQuota.summaries.canGenerate);
+  const showUpgradePrompt = userQuota && !subscriptionStatus?.hasActiveSubscription &&
+    (userQuota.summaries.limit === 1) && (userQuota.summaries.remaining <= 1 || !userQuota.summaries.canGenerate);
   
   // Show general upgrade banner for all free users
-  const showUpgradeBanner = userQuota && !subscriptionStatus?.hasActiveSubscription && 
-    (userQuota.summaries.limit === 5) && !showUpgradePrompt;
+  const showUpgradeBanner = userQuota && !subscriptionStatus?.hasActiveSubscription &&
+    (userQuota.summaries.limit === 1) && !showUpgradePrompt;
   
   return (
     <div className="flex flex-1 flex-col">
@@ -56,20 +56,20 @@ export default function Page() {
           {/* Upgrade Prompt for Free Users */}
           {showUpgradePrompt && (
             <div className="px-4 lg:px-6">
-              <div className="bg-white border border-gray-200 rounded-lg p-4">
+              <div className="bg-[#26282B] border border-gray-600 rounded-lg p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
-                      <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center">
+                      <svg className="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                       </svg>
                     </div>
                     <div>
-                      <h3 className="font-medium text-gray-900">
+                      <h3 className="font-medium text-white">
                         {userQuota.summaries.canGenerate ? "Almost there!" : "Upgrade to continue"}
                       </h3>
-                      <p className="text-sm text-gray-600">
-                        {userQuota.summaries.canGenerate 
+                      <p className="text-sm text-gray-300">
+                        {userQuota.summaries.canGenerate
                           ? `You have ${userQuota.summaries.remaining} summary remaining. Upgrade for unlimited access.`
                           : "You've used your free summary. Upgrade to generate more summaries."}
                       </p>
@@ -77,7 +77,7 @@ export default function Page() {
                   </div>
                   <Button
                     onClick={handleUpgradeClick}
-                    className="px-4 py-2 text-sm font-medium"
+                    className="px-4 py-2 text-sm font-medium bg-white text-black hover:bg-gray-100"
                   >
                     Upgrade
                   </Button>
@@ -90,8 +90,8 @@ export default function Page() {
           {showUpgradeBanner && (
             <div className="px-4 lg:px-6">
               <Banner
-                variant="muted"
-                className="bg-sidebar text-sidebar-foreground"
+                variant="default"
+                className="!bg-slate-800 !text-white !border-0"
                 layout="complex"
                 icon={
                   <div
@@ -110,7 +110,7 @@ export default function Page() {
                     >
                       Upgrade Now
                     </Button>
-                    <p className="text-xs text-center text-muted-foreground">Starting at $12.99/mo</p>
+                    <p className="text-xs text-center text-gray-300">Starting at $12.99/mo</p>
                   </div>
                 }
               >
