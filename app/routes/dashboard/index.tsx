@@ -71,7 +71,7 @@ export default function Page() {
                       <p className="text-sm text-gray-600">
                         {userQuota.summaries.canGenerate 
                           ? `You have ${userQuota.summaries.remaining} summary remaining. Upgrade for unlimited access.`
-                          : "You've used all your free summaries. Upgrade to generate summaries."}
+                          : "You've used your free summary. Upgrade to generate more summaries."}
                       </p>
                     </div>
                   </div>
@@ -117,7 +117,7 @@ export default function Page() {
                 <div className="space-y-0.5">
                   <p className="text-sm font-medium">Unlock Your Full Potential</p>
                   <p className="text-sm text-muted-foreground">
-                    You've used {userQuota.summaries.used} of {userQuota.summaries.limit} free summaries. Upgrade for more AI-powered insights!
+                    You've used {userQuota.summaries.used} of {userQuota.summaries.limit} free {userQuota.summaries.limit === 1 ? 'summary' : 'summaries'}. Upgrade for more AI-powered insights!
                   </p>
                 </div>
               </Banner>

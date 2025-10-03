@@ -56,7 +56,7 @@ export default function IntegrationsSection({
           <div className="mx-auto mt-6 sm:mt-8 md:mt-12 max-w-3xl">
             <div className="text-center mb-4 sm:mb-6">
               <p className="text-sm sm:text-base md:text-lg font-medium text-muted-foreground px-4 sm:px-2 md:px-0">
-                ✨ Get your first 5 summaries absolutely free!
+                ✨ Get your first summary free!
               </p>
             </div>
           </div>

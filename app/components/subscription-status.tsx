@@ -240,8 +240,8 @@ export default function SubscriptionStatus() {
           <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
             <p className="text-sm text-blue-800 font-medium mb-1">Free Plan Includes:</p>
             <ul className="text-sm text-blue-700 space-y-1">
-              <li>• {userQuota?.plan === 'free' ? 5 : (userQuota?.summaries?.limit || 5)} AI-generated summaries per month</li>
-              <li>• {userQuota?.plan === 'free' ? 10 : (userQuota?.searches?.limit || 10)} podcast searches per month</li>
+              <li>• {userQuota?.plan === 'free' ? 1 : (userQuota?.summaries?.limit || 1)} AI-generated summaries per month</li>
+              <li>• {userQuota?.plan === 'free' ? 3 : (userQuota?.searches?.limit || 3)} podcast searches per month</li>
               <li>• Key takeaways extraction</li>
               <li>• Basic export features</li>
             </ul>

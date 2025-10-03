@@ -532,49 +532,57 @@ export default function NewSummary() {
           {/* Quota Indicator */}
           {userQuota && (
             <div className={`mb-8 p-4 rounded-lg border-2 ${
-              !userQuota.summaries?.canGenerate 
-                ? 'bg-red-50 border-red-200' 
-                : userQuota.summaries?.remaining !== -1 && userQuota.summaries?.remaining <= 2
-                  ? 'bg-yellow-50 border-yellow-200'
-                  : 'bg-green-50 border-green-200'
+              userQuota.plan === 'free'
+                ? 'bg-green-50 border-green-200'
+                : !userQuota.summaries?.canGenerate
+                  ? 'bg-red-50 border-red-200'
+                  : userQuota.summaries?.remaining !== -1 && userQuota.summaries?.remaining <= 2
+                    ? 'bg-yellow-50 border-yellow-200'
+                    : 'bg-green-50 border-green-200'
             }`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className={`w-3 h-3 rounded-full ${
-                    !userQuota.summaries?.canGenerate 
-                      ? 'bg-red-500' 
-                      : userQuota.summaries?.remaining !== -1 && userQuota.summaries?.remaining <= 2
-                        ? 'bg-yellow-500'
-                        : 'bg-green-500'
+                    userQuota.plan === 'free'
+                      ? 'bg-green-500'
+                      : !userQuota.summaries?.canGenerate
+                        ? 'bg-red-500'
+                        : userQuota.summaries?.remaining !== -1 && userQuota.summaries?.remaining <= 2
+                          ? 'bg-yellow-500'
+                          : 'bg-green-500'
                   }`}></div>
                   <div>
                     <p className={`font-medium ${
-                      !userQuota.summaries?.canGenerate 
-                        ? 'text-red-800' 
-                        : userQuota.summaries?.remaining !== -1 && userQuota.summaries?.remaining <= 2
-                          ? 'text-yellow-800'
-                          : 'text-green-800'
+                      userQuota.plan === 'free'
+                        ? 'text-green-800'
+                        : !userQuota.summaries?.canGenerate
+                          ? 'text-red-800'
+                          : userQuota.summaries?.remaining !== -1 && userQuota.summaries?.remaining <= 2
+                            ? 'text-yellow-800'
+                            : 'text-green-800'
                     }`}>
                       {userQuota.summaries?.limit === -1 
                         ? "Unlimited summaries" 
                         : `${userQuota.summaries?.used || 0}/${userQuota.summaries?.limit || 0} summaries used`}
                     </p>
                     <p className={`text-sm ${
-                      !userQuota.summaries?.canGenerate 
-                        ? 'text-red-600' 
-                        : userQuota.summaries?.remaining !== -1 && userQuota.summaries?.remaining <= 2
-                          ? 'text-yellow-600'
-                          : 'text-green-600'
+                      userQuota.plan === 'free'
+                        ? 'text-green-600'
+                        : !userQuota.summaries?.canGenerate
+                          ? 'text-red-600'
+                          : userQuota.summaries?.remaining !== -1 && userQuota.summaries?.remaining <= 2
+                            ? 'text-yellow-600'
+                            : 'text-green-600'
                     }`}>
                       {!userQuota.summaries?.canGenerate 
-                        ? (userQuota.summaries?.limit === 5 ? "Quota exhausted. Upgrade to continue." : "Monthly quota exhausted. Resets next month.")
+                        ? (userQuota.summaries?.limit === 1 ? "Quota exhausted. Upgrade to continue." : "Monthly quota exhausted. Resets next month.")
                         : userQuota.summaries?.limit === -1 
                           ? "You have unlimited summaries with your current plan"
                           : `${userQuota.summaries?.remaining} summaries remaining${userQuota.plan === 'monthly' ? ' this month' : ''}`}
                     </p>
                   </div>
                 </div>
-                {!userQuota.summaries?.canGenerate && userQuota.summaries?.limit === 5 && (
+                {!userQuota.summaries?.canGenerate && userQuota.summaries?.limit === 1 && (
                   <a 
                     href="/pricing"
                     className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
@@ -589,49 +597,57 @@ export default function NewSummary() {
           {/* Search Quota Indicator */}
           {userQuota && (
             <div className={`mb-8 p-4 rounded-lg border-2 ${
-              !userQuota.searches?.canSearch
-                ? 'bg-red-50 border-red-200'
-                : userQuota.searches?.remaining !== -1 && userQuota.searches?.remaining <= 2
-                  ? 'bg-yellow-50 border-yellow-200'
-                  : 'bg-green-50 border-green-200'
+              userQuota.plan === 'free'
+                ? 'bg-green-50 border-green-200'
+                : !userQuota.searches?.canSearch
+                  ? 'bg-red-50 border-red-200'
+                  : userQuota.searches?.remaining !== -1 && userQuota.searches?.remaining <= 2
+                    ? 'bg-yellow-50 border-yellow-200'
+                    : 'bg-green-50 border-green-200'
             }`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className={`w-3 h-3 rounded-full ${
-                    !userQuota.searches?.canSearch
-                      ? 'bg-red-500'
-                      : userQuota.searches?.remaining !== -1 && userQuota.searches?.remaining <= 2
-                        ? 'bg-yellow-500'
-                        : 'bg-green-500'
+                    userQuota.plan === 'free'
+                      ? 'bg-green-500'
+                      : !userQuota.searches?.canSearch
+                        ? 'bg-red-500'
+                        : userQuota.searches?.remaining !== -1 && userQuota.searches?.remaining <= 2
+                          ? 'bg-yellow-500'
+                          : 'bg-green-500'
                   }`}></div>
                   <div>
                     <p className={`font-medium ${
-                      !userQuota.searches?.canSearch
-                        ? 'text-red-800'
-                        : userQuota.searches?.remaining !== -1 && userQuota.searches?.remaining <= 2
-                          ? 'text-yellow-800'
-                          : 'text-green-800'
+                      userQuota.plan === 'free'
+                        ? 'text-green-800'
+                        : !userQuota.searches?.canSearch
+                          ? 'text-red-800'
+                          : userQuota.searches?.remaining !== -1 && userQuota.searches?.remaining <= 2
+                            ? 'text-yellow-800'
+                            : 'text-green-800'
                     }`}>
                       {userQuota.searches?.limit === -1
                         ? "Unlimited searches"
                         : `${userQuota.searches?.used || 0}/${userQuota.searches?.limit || 0} searches used`}
                     </p>
                     <p className={`text-sm ${
-                      !userQuota.searches?.canSearch
-                        ? 'text-red-600'
-                        : userQuota.searches?.remaining !== -1 && userQuota.searches?.remaining <= 2
-                          ? 'text-yellow-600'
-                          : 'text-green-600'
+                      userQuota.plan === 'free'
+                        ? 'text-green-600'
+                        : !userQuota.searches?.canSearch
+                          ? 'text-red-600'
+                          : userQuota.searches?.remaining !== -1 && userQuota.searches?.remaining <= 2
+                            ? 'text-yellow-600'
+                            : 'text-green-600'
                     }`}>
                       {!userQuota.searches?.canSearch
-                        ? (userQuota.searches?.limit === 10 ? "Search quota exhausted. Upgrade to continue." : "Monthly search quota exhausted. Resets next month.")
+                        ? (userQuota.searches?.limit === 3 ? "Search quota exhausted. Upgrade to continue." : "Monthly search quota exhausted. Resets next month.")
                         : userQuota.searches?.limit === -1
                           ? "You have unlimited searches with your current plan"
                           : `${userQuota.searches?.remaining} searches remaining${userQuota.plan === 'monthly' ? ' this month' : ''}`}
                     </p>
                   </div>
                 </div>
-                {!userQuota.searches?.canSearch && userQuota.searches?.limit === 10 && (
+                {!userQuota.searches?.canSearch && userQuota.searches?.limit === 3 && (
                   <a
                     href="/pricing"
                     className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"

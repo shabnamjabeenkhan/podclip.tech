@@ -215,7 +215,7 @@ export const generateSummaryWithTimestamps = action({
     
     if (!quotaStatus.canGenerate) {
       throw new Error(`Quota exceeded. You have used ${quotaStatus.summaries.used}/${quotaStatus.summaries.limit} summaries. ${
-        quotaStatus.summaries.limit === 5 ? "Upgrade to get more summaries." : "Your quota will reset next month."
+        quotaStatus.summaries.limit === 1 ? "Upgrade to get more summaries." : "Your quota will reset next month."
       }`);
     }
 
@@ -1868,7 +1868,7 @@ export const generateSummary = action({
     
     if (!quotaStatus.canGenerate) {
       throw new Error(`Quota exceeded. You have used ${quotaStatus.summaries.used}/${quotaStatus.summaries.limit} summaries. ${
-        quotaStatus.summaries.limit === 5 ? "Upgrade to get more summaries." : "Your quota will reset next month."
+        quotaStatus.summaries.limit === 1 ? "Upgrade to get more summaries." : "Your quota will reset next month."
       }`);
     }
 

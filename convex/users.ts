@@ -110,8 +110,8 @@ export const getUserQuota = query({
     if (!user) {
       // Return default quota for new users instead of throwing error
       return {
-        summaries: { used: 0, limit: 5, remaining: 5, canGenerate: true },
-        searches: { used: 0, limit: 10, remaining: 10, canSearch: true }, // Free users: 10 searches
+        summaries: { used: 0, limit: 1, remaining: 1, canGenerate: true },
+        searches: { used: 0, limit: 3, remaining: 3, canSearch: true }, // Free users: 3 searches
         timeSavedMinutes: 0,
         plan: "free",
         resetDate: undefined,
@@ -133,7 +133,7 @@ export const getUserQuota = query({
         const currentSummaryCount = user.summary_count || 0;
         const currentSearchCount = user.search_count || 0;
         const freeLimit = 5;
-        const freeSearchLimit = 10;
+        const freeSearchLimit = 3;
         
         console.log(`🐛 DEBUG: User ${user.tokenIdentifier} has plan "${user.plan}" but no active subscription. Summary count: ${currentSummaryCount}, Search count: ${currentSearchCount}`);
         console.log(`📊 SUBSCRIPTION CHECK PATH: Returning free quotas with actual usage counts`);
@@ -184,7 +184,7 @@ export const getUserQuota = query({
 
     // Determine quota limits based on plan
     const summaryLimits = {
-      free: 5,        // 5 summaries for free users
+      free: 1,        // 1 summary for free users
       basic: 20,      // 20 summaries per month (Basic Plan - $12.99)
       pro: 40,        // 40 summaries per month (Pro Plan - $20.99)
       premium: 60,    // 60 summaries per month (Premium Plan - $50.00)
@@ -192,7 +192,7 @@ export const getUserQuota = query({
     };
 
     const searchLimits = {
-      free: 10,       // 10 searches for free users
+      free: 3,        // 3 searches for free users
       basic: 25,      // 25 searches per month (Basic Plan - $12.99)
       pro: 50,        // 50 searches per month (Pro Plan - $20.99)
       premium: 70,    // 70 searches per month (Premium Plan - $50.00)
@@ -397,7 +397,7 @@ export const checkAndResetQuota = internalMutation({
 
     // Return current quota status
     const summaryLimits = {
-      free: 5,        // 5 summaries for free users
+      free: 1,        // 1 summary for free users
       basic: 20,      // 20 summaries per month (Basic Plan - $12.99)
       pro: 40,        // 40 summaries per month (Pro Plan - $20.99)
       premium: 60,    // 60 summaries per month (Premium Plan - $50.00)
@@ -405,7 +405,7 @@ export const checkAndResetQuota = internalMutation({
     };
 
     const searchLimits = {
-      free: 10,       // 10 searches for free users
+      free: 3,        // 3 searches for free users
       basic: 25,      // 25 searches per month (Basic Plan - $12.99)
       pro: 50,        // 50 searches per month (Pro Plan - $20.99)
       premium: 70,    // 70 searches per month (Premium Plan - $50.00)
@@ -462,7 +462,7 @@ export const checkUserAccessAndQuota = internalMutation({
       
       if (!subscriptionStatus.hasActiveSubscription) {
         // COMPLETE BLOCK - no access to paid features without active subscription
-        throw new Error(`❌ SUBSCRIPTION REQUIRED: ${subscriptionStatus.reason}. You must have an active, paid subscription to ${args.featureType === "summary" ? "generate summaries" : "search for podcasts"} beyond the free tier limits (5 summaries, 10 searches).`);
+        throw new Error(`❌ SUBSCRIPTION REQUIRED: ${subscriptionStatus.reason}. You must have an active, paid subscription to ${args.featureType === "summary" ? "generate summaries" : "search for podcasts"} beyond the free tier limits (1 summary, 3 searches).`);
       }
 
       // Check if quota reset is needed (ONLY for paid plans with active subscription)
@@ -486,7 +486,7 @@ export const checkUserAccessAndQuota = internalMutation({
 
     // Determine quota limits
     const summaryLimits = {
-      free: 5,        // 5 summaries for free users
+      free: 1,        // 1 summary for free users
       basic: 20,      // 20 summaries per month (Basic Plan - $12.99)
       pro: 40,        // 40 summaries per month (Pro Plan - $20.99)
       premium: 60,    // 60 summaries per month (Premium Plan - $50.00)
@@ -494,7 +494,7 @@ export const checkUserAccessAndQuota = internalMutation({
     };
 
     const searchLimits = {
-      free: 10,       // 10 searches for free users
+      free: 3,        // 3 searches for free users
       basic: 25,      // 25 searches per month (Basic Plan - $12.99)
       pro: 50,        // 50 searches per month (Pro Plan - $20.99)
       premium: 70,    // 70 searches per month (Premium Plan - $50.00)
@@ -1326,7 +1326,7 @@ export const canUserAccessChat = query({
 
     // Determine quota limits based on plan
     const quotaLimits = {
-      free: 5,        // 5 summaries for free users
+      free: 1,        // 1 summary for free users
       basic: 20,      // 20 summaries per month (Basic Plan - $12.99)
       pro: 40,        // 40 summaries per month (Pro Plan - $20.99)
       premium: 60,    // 60 summaries per month (Premium Plan - $50.00)
@@ -1502,7 +1502,7 @@ export const getSystemStatus = query({
         quotaLogicPath: user.plan !== "free" && !subscriptionStatus?.hasActiveSubscription ? "subscription-failed" : "normal-flow"
       },
       systemRules: {
-        freeTrialLimits: "5 summaries, 10 searches (ONE-TIME signup benefit only)",
+        freeTrialLimits: "1 summary, 3 searches (ONE-TIME signup benefit only)",
         freeTrialPolicy: "After free trial exhausted, user MUST upgrade to continue using service",
         noFreeRenewals: "Free users NEVER get quota resets - must pay to continue",
         paidUserRequirement: "Active subscription required for all paid features",
