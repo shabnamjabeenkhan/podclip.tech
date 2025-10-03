@@ -21,14 +21,14 @@ export default function CoreFeaturesSection() {
         "Transform hours of audio into insights,",
         "extract key takeaways automatically,",
         "generate summaries in seconds,",
-        "and never miss important points again."
+        "and never miss insights again."
       ],
       icon: <Brain className="w-8 h-8 text-white" />
     },
     {
       title: "Share & Collaborate",
       description: [
-        "Get summaries delivered to your inbox,",
+        "Get insights delivered to your inbox,",
         "share discoveries across platforms,",
         "build collective knowledge together,",
         "and amplify your research impact."

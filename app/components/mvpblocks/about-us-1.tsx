@@ -36,25 +36,25 @@ const defaultValues: AboutUsProps['values'] = [
   {
     title: 'Precision',
     description:
-      'Our AI captures every episode\'s core ideas and moments, condensing even the most complex podcasts into clear, concise summaries for easy reference.',
+      'Our AI doesn\'t just summarize—it pinpoints the 5 most actionable insights from every episode. Each is distilled into clear, outcome-driven guidance, so you skip the noise and get straight to what matters.',
     icon: 'Target',
   },
   {
     title: 'Intelligence',
     description:
-      'Cutting-edge AI extracts actionable insights directly from episode content, complete with real-life examples and practical scenarios. Each insight includes why it matters and specific implementation steps derived from the podcast discussion.',
+      'Every insight comes with a why it matters explanation and a real-life example. This makes each takeaway immediately practical, showing you exactly how to apply podcast wisdom to real business challenges.',
     icon: 'Lightbulb',
   },
   {
     title: 'Efficiency',
     description:
-      'Save time—instantly receive digestible highlights and key points, so you spend less time listening and more time executing your next big idea.',
+      'Stop wasting hours listening for hidden gems. Instantly receive curated insights and implementation steps so you can spend less time consuming content and more time executing on growth.',
     icon: 'Rocket',
   },
   {
     title: 'Entrepreneur Focus',
     description:
-      'Tailored for founders and business builders, Podclip delivers on-demand market insights and growth opportunities to keep you one step ahead.',
+      'Built for founders, leaders, and builders—Podclip delivers growth strategies and proven tactics from top podcasts, keeping you one step ahead of the competition.',
     icon: 'Globe',
   },
 ];

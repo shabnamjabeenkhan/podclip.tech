@@ -30,7 +30,7 @@ export default function IntegrationsSection({
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight text-white mb-3 sm:mb-4 md:mb-6 leading-[0.9] px-2 sm:px-0 max-w-full word-wrap break-words">
               <span className="block">Zero in on What Matters:</span>
               <span className="block">Turn Podcast Hours into</span>
-              <span className="block">Business Breakthroughs</span>
+              <span className="block">Growth Strategies</span>
             </h1>
             <p className="mx-auto mb-4 sm:mb-6 md:mb-8 mt-3 sm:mt-4 md:mt-6 max-w-lg sm:max-w-xl text-sm sm:text-base md:text-lg text-muted-foreground px-4 sm:px-2 md:px-0">
               Turn podcasts into clear actionable insights delivered instantly.
