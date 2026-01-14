@@ -189,6 +189,94 @@ export const searchEpisodes = action({
   },
 });
 
+/**
+ * Search episodes within a specific podcast (FREE - no quota consumption)
+ * Uses Listen Notes /search with ocid parameter to scope results to a single podcast
+ */
+export const searchEpisodesWithinPodcast = action({
+  args: {
+    query: v.string(),
+    podcastId: v.string(),
+    offset: v.optional(v.number()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    // Auth check - require authenticated user but NO quota check
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const offset = args.offset ?? 0;
+    const limit = Math.min(args.limit ?? 10, 10); // Cap at 10 results per page
+
+    const apiKey = process.env.LISTEN_NOTES_API_KEY ?? process.env.LISTEN_API_KEY;
+    if (!apiKey) {
+      throw new Error("Listen Notes API key missing. Set LISTEN_NOTES_API_KEY or LISTEN_API_KEY.");
+    }
+
+    // Use ocid parameter to scope search to specific podcast
+    const url =
+      `https://listen-api.listennotes.com/api/v2/search` +
+      `?q=${encodeURIComponent(args.query)}` +
+      `&type=episode` +
+      `&ocid=${args.podcastId}` +
+      `&offset=${offset}` +
+      `&page_size=${limit}` +
+      `&safe_mode=0`;
+
+    console.log(`🔍 searchEpisodesWithinPodcast: query="${args.query}", podcastId=${args.podcastId}, offset=${offset}`);
+
+    const response = await fetch(url, {
+      headers: {
+        "X-ListenAPI-Key": apiKey,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`API request failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    // Normalize results to match getPodcastEpisodes shape
+    const episodes = (data.results ?? []).map((ep: any) => ({
+      id: ep.id,
+      title: ep.title_original ?? ep.title ?? "",
+      description: ep.description_original ?? ep.description ?? "",
+      audio: ep.audio,
+      audio_length_sec: ep.audio_length_sec ?? 0,
+      pub_date_ms: ep.pub_date_ms ?? 0,
+      thumbnail: ep.thumbnail,
+      podcast_id: ep.podcast_id,
+    }));
+
+    const total = data.total ?? episodes.length;
+    const nextOffset = typeof data.next_offset === "number" ? data.next_offset : null;
+
+    console.log(`📊 searchEpisodesWithinPodcast: found ${episodes.length} episodes, total=${total}`);
+
+    // NOTE: No quota increment - this search is FREE
+    return {
+      episodes,
+      pagination: {
+        offset,
+        limit,
+        total,
+        hasNext:
+          typeof data.next_offset === "number" &&
+          data.next_offset >= 0 &&
+          episodes.length > 0 &&
+          offset + episodes.length < total,
+        hasPrev: offset > 0,
+        nextOffset,
+        currentPage: Math.floor(offset / limit) + 1,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  },
+});
+
 export const getEpisodeTranscript = action({
   args: { episodeId: v.string() },
   handler: async (_, args) => {

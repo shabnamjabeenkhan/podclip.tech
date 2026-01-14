@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { EnhancedAudioPlayer } from "~/components/audio/enhanced-audio-player";
@@ -7,7 +7,17 @@ import { toast } from "sonner";
 import { ArkPagination } from "~/components/ui/ark-pagination";
 import { Button as NeonButton } from "~/components/ui/neon-button";
 import { CategoryList, type Category } from "~/components/ui/category-list";
+import { Search } from "lucide-react";
 import type { Route } from "./+types/new-summary";
+
+// Simple debounce utility
+function debounce<T extends (...args: any[]) => any>(fn: T, delay: number) {
+  let timeoutId: ReturnType<typeof setTimeout>;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => fn(...args), delay);
+  };
+}
 
 // Utility function to break summary text into readable paragraphs
 function formatSummaryIntoParagraphs(content: string): string[] {
@@ -72,9 +82,18 @@ export default function NewSummary() {
   const [insightsEnabled, setInsightsEnabled] = useState<{[key: string]: boolean}>({});
   const [genreDetections, setGenreDetections] = useState<{[key: string]: any}>({});
   
+  // Episode search within podcast state (FREE - no quota)
+  const [episodeSearchQuery, setEpisodeSearchQuery] = useState("");
+  const [episodeSearchResults, setEpisodeSearchResults] = useState<any | null>(null);
+  const [isEpisodeSearchActive, setIsEpisodeSearchActive] = useState(false);
+  const [episodeSearchPage, setEpisodeSearchPage] = useState(1);
+  const [episodeSearchLoading, setEpisodeSearchLoading] = useState(false);
+  const [episodeSearchError, setEpisodeSearchError] = useState<string | null>(null);
+  
   const { userId, isSignedIn } = useAuth();
   const searchPodcasts = useAction(api.podcasts.searchPodcasts);
   const getPodcastEpisodes = useAction(api.podcasts.getPodcastEpisodes);
+  const searchEpisodesWithinPodcast = useAction(api.podcasts.searchEpisodesWithinPodcast);
   const generateSummaryWithTimestamps = useAction(api.summaries.generateSummaryWithTimestamps);
   const checkExistingSummary = useAction(api.summaries.checkExistingSummary);
   const detectGenreAndSuggestInsights = useAction(api.summaries.detectGenreAndSuggestInsights);
@@ -306,6 +325,13 @@ export default function NewSummary() {
     // Reset episode pagination state when selecting new podcast
     setEpisodePage(1);
     setEpisodePaginationHistory([]);
+    
+    // Clear any previous episode search state
+    setEpisodeSearchQuery("");
+    setEpisodeSearchResults(null);
+    setIsEpisodeSearchActive(false);
+    setEpisodeSearchPage(1);
+    setEpisodeSearchError(null);
 
     try {
       const podcastData = await getPodcastEpisodes({ podcastId: podcast.id });
@@ -458,6 +484,67 @@ export default function NewSummary() {
 
     await Promise.allSettled(detectionPromises);
   };
+
+  // Episode search within podcast (FREE - no quota)
+  const EPISODE_PAGE_SIZE = 10;
+
+  const performEpisodeSearch = useCallback(async (page = 1) => {
+    if (!selectedPodcast) return;
+    const trimmed = episodeSearchQuery.trim();
+    if (trimmed.length < 2) return;
+
+    setEpisodeSearchLoading(true);
+    setEpisodeSearchError(null);
+
+    try {
+      const offset = (page - 1) * EPISODE_PAGE_SIZE;
+      const result = await searchEpisodesWithinPodcast({
+        query: trimmed,
+        podcastId: selectedPodcast.id,
+        offset,
+        limit: EPISODE_PAGE_SIZE,
+      });
+
+      setEpisodeSearchResults(result);
+      setIsEpisodeSearchActive(true);
+      setEpisodeSearchPage(page);
+
+      // Reuse existing helper functions on new episodes array
+      if (userQuota?.userId && result.episodes) {
+        await checkExistingSummariesForEpisodes(result.episodes);
+      }
+      if (result.episodes) {
+        await detectGenreForEpisodes(result.episodes);
+      }
+    } catch (err: any) {
+      console.error("Episode search failed:", err);
+      setEpisodeSearchError(err.message ?? "Failed to search episodes. Please try again.");
+    } finally {
+      setEpisodeSearchLoading(false);
+    }
+  }, [selectedPodcast, episodeSearchQuery, searchEpisodesWithinPodcast, userQuota?.userId, checkExistingSummariesForEpisodes, detectGenreForEpisodes]);
+
+  // Debounced version to prevent rapid API calls
+  const debouncedEpisodeSearch = useMemo(
+    () => debounce((page: number) => void performEpisodeSearch(page), 300),
+    [performEpisodeSearch]
+  );
+
+  // Clear episode search and return to base episode list
+  const handleClearEpisodeSearch = useCallback(() => {
+    setEpisodeSearchQuery("");
+    setEpisodeSearchResults(null);
+    setIsEpisodeSearchActive(false);
+    setEpisodeSearchPage(1);
+    setEpisodeSearchError(null);
+  }, []);
+
+  // Handle episode search pagination
+  const handleEpisodeSearchPageChange = useCallback((page: number) => {
+    if (!episodeSearchResults?.pagination) return;
+    if (page === episodeSearchPage) return;
+    debouncedEpisodeSearch(page);
+  }, [episodeSearchResults?.pagination, episodeSearchPage, debouncedEpisodeSearch]);
 
 
   const handleGenerateSummary = async (episode: any) => {
@@ -756,7 +843,12 @@ export default function NewSummary() {
             <div className="space-y-6">
               <div className="flex items-center gap-4">
                 <button
-                  onClick={() => {setSelectedPodcast(null); setEpisodes(null);}}
+                  onClick={() => {
+                    setSelectedPodcast(null); 
+                    setEpisodes(null);
+                    // Clear episode search state when going back
+                    handleClearEpisodeSearch();
+                  }}
                   className="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium transition-colors"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -767,10 +859,69 @@ export default function NewSummary() {
               </div>
 
               {episodes?.episodes && (
-                <div className="mb-4">
-                  <h3 className="text-xl font-semibold text-gray-900">
-                    Episodes ({episodes?.pagination?.total || episodes?.total_episodes || episodes?.episodes?.length || 0})
-                  </h3>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-xl font-semibold text-gray-900">
+                      Episodes ({isEpisodeSearchActive && episodeSearchResults 
+                        ? episodeSearchResults.pagination.total 
+                        : (episodes?.pagination?.total || episodes?.total_episodes || episodes?.episodes?.length || 0)})
+                    </h3>
+                  </div>
+
+                  {/* Episode Search Bar (FREE - no quota) */}
+                  <div className="w-full md:w-[60%] max-w-xl flex flex-col sm:flex-row gap-3">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        value={episodeSearchQuery}
+                        onChange={(e) => setEpisodeSearchQuery(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            debouncedEpisodeSearch(1);
+                          }
+                        }}
+                        placeholder="Search episodes by title, topic, guest..."
+                        className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                      />
+                      <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    </div>
+
+                    <button
+                      onClick={() => debouncedEpisodeSearch(1)}
+                      disabled={episodeSearchQuery.trim().length < 2 || episodeSearchLoading || !selectedPodcast}
+                      className="px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                    >
+                      {episodeSearchLoading ? "Searching..." : "Search episodes"}
+                    </button>
+                  </div>
+
+                  {/* Search meta / clear controls */}
+                  {isEpisodeSearchActive && episodeSearchResults && (
+                    <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-gray-600 mt-2">
+                      <span>
+                        Found {episodeSearchResults.pagination.total} episode{episodeSearchResults.pagination.total !== 1 ? 's' : ''} matching "{episodeSearchQuery.trim()}"
+                      </span>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleClearEpisodeSearch}
+                          className="text-blue-600 hover:text-blue-800 font-medium"
+                        >
+                          Clear search
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Episode search error */}
+                  {episodeSearchError && (
+                    <p className="text-sm text-red-600 mt-1">{episodeSearchError}</p>
+                  )}
+
+                  {/* Hint for short queries */}
+                  {episodeSearchQuery.length > 0 && episodeSearchQuery.trim().length < 2 && (
+                    <p className="text-sm text-gray-500 mt-1">Enter at least 2 characters to search</p>
+                  )}
                 </div>
               )}
               
@@ -805,7 +956,40 @@ export default function NewSummary() {
                   </div>
                 ) : episodes?.episodes ? (
                   <>
-                    {episodes?.episodes?.map((episode: any, index: number) => (
+                    {/* Empty state for search with no results */}
+                    {isEpisodeSearchActive && episodeSearchResults && episodeSearchResults.episodes.length === 0 && (
+                      <div className="flex items-center justify-center py-12">
+                        <div className="text-center">
+                          <div className="text-4xl mb-3">🔍</div>
+                          <p className="text-gray-800 font-semibold">
+                            No episodes found for "{episodeSearchQuery.trim()}"
+                          </p>
+                          <p className="text-gray-500 mt-1">
+                            Try different keywords or browse all episodes.
+                          </p>
+                          <div className="mt-4 flex flex-wrap justify-center gap-3">
+                            <button
+                              onClick={handleClearEpisodeSearch}
+                              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                            >
+                              Show All Episodes
+                            </button>
+                            <button
+                              onClick={() => { setSelectedPodcast(null); setEpisodes(null); handleClearEpisodeSearch(); }}
+                              className="flex items-center gap-2 text-gray-700 hover:text-gray-900"
+                            >
+                              <span>←</span> Back to Podcasts
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Episode list - use search results or base episodes */}
+                    {(isEpisodeSearchActive && episodeSearchResults?.episodes?.length > 0 
+                      ? episodeSearchResults.episodes 
+                      : (!isEpisodeSearchActive ? episodes?.episodes : [])
+                    )?.map((episode: any, index: number) => (
                   <div key={index} className="bg-card text-card-foreground p-4 rounded-lg border shadow-sm">
                     <div className="space-y-4">
                       {/* Episode Info */}
@@ -1358,8 +1542,20 @@ Basic
                   </div>
                 ))}
                 
-                {/* Episodes Pagination */}
-                {episodes?.pagination && (episodes.pagination.hasNext || episodes.pagination.hasPrev) && (
+                {/* Episodes Pagination - Search mode (offset-based) vs Base mode (date-based) */}
+                {isEpisodeSearchActive && episodeSearchResults?.pagination && episodeSearchResults.pagination.totalPages > 1 ? (
+                  // Search results pagination (offset-based, supports direct page jumps)
+                  <ArkPagination
+                    count={episodeSearchResults.pagination.total || 0}
+                    pageSize={EPISODE_PAGE_SIZE}
+                    currentPage={episodeSearchPage}
+                    onPageChange={(page) => {
+                      handleEpisodeSearchPageChange(page);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                  />
+                ) : !isEpisodeSearchActive && episodes?.pagination && (episodes.pagination.hasNext || episodes.pagination.hasPrev) ? (
+                  // Base episodes pagination (date-based, only adjacent pages)
                   <ArkPagination
                     count={episodes.pagination.total || 0}
                     pageSize={episodes.pagination.currentCount || 10}
@@ -1378,7 +1574,7 @@ Basic
                       // For non-adjacent pages, we can't navigate directly due to date-based API pagination
                     }}
                   />
-                )}
+                ) : null}
                     </>
                   ) : (
                     <div className="flex items-center justify-center py-12">
